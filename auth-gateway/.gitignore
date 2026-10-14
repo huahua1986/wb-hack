@@ -1,0 +1,15 @@
+data/
+client-profiles/
+client-profile-backups/
+client-settings-backups/
+.env
+.env.*
+!.env.example
+dist/
+data-backups/
+deployment-staging/
+*.sqlite*
+mock-data/
+mock-logs/
+local-real-logs/
+local-test-credentials.json

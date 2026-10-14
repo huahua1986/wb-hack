@@ -1,0 +1,38 @@
+# Runtime data, credentials and local configuration
+.DS_Store
+node_modules/
+.env
+.env.*
+!.env.example
+*.sqlite*
+*.pid
+*.log
+*.jsonl
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+/certs/
+/auth-gateway/data/
+/auth-gateway/mock-data/
+/auth-gateway/*-backups/
+/auth-gateway/client-profiles/
+/auth-gateway/deployment-staging/
+/auth-gateway/local-test-credentials.json
+logs/
+mock-logs/
+local-real-logs/
+
+# Captured client requests, reverse-engineering dumps and machine acceptance records
+# Only the bounded fixtures under auth-gateway/test/fixtures are versioned.
+/evidence/
+
+# Generated applications, releases and local model artifacts
+dist/
+*.app/
+*.dmg
+*.asar
+*.gguf
+/ollama-local/models/
+/ollama-local/source/

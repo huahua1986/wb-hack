@@ -1,0 +1,32 @@
+[
+  {
+    "start": "function toConnectorManifest(",
+    "end": "function readConnectorExtension(",
+    "code": "function toConnectorManifest(e,t){if(!isRecord$1(e)||!Array.isArray(e.plugins))return null;let n=[],r=new Map;for(let i of e.plugins){if(!isRecord$1(i)||typeof i.name!=`string`||!i.name.trim())continue;let e=i.name.trim(),a=t.get(e);if(!a?.pluginManifest)continue;let{auth_injection_rules:o,...s}=readConnectorExtension(a.pluginManifest);if(Array.isArray(o))for(let e of o)isRecord$1(e)&&typeof e.id==`string`&&e.id&&!r.has(e.id)&&r.set(e.id,e);let c=firstString(i.description,a.pluginManifest.description,s.description),l=firstString(i.version,a.pluginManifest.version),u=a.pluginManifest.$schema===`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`?{type:a.mcp?`mcp`:a.cli?`cli`:`skill-only`}:{},d={...s,...u,name:firstString(s.name)??e,description:c??``,source:e,...l?{version:l}:{}};applyOneIdAuthFromMcp(d,a?.mcp??null),n.push(d)}return{name:firstString(e.name)??`workbuddy-connectors`,description:firstString(e.description)??``,...isRecord$1(e.owner)?{owner:e.owner}:{},...firstString(e.version)?{version:firstString(e.version)}:{},connectors:n,auth_injection_rules:[...r.values()]}}"
+  },
+  {
+    "start": "function readConnectorExtension(",
+    "end": "function firstString(",
+    "code": "function readConnectorExtension(e){let t=e?.extensions;if(!isRecord$1(t))return{};let n=e?.$schema===`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`?getWorkbuddyPluginExtension(e):t[wd];if(isRecord$1(n)&&e?.$schema===`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`){let e=isRecord$1(n.display)?n.display:{},t=isRecord$1(n.auth)?n.auth:{},r=isRecord$1(n.policy)?n.policy:{},{mode:i,injectionRules:a,...o}=t,s=getPluginMcpSetup(n),c=isRecord$1(n.insecureHttpMcpServers)?Object.values(n.insecureHttpMcpServers):[],l=isRecord$1(r.mcpServers)?Object.values(r.mcpServers):[],u=[...Object.values(s),...l].some(e=>isRecord$1(e)&&e.preAuth===`cli`);return{...r,...e,...o,...i?{auth_mode:i}:isRecord$1(n.urlTemplatedMcpServers)||[...Object.values(s),...c].some(e=>isRecord$1(e)&&isRecord$1(e.auth)&&e.auth.type===`token`)?{auth_mode:`token`}:{},...a?{auth_injection_rules:a}:{},...u?{preAuth:`cli`}:{}}}return!isRecord$1(n)||!isRecord$1(n.connector)?{}:n.connector}"
+  },
+  {
+    "start": "function firstString(",
+    "end": "function applyOneIdAuthFromMcp(",
+    "code": "function firstString(...e){for(let t of e)if(typeof t==`string`&&t.trim())return t}"
+  },
+  {
+    "start": "function applyOneIdAuthFromMcp(",
+    "end": "function applyLegacyPreAuth(",
+    "code": "function applyOneIdAuthFromMcp(e,t){if(t&&isRecord$1(t.mcpServers))for(let n of Object.values(t.mcpServers)){let t=n.injectOneIdAuth;if(isRecord$1(t)&&(e.auth_mode||=`oneid-token`,!e.oneid_app_type&&typeof t.appType==`string`&&t.appType.trim()&&(e.oneid_app_type=t.appType.trim()),e.oneid_app_type))return}}"
+  },
+  {
+    "start": "function getWorkbuddyPluginExtension(",
+    "end": "var Ua=",
+    "code": "function getWorkbuddyPluginExtension(e){let t=isPluginRecord(e.extensions)?e.extensions[`ai.workbuddy`]:void 0;return isPluginRecord(t)&&(t.schemaVersion===void 0||t.schemaVersion===`1.0.0`)?t:{}}"
+  },
+  {
+    "start": "function getPluginMcpSetup(",
+    "end": "function templateVariables(",
+    "code": "function getPluginMcpSetup(e){return Object.hasOwn(e,`setup`)?isPluginRecord(e.setup)&&isPluginRecord(e.setup.mcpServers)?e.setup.mcpServers:{}:isPluginRecord(e.mcp)&&isPluginRecord(e.mcp.servers)?e.mcp.servers:{}}"
+  }
+]

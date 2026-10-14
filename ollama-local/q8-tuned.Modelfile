@@ -1,0 +1,3 @@
+FROM qwen3.8:27b-q8-original-20261013
+PARAMETER num_ctx 65536
+PARAMETER num_batch 512

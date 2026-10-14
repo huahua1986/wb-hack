@@ -1,0 +1,24 @@
+{
+  "name": "workbuddy-local-auth-gateway",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node src/main.mjs",
+    "test": "node --test test/*.test.mjs",
+    "user": "node scripts/user.mjs",
+    "session": "node scripts/session.mjs",
+    "audit": "node scripts/audit.mjs",
+    "catalog": "node scripts/catalog.mjs",
+    "content:seed": "node scripts/seed-private-content.mjs",
+    "backup": "node scripts/backup.mjs",
+    "restore": "node scripts/restore.mjs",
+    "health": "node scripts/health.mjs",
+    "package": "node scripts/package.mjs",
+    "client:prepare": "node scripts/prepare-client.mjs",
+    "client:launch": "node scripts/launch-workbuddy.mjs",
+    "preview": "node test/preview.mjs",
+    "mock": "node scripts/mock-gateway.mjs"
+  }
+}

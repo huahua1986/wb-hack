@@ -1,0 +1,18 @@
+# Replace the domain and certificate paths, and use the same HTTPS origin in
+# GATEWAY_PUBLIC_URL. This forwards authentication only; it has no model upstream.
+server {
+    listen 443 ssl;
+    server_name auth.example.com;
+    ssl_certificate /etc/ssl/auth.example.com/fullchain.pem;
+    ssl_certificate_key /etc/ssl/auth.example.com/privkey.pem;
+    client_max_body_size 16k;
+    location / {
+        proxy_pass http://127.0.0.1:8787;
+        proxy_set_header Host auth.example.com;
+        # Set GATEWAY_TRUSTED_PROXY_IPS=127.0.0.1,::1 in the backend.
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For "";
+        proxy_http_version 1.1;
+        proxy_read_timeout 20s;
+    }
+}

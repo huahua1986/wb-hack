@@ -1,0 +1,16 @@
+{
+  "models": [
+    {
+      "id": "YOUR_ACTUAL_MODEL_ID",
+      "name": "自定义模型",
+      "vendor": "Custom",
+      "url": "https://YOUR_MODEL_HOST/v1",
+      "apiKey": "${LOCAL_MODEL_API_KEY}",
+      "useCustomProtocol": false,
+      "supportsToolCall": true,
+      "supportsImages": false,
+      "disabled": false
+    }
+  ],
+  "availableModels": ["YOUR_ACTUAL_MODEL_ID"]
+}

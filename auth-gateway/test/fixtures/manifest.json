@@ -1,0 +1,33 @@
+[
+  {
+    "file": "AccountScopedExternalLinkAuthenticationProvider.js",
+    "source": "evidence/auth-slices/AccountScopedExternalLinkAuthenticationProvider.js",
+    "sha256": "000a545dfcf63ab1b589991ed03923133a0253315bd43398208976dd2efd7cc8",
+    "extraction": "unchanged captured slice"
+  },
+  {
+    "file": "expert-consumers.json",
+    "source": "evidence/content-client-contracts/experts/consumers.json",
+    "sha256": "d5ed6a5dcca118f0ac571b9820dd629b3c9dfdaf4cabe5caecc82a0df25f035a",
+    "extraction": "unchanged captured slice"
+  },
+  {
+    "file": "skill-consumers.json",
+    "source": "evidence/content-client-contracts/skills/consumers.json",
+    "sha256": "18f7e08527ee3a7d36b760092b9b4a5a9b7e42524de5e1d7a7e0f0c207a5062f",
+    "extraction": "unchanged captured slice"
+  },
+  {
+    "file": "cli-process-env.js",
+    "source": "evidence/private-ca-audit-20261013/source/main/cli-process-env.js",
+    "sha256": "1527e7a28bea590c5b74116f64bd3a91e37c53f207c3c271fed1e7b59c90d048",
+    "extraction": "unchanged captured slice"
+  },
+  {
+    "file": "connector-consumers.json",
+    "source": "evidence/cloud-protocol-audit/source/main/tar.js",
+    "sourceSha256": "e252bf614cb59ffa96e16ad0ab8cfd8796f5ab920289ca9bd67376e1d9836cf3",
+    "sha256": "13e38e0ea0011c190fd4aa244fed21eeadc5730d9f2ffa0cfe09314e4661b866",
+    "extraction": "six unchanged function slices; bulk module excluded"
+  }
+]

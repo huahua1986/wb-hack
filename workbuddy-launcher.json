@@ -1,0 +1,11 @@
+{
+  "gateway": "http://127.0.0.1:8787",
+  "appPath": "/Applications/WorkBuddy.app",
+  "productName": "企业AI工作台",
+  "welcomeTitle": "企业AI工作台，我帮你",
+  "mode": "development",
+  "nodeExecutable": "",
+  "reuseDevelopmentAuth": false,
+  "replaceProductionLogin": false,
+  "caCertificate": ""
+}

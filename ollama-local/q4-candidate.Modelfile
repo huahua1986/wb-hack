@@ -1,0 +1,3 @@
+FROM ./models/qwen3.8-27b-q4-k-m.gguf
+PARAMETER num_ctx 65536
+PARAMETER num_batch 1024
