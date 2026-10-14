@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createGateway } from './gateway.mjs';
 import { csrfToken, constantEquals, hashPassword, isLoginState, randomSecret } from './credentials.mjs';
 import { completePage, expiredPage } from './html.mjs';
+import { SessionConflictError } from './store.mjs';
 
 function mockForm(state, csrf) {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WorkBuddy 本地 Mock 登录</title><link rel="stylesheet" href="/login/style.css"></head><body><main><section class="card"><div class="brand"><span class="mark" aria-hidden="true">W</span>WORKBUDDY 本地 MOCK</div><h1>模拟登录</h1><p>使用一次性本地测试身份完成客户端登录。这里不连接真实账号系统，无需输入密码。</p><form method="post" action="/mock/login"><input type="hidden" name="state" value="${state}"><input type="hidden" name="csrf" value="${csrf}"><button type="submit">以 Mock 测试账号登录</button></form><p class="hint">仅限本机协议验证，不代表腾讯账号或模型权限。</p></section></main></body></html>`;
@@ -70,8 +71,8 @@ export async function createMockGateway(config, { logger = () => {}, now = Date.
         status = 303; res.writeHead(status, { Location: '/login/complete' }); res.end();
       } finally { pendingGrants--; }
     } catch (error) {
-      status = error.status || 500;
-      if (!res.headersSent) failure(res, status, error.status ? error.message : 'Mock 服务暂不可用'); else res.end();
+      status = error instanceof SessionConflictError ? 409 : error.status || 500;
+      if (!res.headersSent) failure(res, status, status === 409 || error.status ? error.message : 'Mock 服务暂不可用'); else res.end();
     } finally { logger({ method: req.method, route: url.pathname, status, mode: 'mock' }); }
   };
   app.server.on('request', (req, res) => mockRequest(req, res).catch(() => { if (!res.headersSent) failure(res, 500, 'Mock 服务暂不可用'); else res.end(); }));

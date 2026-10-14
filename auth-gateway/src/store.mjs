@@ -4,6 +4,13 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { isAccessToken, isLoginState, isRefreshToken, newAccessToken, newRefreshToken, normalizeUsername, randomSecret, seal, tokenHash, unseal } from './credentials.mjs';
 
+export class SessionConflictError extends Error {
+  constructor() {
+    super('账号已有有效会话，请联系管理员释放会话后再登录。关闭客户端不会自动释放会话。');
+    this.name = 'SessionConflictError';
+  }
+}
+
 export class AuthStore {
   constructor(config, now = Date.now, { allowMockData = false } = {}) {
     this.config = config;
@@ -117,6 +124,34 @@ export class AuthStore {
     });
   }
 
+  reconcileActiveSessions() {
+    return this.transaction(() => {
+      this.expireLoginDeliveries();
+      const sessions = this.db.prepare(`SELECT s.id,s.user_id,u.username FROM sessions s JOIN users u ON u.id=s.user_id
+        WHERE s.revoked=0 AND s.refresh_expires>? AND u.disabled=0
+        ORDER BY s.user_id,s.last_seen_at DESC,s.created_at DESC,s.id DESC`).all(this.now());
+      const retainedUsers = new Set();
+      let revoked = 0;
+      for (const session of sessions) {
+        if (!retainedUsers.has(session.user_id)) { retainedUsers.add(session.user_id); continue; }
+        this.db.prepare("UPDATE sessions SET revoked=1,revoked_at=?,revoke_reason='single_session_upgrade',previous_delivery=NULL WHERE id=?").run(this.now(), session.id);
+        this.db.prepare('DELETE FROM login_states WHERE session_id=?').run(session.id);
+        this.audit('session_revoked_single_session', session.username, session.id);
+        revoked++;
+      }
+      return revoked;
+    });
+  }
+
+  expireLoginDeliveries() {
+    const expired = this.db.prepare(`SELECT s.id,u.username FROM login_states l JOIN sessions s ON s.id=l.session_id
+      JOIN users u ON u.id=s.user_id WHERE l.expires<=? AND s.revoked=0`).all(this.now());
+    for (const session of expired) {
+      this.db.prepare("UPDATE sessions SET revoked=1,revoked_at=?,revoke_reason='login_delivery_expired',previous_delivery=NULL WHERE id=?").run(this.now(), session.id);
+      this.audit('session_expired_before_delivery', session.username, session.id);
+    }
+  }
+
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE');
     try { const result = fn(); this.db.exec('COMMIT'); return result; }
@@ -187,10 +222,16 @@ export class AuthStore {
   }
 
   grantLogin(state, userId, { expectedPasswordHash, actor = 'browser', sourceIp = null } = {}) {
-    return this.transaction(() => {
+    const granted = this.transaction(() => {
       const pending = this.getLoginState(state);
       const user = this.db.prepare('SELECT id,username,password_hash FROM users WHERE id=? AND disabled=0').get(userId);
       if (!pending || pending.delivery || !user || (expectedPasswordHash !== undefined && user.password_hash !== expectedPasswordHash)) return false;
+      this.expireLoginDeliveries();
+      const active = this.db.prepare('SELECT id FROM sessions WHERE user_id=? AND revoked=0 AND refresh_expires>? LIMIT 1').get(userId, this.now());
+      if (active) {
+        this.audit('login_rejected_active_session', user.username, active.id, { actor, sourceIp });
+        return 'session_active';
+      }
       const id = randomUUID(), expires = this.now() + this.config.refreshTtlSeconds * 1000;
       // credentialPair creates an access row, so establish its FK parent first.
       this.db.prepare('INSERT INTO sessions(id,user_id,refresh_hash,refresh_expires,created_at,last_seen_at) VALUES(?,?,?,?,?,?)').run(id, userId, 'pending_' + randomSecret(), expires, this.now(), this.now());
@@ -200,6 +241,9 @@ export class AuthStore {
       this.audit('login_succeeded', user.username, id, { actor, sourceIp });
       return true;
     });
+    // Commit the rejection audit before reporting the conflict to the caller.
+    if (granted === 'session_active') throw new SessionConflictError();
+    return granted;
   }
 
   pollLogin(state) {
@@ -262,13 +306,16 @@ export class AuthStore {
   }
 
   cleanup() {
-    const now = this.now();
-    this.db.prepare('DELETE FROM login_states WHERE expires<=?').run(now);
-    this.db.prepare('DELETE FROM access_tokens WHERE expires<=?').run(now);
-    this.db.prepare('DELETE FROM sessions WHERE refresh_expires<=?').run(now);
-    this.db.prepare('UPDATE sessions SET previous_delivery=NULL WHERE previous_refresh_until<=?').run(now);
-    this.db.prepare('DELETE FROM rate_limits WHERE expires<=?').run(now);
-    this.db.prepare('DELETE FROM audit_events WHERE time<?').run(now - (this.config.auditRetentionDays || 90) * 86400000);
+    this.transaction(() => {
+      const now = this.now();
+      this.expireLoginDeliveries();
+      this.db.prepare('DELETE FROM login_states WHERE expires<=?').run(now);
+      this.db.prepare('DELETE FROM access_tokens WHERE expires<=?').run(now);
+      this.db.prepare('DELETE FROM sessions WHERE refresh_expires<=?').run(now);
+      this.db.prepare('UPDATE sessions SET previous_delivery=NULL WHERE previous_refresh_until<=?').run(now);
+      this.db.prepare('DELETE FROM rate_limits WHERE expires<=?').run(now);
+      this.db.prepare('DELETE FROM audit_events WHERE time<?').run(now - (this.config.auditRetentionDays || 90) * 86400000);
+    });
   }
 
   close() { this.db.close(); }

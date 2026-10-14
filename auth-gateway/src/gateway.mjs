@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { AuthStore } from './store.mjs';
+import { AuthStore, SessionConflictError } from './store.mjs';
 import { constantEquals, csrfToken, hashPassword, isLoginState, normalizeUsername, randomSecret, verifyPassword } from './credentials.mjs';
 import { compatibilityConfiguration } from './compatibility.mjs';
 import { completePage, expiredPage, loginCss, loginPage } from './html.mjs';
@@ -65,7 +65,10 @@ async function body(req, form = false) {
 export async function createGateway(config, { now = Date.now, logger = () => {}, allowMockData = false } = {}) {
   const store = new AuthStore(config, now, { allowMockData });
   let catalog;
-  try { catalog = new CatalogStore(config, { db: store.db, key: store.key, now }); }
+  try {
+    store.reconcileActiveSessions();
+    catalog = new CatalogStore(config, { db: store.db, key: store.key, now });
+  }
   catch (error) { store.close(); throw error; }
   const content = new ContentHttp({ config, store, catalog, now });
   const limiter = new RateLimiter(store);
@@ -97,7 +100,7 @@ export async function createGateway(config, { now = Date.now, logger = () => {},
       const ip = requestIp(req, config.trustedProxyIPs);
       if (req.method === 'GET' && route === '/healthz') {
         store.db.prepare('SELECT 1').get();
-        return json(res, 200, 0, { status: 'ok', service: 'workbuddy-auth', schema: 2, contentSchema: 1 });
+        return json(res, 200, 0, { status: 'ok', service: 'workbuddy-auth', schema: 2, contentSchema: 1, sessionPolicy: 'single-session-reject' });
       }
       if (req.method === 'GET' && route === '/login/style.css') {
         res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8' }); return res.end(loginCss);
@@ -139,7 +142,12 @@ export async function createGateway(config, { now = Date.now, logger = () => {},
           store.audit('login_failed', username || null, null, { actor: 'browser', sourceIp: ip });
           return html(res, 401, loginPage(input.state, input.csrf, '账号或密码不正确'));
         }
-        if (!store.grantLogin(input.state, user.id, { expectedPasswordHash: user.password_hash, sourceIp: ip })) return html(res, 410, expiredPage());
+        try {
+          if (!store.grantLogin(input.state, user.id, { expectedPasswordHash: user.password_hash, sourceIp: ip })) return html(res, 410, expiredPage());
+        } catch (error) {
+          if (error instanceof SessionConflictError) return html(res, 409, loginPage(input.state, input.csrf, error.message));
+          throw error;
+        }
         res.setHeader('Set-Cookie', `${cookieName}=; Max-Age=0; ${cookieOptions}`);
         res.writeHead(303, { Location: '/login/complete' }); return res.end();
       }

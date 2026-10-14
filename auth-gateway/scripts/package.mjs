@@ -13,7 +13,7 @@ const files = [
   ...['config', 'credentials', 'client-ip', 'admin-context', 'store', 'gateway', 'compatibility', 'html', 'main', 'server-lock', 'backup', 'catalog-store', 'package-archive', 'content-http', 'content-protocol', 'connector-catalog'].map(name => 'src/' + name + '.mjs'),
   ...['user', 'session', 'audit', 'backup', 'restore', 'health', 'catalog', 'seed-private-content'].map(name => 'scripts/' + name + '.mjs'),
   ...fs.readdirSync(path.join(root, 'deploy')).filter(name => /\.(sh|mjs|md|example)$/.test(name)).map(name => 'deploy/' + name),
-  ...['helpers.mjs', 'gateway.test.mjs', 'user-cli.test.mjs', 'backend-security.test.mjs', 'backup.test.mjs', 'catalog-store.test.mjs', 'content-http.test.mjs'].map(name => 'test/' + name),
+  ...['helpers.mjs', 'gateway.test.mjs', 'single-session.test.mjs', 'user-cli.test.mjs', 'backend-security.test.mjs', 'backup.test.mjs', 'catalog-store.test.mjs', 'content-http.test.mjs'].map(name => 'test/' + name),
   'README.md', '.env.example',
 ];
 const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-auth-package-')), bundle = path.join(stage, 'workbuddy-auth');

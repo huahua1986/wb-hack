@@ -35,29 +35,32 @@ test('proxy clients have separate persisted limits across server/store restarts'
 });
 
 test('administration revokes one or all sessions including pending delivery, without exposing tokens', async t => {
-  const client = await startGateway(t), first = await completeLogin(client), second = await completeLogin(client);
+  const client = await startGateway(t), first = await completeLogin(client);
   const scripts = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../scripts');
   const run = (script, args, input = '') => {
     const result = spawnSync(process.execPath, [path.join(scripts, script + '.mjs'), ...args], { encoding: 'utf8', input, env: { ...process.env, GATEWAY_DATA_DIR: client.config.dataDir, WORKBUDDY_ADMIN_ACTOR: 'test-operator' } });
     assert.equal(result.status, 0, result.stderr);
-    for (const value of [first.accessToken, first.refreshToken, second.accessToken, TEST_PASSWORD]) assert.ok(!result.stdout.includes(value) && !result.stderr.includes(value));
+    for (const value of [first.accessToken, first.refreshToken, TEST_PASSWORD]) assert.ok(!result.stdout.includes(value) && !result.stderr.includes(value));
     return result.stdout;
   };
   const sessions = run('session', ['list', 'tester']).trim().split('\n').map(JSON.parse);
-  assert.equal(sessions.length, 2);
+  assert.equal(sessions.length, 1);
   client.app.store.addUser('other-user', 'Other user', await hashPassword('other-user-fixture-password'));
   assert.throws(() => client.app.store.revokeUserSessions('other-user', { sessionId: sessions[0].id }), /belong/);
+  const otherState = client.app.store.createLoginState();
+  client.app.store.grantLogin(otherState, client.app.store.getUser('other-user').id);
+  const other = client.app.store.pollLogin(otherState).auth;
   assert.equal(JSON.parse(run('session', ['revoke', 'tester', '--id', sessions[0].id])).revoked, 1);
-  assert.equal(client.app.store.listSessions('tester').length, 1);
-  const valid = client.app.store.account(first.accessToken) ? first : second;
-  const revoked = valid === first ? second : first;
-  assert.equal(client.app.store.refresh(revoked.refreshToken), undefined);
+  assert.equal(client.app.store.listSessions('tester').length, 0);
+  assert.equal(client.app.store.refresh(first.refreshToken), undefined);
+  assert.equal(client.app.store.account(other.accessToken).username, 'other-user');
   const pending = client.app.store.createLoginState();
   assert.equal(client.app.store.grantLogin(pending, client.app.store.getUser('tester').id), true);
-  assert.equal(JSON.parse(run('session', ['revoke', 'tester', '--all'])).revoked, 2);
+  assert.equal(JSON.parse(run('session', ['revoke', 'tester', '--all'])).revoked, 1);
   assert.equal(client.app.store.pollLogin(pending).status, 'expired');
-  assert.equal(client.app.store.account(valid.accessToken), undefined);
-  assert.equal(client.app.store.refresh(valid.refreshToken), undefined);
+  assert.equal(client.app.store.account(first.accessToken), undefined);
+  assert.equal(client.app.store.refresh(first.refreshToken), undefined);
+  assert.equal(client.app.store.account(other.accessToken).username, 'other-user');
   run('user', ['disable', 'tester']);
   run('user', ['enable', 'tester']);
   run('user', ['set-display-name', 'tester', '--display-name', 'Renamed user']);

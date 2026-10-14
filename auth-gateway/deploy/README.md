@@ -1,6 +1,6 @@
 # WorkBuddy 私有认证与内容后端部署
 
-支持 Linux、systemd、Nginx、Node.js 24+，单机单进程 SQLite。账号、会话、内容目录和审计通过 SSH/服务器终端管理；浏览器提供真实账号密码登录。0.3.0 增加专家/技能/连接器目录和真实版本安装包，客户端认证协议保持兼容，模型 URL 和 API Key 独立配置。
+支持 Linux、systemd、Nginx、Node.js 24+，单机单进程 SQLite。账号、会话、内容目录和审计通过 SSH/服务器终端管理；浏览器提供真实账号密码登录。0.3.0 增加私有内容分发，0.3.1 增加单账号单会话，客户端认证协议保持兼容，模型 URL 和 API Key 独立配置。
 
 ## 构建交付包
 
@@ -12,15 +12,15 @@ npm test
 npm run package
 ```
 
-输出 `dist/workbuddy-auth-0.3.0-<内容哈希>.tar.gz` 和相邻 `.sha256`。发布包只包含后端代码、管理命令、部署脚本、文档和独立后端测试，不包含数据库、密钥、Mock、客户端 profile、模型 Key、逆向证据或 WorkBuddy 安装包。原版 provider 回放和启动器测试在开发工作区执行。校验文件可检出修改/损坏，不能替代可信来源或数字签名。
+输出 `dist/workbuddy-auth-0.3.1-<内容哈希>.tar.gz` 和相邻 `.sha256`。发布包只包含后端代码、管理命令、部署脚本、文档和独立后端测试，不包含数据库、密钥、Mock、客户端 profile、模型 Key、逆向证据或 WorkBuddy 安装包。原版 provider 回放和启动器测试在开发工作区执行。校验文件可检出修改/损坏，不能替代可信来源或数字签名。
 
 ## 首次部署
 
 目标建议使用 Debian/Ubuntu 的 systemd 主机，预装 Node.js 24+、Nginx、Bash、tar、useradd、runuser 和 flock，并运行 systemd 和 Nginx 服务。准备正式 HTTPS 域名、DNS 和有效证书。脚本不下载运行时、不申请证书、不修改防火墙；Nginx 必须预先启动，安装只在验证配置后 reload。
 
 ```sh
-sha256sum -c workbuddy-auth-0.3.0-<内容哈希>.tar.gz.sha256
-tar -xzf workbuddy-auth-0.3.0-<内容哈希>.tar.gz
+sha256sum -c workbuddy-auth-0.3.1-<内容哈希>.tar.gz.sha256
+tar -xzf workbuddy-auth-0.3.1-<内容哈希>.tar.gz
 cd workbuddy-auth
 node deploy/verify-package.mjs
 sudo bash deploy/install.sh \
@@ -79,6 +79,8 @@ sudo workbuddy-auth audit --username feiz --limit 100
 密码在终端隐藏输入并确认，不放在命令行。至少 15 个 Unicode 字符、最多 1024 UTF-8 字节，拒绝少量明显弱口令；内置名单不是完整泄漏密码库。新记录使用 scrypt N=32768、r=8、p=3，旧 p=1 记录仍可验证，应通过重置密码升级。参数参考 [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)，计算耗时与并发仍需在目标服务器评估。
 
 停用、重置密码、会话撤销立即阻止账号查询与刷新，也阻止领取已绑定的未交付会话。重新启用不恢复旧会话，修改显示名称保留会话。会话列表不返回 token 或哈希。解锁只清除该账号登录尝试计数，来源 IP 保护仍有效。WorkBuddy 客户端退出不一定通知后端，因此不等于服务端撤销。
+
+0.3.1 默认拒绝已有有效会话账号的新登录。升级启动会保留旧库中最近使用的一条会话，撤销同账号的其他会话并记录审计，安装脚本会先备份。用上面的 session revoke 命令释放名额后即可重新登录；关闭客户端不会自动释放。所有电脑必须连接同一个后端。详情见 [单会话说明](../README.md#单账号单会话与管理员释放)。回滚旧代码会恢复旧的多会话签发行为，已撤销的会话不会恢复。
 
 公网不开放管理 API。服务器管理权限由 sudo/root 控制，账号操作降权到服务账号，原 sudo 用户记录为操作人。审计包含账号、操作人、会话 ID 和登录来源 IP，默认保留 90 天，可配置 `GATEWAY_AUDIT_RETENTION_DAYS`；它不是抵御 root 篡改的不可变日志。限流计数保存在 SQLite，重启后仍有效。
 
