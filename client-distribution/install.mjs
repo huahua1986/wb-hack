@@ -7,6 +7,19 @@ import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { KIND, LABEL, clientPaths, privateDirectory, verifyPayload, json, launchAgent, initializeState } from './lib.mjs';
 
+function stopLoginAgent(run = execFileSync) {
+  const service = 'gui/' + process.getuid() + '/' + LABEL;
+  try { run('/bin/launchctl', ['bootout', service], { stdio: 'ignore' }); }
+  catch (error) { if (![3, 113].includes(error.status)) throw error; }
+}
+export function registerLoginAgent(agent, { run = execFileSync, wait = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms) } = {}) {
+  stopLoginAgent(run);
+  // launchd can acknowledge bootout before the old persistent service has finished unregistering.
+  for (let attempt = 0; ; attempt++) {
+    try { run('/bin/launchctl', ['bootstrap', 'gui/' + process.getuid(), agent], { stdio: 'pipe' }); return; }
+    catch (error) { if (error.status !== 5 || attempt >= 9) throw error; wait(200); }
+  }
+}
 export function installPayload(source, { home = os.homedir(), register = true } = {}) {
   const manifest = verifyPayload(source), paths = clientPaths(home);
   privateDirectory(paths.base);
@@ -29,11 +42,7 @@ export function installPayload(source, { home = os.homedir(), register = true } 
   } finally { if (fs.existsSync(staged)) fs.rmSync(staged, { recursive: true, force: true }); }
   privateDirectory(path.dirname(paths.agent));
   fs.writeFileSync(paths.agent, launchAgent(paths.program, manifest.caFile), { mode: 0o600 });
-  if (register) {
-    const service = 'gui/' + process.getuid() + '/' + LABEL;
-    try { execFileSync('/bin/launchctl', ['bootout', service], { stdio: 'ignore' }); } catch (error) { if (![3, 113].includes(error.status)) throw error; }
-    execFileSync('/bin/launchctl', ['bootstrap', 'gui/' + process.getuid(), paths.agent], { stdio: 'ignore' });
-  }
+  if (register) registerLoginAgent(paths.agent);
   return { ...paths, backup };
 }
 export function retireLegacyLogin(home = os.homedir(), { run = execFileSync } = {}) {
@@ -67,6 +76,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const source = path.resolve(values.source || fileURLToPath(new URL('../', import.meta.url)));
     // Install without registering first, so initial configuration and legacy retirement finish before login dispatch.
     const result = installPayload(source, { register: false });
+    stopLoginAgent(); // The old observer must not mistake this installer's controlled startup for a new icon launch.
     let configured = false;
     if (!values['no-start']) {
       const args = [path.join(result.program, 'client-distribution/bootstrap.mjs'), '--payload', result.program, '--setup'];
@@ -80,11 +90,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     }
     else initializeState(result.program, { gateway: values.gateway });
     if (configured) retireLegacyLogin();
-    const service = 'gui/' + process.getuid() + '/' + LABEL;
-    try { execFileSync('/bin/launchctl', ['bootout', service], { stdio: 'ignore' }); } catch (error) { if (![3, 113].includes(error.status)) throw error; }
-    if (configured) execFileSync('/bin/launchctl', ['bootstrap', 'gui/' + process.getuid(), result.agent], { stdio: 'ignore' });
+    if (configured) registerLoginAgent(result.agent);
     const resultInfo = { installed: true, configured, version: verifyPayload(result.program).version, agent: result.agent, noNewApplication: true };
-    if (process.stdout.isTTY) console.log(configured ? '企业配置已安装。以后登录电脑后，点击原版 WorkBuddy 图标即可使用。完整退出后需重新应用企业配置。此窗口现在可以关闭。' : '客户端组件已安装，首次地址配置尚未完成。重新运行安装入口可继续。');
+    if (process.stdout.isTTY) console.log(configured ? '企业配置已安装。以后点击原版 WorkBuddy 图标，启动监听器会自动应用企业配置。此窗口现在可以关闭。' : '客户端组件已安装，首次地址配置尚未完成。重新运行安装入口可继续。');
     else console.log(JSON.stringify(resultInfo));
   } catch (error) {
     console.error(process.stdout.isTTY ? '安装尚未完成。请正常退出 WorkBuddy 后重试；若仍失败，请联系管理员。' : error.message);

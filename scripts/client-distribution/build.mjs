@@ -30,7 +30,7 @@ try {
   copy(node, path.join(payload, 'runtime/node'), true);
   copy(path.join(nodeDir, 'LICENSE'), path.join(payload, 'runtime/LICENSE'));
   for (const name of CLIENT_MODULES) copy(path.join(root, 'auth-gateway/src', name + '.mjs'), path.join(payload, 'auth-gateway/src', name + '.mjs'));
-  for (const name of ['lib.mjs', 'bootstrap.mjs', 'install.mjs', 'uninstall.mjs', 'setup.mjs']) copy(path.join(root, 'client-distribution', name), path.join(payload, 'client-distribution', name));
+  for (const name of ['lib.mjs', 'bootstrap.mjs', 'install.mjs', 'uninstall.mjs', 'setup.mjs', 'supervisor.mjs']) copy(path.join(root, 'client-distribution', name), path.join(payload, 'client-distribution', name));
   const config = json(path.join(root, 'client-distribution/client-config.example.json'));
   config.gateway = values.gateway ? validatePublicUrl(values.gateway) : '';
   if (values.models) config.models = validateModelPreset(json(path.resolve(values.models)));
@@ -66,7 +66,7 @@ try {
   fs.writeFileSync(path.join(agents, LABEL + '.plist'), launchAgent(prefix, manifest.caFile));
   fs.mkdirSync(scripts);
   fs.writeFileSync(path.join(scripts, 'preinstall'), '#!/bin/bash\nset -e\nROOT="/Library/Application Support/EnterpriseWorkbenchClient"\nif [ "$3" != "/" ]; then echo "Only the running system volume is supported." >&2; exit 1; fi\n[ "$(/usr/bin/uname -m)" = arm64 ] || { echo "This package supports Apple Silicon only." >&2; exit 1; }\n[ ! -L "$ROOT" ] || { echo "Program directory is a link." >&2; exit 1; }\nif [ -e "$ROOT" ]; then\n KIND=$(/usr/bin/plutil -extract kind raw -o - "$ROOT/release.json" 2>/dev/null || true)\n [ "$KIND" = "' + KIND + '" ] || { echo "Existing directory is not owned by this installer." >&2; exit 1; }\nfi\n', { mode: 0o755 });
-  fs.writeFileSync(path.join(scripts, 'postinstall'), '#!/bin/bash\nset -e\nUSER_NAME=$(/usr/bin/stat -f %Su /dev/console)\nif [ "$USER_NAME" = root ] || [ "$USER_NAME" = loginwindow ] || [ "$USER_NAME" = _mbsetupuser ]; then exit 0; fi\nUSER_ID=$(/usr/bin/id -u "$USER_NAME")\nif [ "$USER_ID" -lt 500 ]; then exit 0; fi\n/bin/launchctl bootout "gui/$USER_ID/' + LABEL + '" >/dev/null 2>&1 || true\n/bin/launchctl bootstrap "gui/$USER_ID" "/Library/LaunchAgents/' + LABEL + '.plist"\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(scripts, 'postinstall'), '#!/bin/bash\nset -e\nUSER_NAME=$(/usr/bin/stat -f %Su /dev/console)\nif [ "$USER_NAME" = root ] || [ "$USER_NAME" = loginwindow ] || [ "$USER_NAME" = _mbsetupuser ]; then exit 0; fi\nUSER_ID=$(/usr/bin/id -u "$USER_NAME")\nif [ "$USER_ID" -lt 500 ]; then exit 0; fi\n/bin/launchctl bootout "gui/$USER_ID/' + LABEL + '" >/dev/null 2>&1 || true\nfor ATTEMPT in 1 2 3 4 5 6 7 8 9 10; do\n if /bin/launchctl bootstrap "gui/$USER_ID" "/Library/LaunchAgents/' + LABEL + '.plist"; then exit 0; else RESULT=$?; fi\n [ "$RESULT" -eq 5 ] || exit "$RESULT"\n /bin/sleep 0.2\ndone\nexit 1\n', { mode: 0o755 });
   const pkg = path.join(output, 'WorkBuddy-企业配置-' + VERSION + '-arm64-' + manifest.signing + '.pkg');
   execFileSync('/usr/bin/pkgbuild', ['--root', staging, '--scripts', scripts, '--identifier', 'local.workbuddy.enterprise-client', '--version', VERSION, '--install-location', '/', ...(values['installer-signing-identity'] ? ['--sign', values['installer-signing-identity']] : []), pkg], { stdio: 'inherit' });
   const zip = path.join(output, 'WorkBuddy-企业配置-' + VERSION + '-arm64-' + manifest.signing + '.zip');

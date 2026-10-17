@@ -1,5 +1,7 @@
 import AppKit
 import CoreFoundation
+import Darwin
+import CoreGraphics
 
 let args = CommandLine.arguments
 let application = NSApplication.shared
@@ -11,6 +13,22 @@ func fail(_ text: String) -> Never { FileHandle.standardError.write(Data((text +
 func dialog(_ message: String) {
     let alert = NSAlert(); alert.messageText = "WorkBuddy 企业配置"; alert.informativeText = message
     alert.addButton(withTitle: "确定"); application.activate(ignoringOtherApps: true); alert.runModal()
+}
+func processBirth(_ pid: pid_t) -> Date? {
+    var info = proc_bsdinfo()
+    let size = MemoryLayout<proc_bsdinfo>.stride
+    guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, Int32(size)) == Int32(size), info.pbi_start_tvsec > 0 else { return nil }
+    return Date(timeIntervalSince1970: Double(info.pbi_start_tvsec) + Double(info.pbi_start_tvusec) / 1_000_000)
+}
+func hasMainWindow(_ pid: pid_t) -> Bool {
+    guard let windows = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return false }
+    return windows.contains { window in
+        guard (window[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pid,
+              (window[kCGWindowLayer as String] as? NSNumber)?.intValue == 0,
+              let bounds = window[kCGWindowBounds as String] as? [String: Any],
+              let width = bounds["Width"] as? Double, let height = bounds["Height"] as? Double else { return false }
+        return width >= 600 && height >= 400
+    }
 }
 func entryPath(_ entry: [String: Any]) -> String? {
     guard let tile = entry["tile-data"] as? [String: Any], let file = tile["file-data"] as? [String: Any], let string = file["_CFURLString"] as? String else { return nil }
@@ -31,6 +49,80 @@ func readDock() -> [[String: Any]] {
 }
 guard args.count > 1 else { fail("缺少客户端操作。") }
 switch args[1] {
+case "observe":
+    guard args.count == 3 else { fail("监听参数无效。") }
+    let expected = URL(fileURLWithPath: args[2]).standardizedFileURL.path
+    let executable = expected + "/Contents/MacOS/Electron"
+    func matches(_ app: NSRunningApplication) -> Bool {
+        app.bundleURL?.standardizedFileURL.path == expected && app.executableURL?.standardizedFileURL.path == executable
+    }
+    func identity(_ app: NSRunningApplication) -> [String: Any]? {
+        guard matches(app), !app.isTerminated, let date = processBirth(app.processIdentifier) else { return nil }
+        return ["pid": Int(app.processIdentifier), "launchedAt": date.timeIntervalSince1970 * 1000]
+    }
+    var seen = Set<pid_t>()
+    let existing = NSWorkspace.shared.runningApplications.filter(matches)
+    for app in existing { seen.insert(app.processIdentifier) }
+    func event(_ value: [String: Any]) {
+        let data = try! JSONSerialization.data(withJSONObject: value)
+        FileHandle.standardOutput.write(data + Data([10]))
+    }
+    func discovered(_ app: NSRunningApplication) {
+        guard !seen.contains(app.processIdentifier), let value = identity(app) else { return }
+        seen.insert(app.processIdentifier)
+        event(["type": "launch", "app": value])
+    }
+    let center = NSWorkspace.shared.notificationCenter
+    let launchObserver = center.addObserver(forName: NSWorkspace.willLaunchApplicationNotification, object: nil, queue: .main) { note in
+        if let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication { discovered(app) }
+    }
+    let readyObserver = center.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { note in
+        if let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication { discovered(app) }
+    }
+    let shutdownObserver = center.addObserver(forName: NSWorkspace.willPowerOffNotification, object: nil, queue: .main) { _ in
+        event(["type": "session-ending"])
+    }
+    // NSWorkspace notifications omit some background launches; enumeration also recovers missed events.
+    let timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
+        let current = NSWorkspace.shared.runningApplications.filter(matches)
+        seen.formIntersection(Set(current.map { $0.processIdentifier }))
+        for app in current { discovered(app) }
+    }
+    FileHandle.standardInput.readabilityHandler = { input in
+        if input.availableData.isEmpty { exit(0) }
+    }
+    event(["type": "ready", "existing": existing.compactMap(identity)])
+    withExtendedLifetime([launchObserver, readyObserver, shutdownObserver, timer] as [Any]) { RunLoop.main.run() }
+case "handoff":
+    guard args.count == 5, let pid = Int32(args[2]), let launchedAt = Double(args[4]) else { fail("接管参数无效。") }
+    let expected = URL(fileURLWithPath: args[3]).standardizedFileURL.path
+    guard let app = NSRunningApplication(processIdentifier: pid),
+          app.bundleURL?.standardizedFileURL.path == expected,
+          app.executableURL?.standardizedFileURL.path == expected + "/Contents/MacOS/Electron",
+          let actual = processBirth(pid),
+          abs(actual.timeIntervalSince1970 * 1000 - launchedAt) < 1,
+          Date().timeIntervalSince(actual) >= 0, Date().timeIntervalSince(actual) < 8 else {
+        fail("只允许接管刚刚启动且身份一致的原版进程，已有实例保持不变。")
+    }
+    let windowReady = hasMainWindow(pid)
+    guard let latestBirth = processBirth(pid), abs(latestBirth.timeIntervalSince(actual)) < 0.001,
+          Date().timeIntervalSince(actual) < 8 else { fail("进程身份或启动窗口已改变，停止接管。") }
+    let method: String
+    if windowReady {
+        guard app.terminate() else { fail("原版拒绝正常退出，停止接管。") }
+        method = "application-quit"
+    } else {
+        // A newly launched stock process can fail its own bootstrap before creating a window.
+        // Limit SIGTERM to this verified fresh, windowless process; never escalate to SIGKILL.
+        guard kill(pid, SIGTERM) == 0 else { fail("未能向新启动进程发送退出信号，停止接管。") }
+        method = "startup-sigterm"
+    }
+    let deadline = Date().addingTimeInterval(6)
+    while !app.isTerminated && Date() < deadline {
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+    }
+    guard app.isTerminated else { fail("原版进程尚未退出，停止接管，不追加 SIGKILL。") }
+    emit(["terminated": true, "pid": Int(pid), "method": method])
 case "open-url":
     guard args.count == 3, let url = URL(string: args[2]), url.scheme == "http", url.host == "127.0.0.1", url.path == "/setup", url.user == nil, url.password == nil else { fail("本机设置地址无效。") }
     guard NSWorkspace.shared.open(url) else { fail("无法打开浏览器，请联系管理员。") }

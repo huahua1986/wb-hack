@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { KIND, VERSION, LABEL, CLIENT_MODULES, digest, verifyPayload, verifyWorkBuddy, initializeState, clientPaths, seedModels, launchAgent, validateModelPreset } from '../../client-distribution/lib.mjs';
-import { installPayload, retireLegacyLogin } from '../../client-distribution/install.mjs';
+import { installPayload, retireLegacyLogin, registerLoginAgent } from '../../client-distribution/install.mjs';
 import { disableClient } from '../../client-distribution/uninstall.mjs';
 import { requestGateway } from '../../client-distribution/setup.mjs';
 
@@ -14,7 +14,7 @@ function fixture(t) {
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const write = (name, value) => { const p = path.join(payload, name); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, value); };
   for (const name of CLIENT_MODULES) write('auth-gateway/src/' + name + '.mjs', '// bounded fixture\n');
-  for (const name of ['lib', 'bootstrap', 'install', 'uninstall', 'setup']) write('client-distribution/' + name + '.mjs', '// bounded fixture\n');
+  for (const name of ['lib', 'bootstrap', 'install', 'uninstall', 'setup', 'supervisor']) write('client-distribution/' + name + '.mjs', '// bounded fixture\n');
   write('runtime/node', 'fixture runtime'); write('runtime/LICENSE', 'fixture license'); write('native/ClientActions', 'fixture native helper');
   write('client-config.json', JSON.stringify({ gateway: '', appPath: '/Applications/WorkBuddy.app' }));
   const manifest = { kind: KIND, version: VERSION, compatibility: [], files: {} };
@@ -88,7 +88,7 @@ test('user-level install survives source removal and refuses foreign programs an
   assert.equal(verifyPayload(installed.program).kind, KIND);
   const agent = fs.readFileSync(installed.agent, 'utf8');
   assert.ok(agent.includes(installed.program) && !agent.includes(f.payload));
-  assert.match(agent, /<key>RunAtLoad<\/key><true\/>/); assert.match(agent, /<key>KeepAlive<\/key><false\/>/);
+  assert.match(agent, /<key>RunAtLoad<\/key><true\/>/); assert.match(agent, /<key>KeepAlive<\/key><true\/>/);
   assert.ok(!agent.includes('/usr/bin/open'));
   assert.doesNotMatch(agent, /<string>[^<]*\.app(?:\/|<)/);
   fs.writeFileSync(installed.agent, '<?xml version="1.0"?><plist version="1.0"><dict><key>Label</key><string>foreign</string></dict></plist>');
@@ -122,7 +122,7 @@ test('model templates allow placeholders and direct URLs but cannot distribute A
   const invalid = preset(''); invalid.models[0].url = 'https://user:password@models.example.test/v1';
   assert.throws(() => validateModelPreset(invalid), /凭据/);
   const xml = launchAgent('/Users/Example User/A&B', 'certs/enterprise-ca.pem');
-  assert.ok(xml.includes('A&amp;B')); assert.ok(xml.includes(LABEL)); assert.ok(!xml.includes('KeepAlive</key><true'));
+  assert.ok(xml.includes('A&amp;B')); assert.ok(xml.includes(LABEL)); assert.ok(xml.includes('supervisor.mjs')); assert.ok(xml.includes('<key>ThrottleInterval</key>'));
 });
 
 test('legacy login and launcher are archived and restored without deleting user state or touching other jobs', t => {
@@ -182,4 +182,16 @@ test('browser setup expires without leaving a listener or a setup token file', a
   const f = fixture(t);
   assert.deepEqual(await requestGateway(f.root, { timeoutMs: 10 }), { cancelled: true });
   assert.ok(!fs.existsSync(path.join(f.root, 'setup-session.json')));
+});
+
+
+test('persistent login upgrades retry transient launchd unregister races without ignoring other failures', () => {
+  const calls = []; let attempts = 0;
+  registerLoginAgent('/fixture/client.plist', { wait: ms => calls.push(['wait', ms]), run: (_, args) => {
+    calls.push(args);
+    if (args[0] === 'bootstrap' && ++attempts < 3) throw Object.assign(new Error('unregister pending'), { status: 5 });
+  } });
+  assert.equal(attempts, 3); assert.equal(calls.filter(args => args[0] === 'wait').length, 2);
+  assert.equal(calls[0][0], 'bootout');
+  assert.throws(() => registerLoginAgent('/fixture/client.plist', { wait: () => {}, run: () => { throw Object.assign(new Error('denied'), { status: 77 }); } }), /denied/);
 });

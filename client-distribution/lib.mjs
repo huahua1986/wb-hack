@@ -7,7 +7,7 @@ import { validatePublicUrl } from '../auth-gateway/src/config.mjs';
 
 export const KIND = 'workbuddy-enterprise-client';
 export const LABEL = 'local.workbuddy.enterprise-client.login';
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 export const CLIENT_MODULES = ['desktop-launcher', 'double-click-launcher', 'runtime-branding', 'client-profile', 'compatibility', 'config', 'client-ip', 'connector-catalog', 'package-archive'];
 
 export function regular(filename) {
@@ -52,7 +52,7 @@ export function verifyPayload(root) {
   const manifest = json(path.join(root, 'release.json'));
   if (manifest.kind !== KIND || manifest.version !== VERSION || !manifest.files || Array.isArray(manifest.files) || !Array.isArray(manifest.compatibility)) throw new Error('客户端安装包标记无效。');
   const allowed = new Set(['runtime/node', 'runtime/LICENSE', 'native/ClientActions', 'client-config.json',
-    ...['lib', 'bootstrap', 'install', 'uninstall', 'setup'].map(n => 'client-distribution/' + n + '.mjs'),
+    ...['lib', 'bootstrap', 'install', 'uninstall', 'setup', 'supervisor'].map(n => 'client-distribution/' + n + '.mjs'),
     ...CLIENT_MODULES.map(n => 'auth-gateway/src/' + n + '.mjs')]);
   if (manifest.caFile) {
     if (manifest.caFile !== 'certs/enterprise-ca.pem') throw new Error('交付 CA 路径无效。');
@@ -104,8 +104,8 @@ export function validateModelPreset(value) {
 }
 const escapeXml = text => String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]);
 export function launchAgent(root, ca = '') {
-  const argumentsXml = [path.join(root, 'runtime/node'), path.join(root, 'client-distribution/bootstrap.mjs'), '--payload', root, '--autostart'].map(a => '<string>' + escapeXml(a) + '</string>').join('');
-  return '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>Label</key><string>' + LABEL + '</string><key>ProgramArguments</key><array>' + argumentsXml + '</array><key>RunAtLoad</key><true/><key>KeepAlive</key><false/><key>ProcessType</key><string>Interactive</string>' +
+  const argumentsXml = [path.join(root, 'runtime/node'), path.join(root, 'client-distribution/supervisor.mjs'), '--payload', root].map(a => '<string>' + escapeXml(a) + '</string>').join('');
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>Label</key><string>' + LABEL + '</string><key>ProgramArguments</key><array>' + argumentsXml + '</array><key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>ThrottleInterval</key><integer>10</integer><key>ExitTimeOut</key><integer>30</integer><key>ProcessType</key><string>Interactive</string>' +
     (ca ? '<key>EnvironmentVariables</key><dict><key>NODE_EXTRA_CA_CERTS</key><string>' + escapeXml(path.join(root, ca)) + '</string></dict>' : '') + '</dict></plist>\n';
 }
 export function initializeState(root, { home = os.homedir(), gateway, migrateFrom } = {}) {
