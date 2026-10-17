@@ -4,10 +4,11 @@ umask 077
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 SOURCE_DIR="$(dirname -- "$SCRIPT_DIR")"
 NODE="$(command -v node || true)"
-PREFIX=/opt/workbuddy-auth
-DATA_DIR=/var/lib/workbuddy-auth
-CONFIG_DIR=/etc/workbuddy-auth
-SERVICE_USER=workbuddy-auth
+PREFIX=
+DATA_DIR=
+CONFIG_DIR=
+SERVICE_USER=
+INSTANCE=
 PORT=8787
 ORIGIN=
 TLS_CERT=
@@ -20,10 +21,20 @@ while [ "$#" -gt 0 ]; do
         --node) NODE="$2" ;; --prefix) PREFIX="$2" ;; --data-dir) DATA_DIR="$2" ;;
         --config-dir) CONFIG_DIR="$2" ;; --service-user) SERVICE_USER="$2" ;;
         --port) PORT="$2" ;; --render-only) RENDER_ONLY="$2" ;;
+        --instance) INSTANCE="$2" ;;
         *) echo "Unknown installation option" >&2; exit 1 ;;
     esac
     shift 2
 done
+SERVICE=workbuddy-auth
+if [ -n "$INSTANCE" ]; then
+    [[ "$INSTANCE" =~ ^[a-z][a-z0-9-]{0,15}$ ]] || { echo "Invalid deployment instance" >&2; exit 1; }
+    SERVICE="$SERVICE-$INSTANCE"
+fi
+PREFIX="${PREFIX:-/opt/$SERVICE}"
+DATA_DIR="${DATA_DIR:-/var/lib/$SERVICE}"
+CONFIG_DIR="${CONFIG_DIR:-/etc/$SERVICE}"
+SERVICE_USER="${SERVICE_USER:-$SERVICE}"
 [ -n "$NODE" ] && [ -x "$NODE" ] || { echo "Install Node.js 24+ and pass --node with a system binary" >&2; exit 1; }
 "$NODE" -e 'if(Number(process.versions.node.split(".")[0])<24)process.exit(1)' || { echo "Node.js 24+ is required" >&2; exit 1; }
 STAGE="$(mktemp -d)"
@@ -31,7 +42,7 @@ cleanup() { rm -rf -- "$STAGE"; }
 trap cleanup EXIT
 OUTPUT="$STAGE/rendered"
 if [ -n "$RENDER_ONLY" ]; then OUTPUT="$RENDER_ONLY"; fi
-"$NODE" "$SCRIPT_DIR/render.mjs" --origin "$ORIGIN" --tls-cert "$TLS_CERT" --tls-key "$TLS_KEY" --node "$NODE" --prefix "$PREFIX" --data-dir "$DATA_DIR" --config-dir "$CONFIG_DIR" --service-user "$SERVICE_USER" --port "$PORT" --output "$OUTPUT"
+"$NODE" "$SCRIPT_DIR/render.mjs" --instance "$INSTANCE" --origin "$ORIGIN" --tls-cert "$TLS_CERT" --tls-key "$TLS_KEY" --node "$NODE" --prefix "$PREFIX" --data-dir "$DATA_DIR" --config-dir "$CONFIG_DIR" --service-user "$SERVICE_USER" --port "$PORT" --output "$OUTPUT"
 if [ -n "$RENDER_ONLY" ]; then exit 0; fi
 [ "$(uname -s)" = Linux ] && [ "$(id -u)" -eq 0 ] || { echo "Installation requires root on a Linux systemd host; use --render-only to inspect elsewhere" >&2; exit 1; }
 for command in nginx systemctl useradd runuser flock install; do command -v "$command" >/dev/null || { echo "Missing deployment prerequisite: $command" >&2; exit 1; }; done
@@ -48,10 +59,12 @@ elif [ -d "$DATA_DIR" ] && [ -n "$(ls -A "$DATA_DIR")" ]; then
     echo "Refusing to adopt a populated data directory automatically" >&2; exit 1
 fi
 for directory in "$PREFIX" "$DATA_DIR" "$CONFIG_DIR"; do [ ! -L "$directory" ] || { echo "Deployment directories must not be symlinks" >&2; exit 1; }; done
-UNIT=/etc/systemd/system/workbuddy-auth.service
-NGINX_CONF=/etc/nginx/conf.d/workbuddy-auth.conf
-WRAPPER=/usr/local/bin/workbuddy-auth
-for target in "$UNIT" "$NGINX_CONF" "$WRAPPER"; do
+UNIT="/etc/systemd/system/$SERVICE.service"
+NGINX_CONF="/etc/nginx/conf.d/$SERVICE.conf"
+WRAPPER="/usr/local/bin/$SERVICE"
+BACKUP_UNIT="/etc/systemd/system/$SERVICE-backup.service"
+BACKUP_TIMER="/etc/systemd/system/$SERVICE-backup.timer"
+for target in "$UNIT" "$NGINX_CONF" "$WRAPPER" "$BACKUP_UNIT" "$BACKUP_TIMER"; do
     if [ -e "$target" ]; then
         [ ! -L "$target" ] && grep -q '^# Managed by workbuddy-auth deployment' "$target" || { echo "Refusing to replace unmanaged deployment file: $target" >&2; exit 1; }
     fi
@@ -71,16 +84,18 @@ fi
 PREVIOUS=
 if [ -L "$PREFIX/current" ]; then PREVIOUS="$(readlink -f "$PREFIX/current")"; fi
 WAS_ACTIVE=0
-if systemctl is-active --quiet workbuddy-auth; then WAS_ACTIVE=1; fi
+if systemctl is-active --quiet "$SERVICE"; then WAS_ACTIVE=1; fi
+TIMER_WAS_ACTIVE=0
+if systemctl is-active --quiet "$SERVICE-backup.timer"; then TIMER_WAS_ACTIVE=1; fi
 recover_before_switch() {
     result=$?
-    if [ "$result" -ne 0 ] && [ "$WAS_ACTIVE" -eq 1 ]; then systemctl start workbuddy-auth || true; fi
+    if [ "$result" -ne 0 ] && [ "$WAS_ACTIVE" -eq 1 ]; then systemctl start "$SERVICE" || true; fi
     cleanup
     exit "$result"
 }
 trap recover_before_switch EXIT
 if [ -n "$PREVIOUS" ]; then
-    systemctl stop workbuddy-auth
+    systemctl stop "$SERVICE"
     runuser -u "$SERVICE_USER" -- env -i PATH=/usr/bin:/bin "$NODE" --env-file="$CONFIG_DIR/gateway.env" "$PREVIOUS/scripts/backup.mjs"
 fi
 RELEASE="$PREFIX/releases/$RELEASE_ID"
@@ -92,24 +107,26 @@ find "$RELEASE" -type f -exec chmod 0644 {} +
 find "$RELEASE" -type f -name '*.sh' -exec chmod 0755 {} +
 mkdir "$STAGE/saved"
 INDEX=0
-for target in "$UNIT" "$NGINX_CONF" "$WRAPPER" "$PREFIX/deployment.json"; do
+for target in "$UNIT" "$NGINX_CONF" "$WRAPPER" "$PREFIX/deployment.json" "$BACKUP_UNIT" "$BACKUP_TIMER"; do
     INDEX=$((INDEX+1)); if [ -e "$target" ]; then cp -p "$target" "$STAGE/saved/$INDEX"; fi
 done
 rollback_failure() {
     result=$?
     if [ "$result" -ne 0 ]; then
-        systemctl stop workbuddy-auth || true
-        if [ ! -f "$STAGE/saved/1" ]; then systemctl disable workbuddy-auth || true; fi
+        systemctl stop "$SERVICE" "$SERVICE-backup.timer" "$SERVICE-backup.service" || true
+        if [ ! -f "$STAGE/saved/1" ]; then systemctl disable "$SERVICE" || true; fi
+        if [ ! -f "$STAGE/saved/6" ]; then systemctl disable "$SERVICE-backup.timer" || true; fi
         if [ -n "$PREVIOUS" ]; then ln -s "$PREVIOUS" "$PREFIX/recover.$$"; mv -Tf "$PREFIX/recover.$$" "$PREFIX/current"; else rm -f "$PREFIX/current"; fi
         INDEX=0
-        for target in "$UNIT" "$NGINX_CONF" "$WRAPPER" "$PREFIX/deployment.json"; do
+        for target in "$UNIT" "$NGINX_CONF" "$WRAPPER" "$PREFIX/deployment.json" "$BACKUP_UNIT" "$BACKUP_TIMER"; do
             INDEX=$((INDEX+1))
             if [ -f "$STAGE/saved/$INDEX" ]; then cp -p "$STAGE/saved/$INDEX" "$target"
             elif [ "$target" != "$PREFIX/deployment.json" ]; then rm -f "$target"
             fi
         done
         systemctl daemon-reload || true
-        if [ "$WAS_ACTIVE" -eq 1 ]; then systemctl start workbuddy-auth || true; fi
+        if [ "$WAS_ACTIVE" -eq 1 ]; then systemctl start "$SERVICE" || true; fi
+        if [ "$TIMER_WAS_ACTIVE" -eq 1 ]; then systemctl start "$SERVICE-backup.timer" || true; fi
         nginx -t && systemctl reload nginx || true
         echo "Deployment failed; previous code/config restored. Data and failed release were retained." >&2
     fi
@@ -121,21 +138,24 @@ if [ ! -e "$CONFIG_DIR/gateway.env" ]; then install -o root -g "$SERVICE_USER" -
 install -m 0644 "$OUTPUT/workbuddy-auth.service" "$UNIT"
 install -m 0644 "$OUTPUT/workbuddy-auth.conf" "$NGINX_CONF"
 install -m 0755 "$OUTPUT/workbuddy-auth" "$WRAPPER"
+install -m 0644 "$OUTPUT/backup.service" "$BACKUP_UNIT"
+install -m 0644 "$OUTPUT/backup.timer" "$BACKUP_TIMER"
 install -m 0644 "$OUTPUT/deployment.json" "$PREFIX/deployment.json"
 ln -s "$RELEASE" "$PREFIX/next.$$"
 mv -Tf "$PREFIX/next.$$" "$PREFIX/current"
 nginx -t
 systemctl daemon-reload
-systemctl enable workbuddy-auth
-systemctl start workbuddy-auth
+systemctl enable "$SERVICE"
+systemctl start "$SERVICE"
 READY=0
 for attempt in 1 2 3 4 5 6 7 8 9 10; do
     sleep 1
-    if systemctl is-active --quiet workbuddy-auth && "$NODE" --env-file="$CONFIG_DIR/gateway.env" "$RELEASE/scripts/health.mjs"; then READY=1; break; fi
+    if systemctl is-active --quiet "$SERVICE" && "$NODE" --env-file="$CONFIG_DIR/gateway.env" "$RELEASE/scripts/health.mjs"; then READY=1; break; fi
 done
 [ "$READY" -eq 1 ] || { echo "Backend readiness check failed" >&2; exit 1; }
 systemctl reload nginx
+systemctl enable --now "$SERVICE-backup.timer"
 if [ -n "$PREVIOUS" ] && [ "$PREVIOUS" != "$RELEASE" ]; then ln -s "$PREVIOUS" "$PREFIX/previous.next.$$"; mv -Tf "$PREFIX/previous.next.$$" "$PREFIX/previous"; fi
 trap cleanup EXIT
 echo "Installed $RELEASE_ID at $ORIGIN"
-echo "Create an account: sudo workbuddy-auth user add <username> --display-name <name>"
+echo "Create an account: sudo $SERVICE user add <username> --display-name <name>"

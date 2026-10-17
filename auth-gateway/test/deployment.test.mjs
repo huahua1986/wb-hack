@@ -51,6 +51,54 @@ test('readiness probe uses the public origin Host while connecting only to the l
   assert.equal(code, 0, stderr); assert.equal(receivedHost, '21.130.240.28'); assert.equal(JSON.parse(stdout).status, 'ok');
 });
 
+test('customer instance renders independent service, management, HTTPS origin and daily backup', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-instance-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const output = path.join(dir, 'customer');
+  const args = ['deploy/render.mjs', '--instance', 'customer', '--origin', 'https://21.130.240.28:8443',
+    '--port', '8788', '--tls-cert', '/etc/ssl/auth/cert.pem', '--tls-key', '/etc/ssl/auth/key.pem', '--node', '/usr/bin/node', '--output', output];
+  run(args);
+  const metadata = JSON.parse(fs.readFileSync(path.join(output, 'deployment.json')));
+  assert.equal(metadata.service, 'workbuddy-auth-customer');
+  assert.equal(metadata.dataDir, '/var/lib/workbuddy-auth-customer');
+  assert.equal(metadata.configDir, '/etc/workbuddy-auth-customer');
+  assert.equal(metadata.prefix, '/opt/workbuddy-auth-customer');
+  assert.equal(metadata.user, 'workbuddy-auth-customer');
+  assert.equal(metadata.httpsPort, 8443);
+  const nginx = fs.readFileSync(path.join(output, 'workbuddy-auth.conf'), 'utf8');
+  assert.match(nginx, /listen 8443 ssl/);
+  assert.match(nginx, /proxy_set_header Host 21\.130\.240\.28:8443/);
+  assert.match(nginx, /proxy_pass http:\/\/127\.0\.0\.1:8788/);
+  assert.match(nginx, /log_format workbuddy_auth_customer /);
+  const wrapper = fs.readFileSync(path.join(output, 'workbuddy-auth'), 'utf8');
+  for (const line of wrapper.split('\n').filter(line => /systemctl|journalctl/.test(line))) assert.match(line, /workbuddy-auth-customer/);
+  const backup = fs.readFileSync(path.join(output, 'backup.service'), 'utf8');
+  assert.match(backup, /User=workbuddy-auth-customer/);
+  assert.match(backup, /EnvironmentFile=\/etc\/workbuddy-auth-customer\/gateway.env/);
+  assert.match(backup, /\/opt\/workbuddy-auth-customer\/current\/scripts\/backup.mjs/);
+  const timer = fs.readFileSync(path.join(output, 'backup.timer'), 'utf8');
+  assert.match(timer, /Persistent=true/); assert.match(timer, /OnCalendar=\*-\*-\* 03:15:00/);
+  assert.match(timer, /Unit=workbuddy-auth-customer-backup.service/);
+  const invalid = spawnSync(process.execPath, [...args.slice(0, -2), '--instance', '../test', '--output', path.join(dir, 'bad')], { cwd: root });
+  assert.notEqual(invalid.status, 0); assert.equal(fs.existsSync(path.join(dir, 'bad')), false);
+});
+
+test('health probe preserves a nondefault HTTPS port in the origin Host', async t => {
+  let host;
+  const server = createHttpServer((req, res) => {
+    host = req.headers.host;
+    res.writeHead(host === '21.130.240.28:8443' ? 200 : 400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ data: { status: 'ok', service: 'workbuddy-auth', schema: 2 } }));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const child = spawn(process.execPath, ['scripts/health.mjs'], { cwd: root, env: { ...process.env,
+    GATEWAY_PUBLIC_URL: 'https://21.130.240.28:8443', GATEWAY_PORT: String(server.address().port) }, stdio: ['ignore', 'pipe', 'pipe'] });
+  let stderr = ''; child.stderr.on('data', b => { stderr += b; }); child.stdout.resume();
+  const [code] = await once(child, 'exit');
+  assert.equal(code, 0, stderr); assert.equal(host, '21.130.240.28:8443');
+});
+
 test('release archive is self-contained, verified and excludes credentials, mock and client profiles', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-release-test-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));

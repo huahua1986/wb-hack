@@ -12,15 +12,15 @@ npm test
 npm run package
 ```
 
-输出 `dist/workbuddy-auth-0.3.1-<内容哈希>.tar.gz` 和相邻 `.sha256`。发布包只包含后端代码、管理命令、部署脚本、文档和独立后端测试，不包含数据库、密钥、Mock、客户端 profile、模型 Key、逆向证据或 WorkBuddy 安装包。原版 provider 回放和启动器测试在开发工作区执行。校验文件可检出修改/损坏，不能替代可信来源或数字签名。
+输出 `dist/workbuddy-auth-0.3.2-<内容哈希>.tar.gz` 和相邻 `.sha256`。发布包只包含后端代码、管理命令、部署脚本、文档和独立后端测试，不包含数据库、密钥、Mock、客户端 profile、模型 Key、逆向证据或 WorkBuddy 安装包。原版 provider 回放和启动器测试在开发工作区执行。校验文件可检出修改/损坏，不能替代可信来源或数字签名。
 
 ## 首次部署
 
 目标建议使用 Debian/Ubuntu 的 systemd 主机，预装 Node.js 24+、Nginx、Bash、tar、useradd、runuser 和 flock，并运行 systemd 和 Nginx 服务。准备正式 HTTPS 域名、DNS 和有效证书。脚本不下载运行时、不申请证书、不修改防火墙；Nginx 必须预先启动，安装只在验证配置后 reload。
 
 ```sh
-sha256sum -c workbuddy-auth-0.3.1-<内容哈希>.tar.gz.sha256
-tar -xzf workbuddy-auth-0.3.1-<内容哈希>.tar.gz
+sha256sum -c workbuddy-auth-0.3.2-<内容哈希>.tar.gz.sha256
+tar -xzf workbuddy-auth-0.3.2-<内容哈希>.tar.gz
 cd workbuddy-auth
 node deploy/verify-package.mjs
 sudo bash deploy/install.sh \
@@ -140,10 +140,40 @@ sudo workbuddy-auth restore /var/lib/workbuddy-auth-backups/<备份ID> --confirm
 
 恢复需要 root。命令停服务、校验文件与 SQLite 完整性，在临时目录清空备份中的全部会话和登录交付，再替换数据目录并启动。所有用户重新登录。恢复前的数据保留在 `*.before-restore-*`；失败不删除原数据。账号状态和密码回到备份时间点，必要时重新停用或重置。只恢复可信备份。
 
-保留策略、异机备份和任务调度由运维配置，脚本不自动清理旧数据或上传账号库。`gateway.env`、证书和部署记录另行备份。备份失败应报警，定期在隔离目录演练恢复。
+本版本安装器配置每日备份 timer，具体时间见下文；保留策略、异机复制和故障通知由运维配置，脚本不自动清理旧数据或上传账号库。`gateway.env`、证书和部署记录另行备份。备份失败应报警，定期在隔离目录演练恢复。
 
 ## 验收
 
 测试覆盖真实 HTTP 登录、账号管理、会话撤销、CSRF、代理防伪造、限流持久化、原型 schema 与旧密码迁移、备份损坏检测、恢复强制失效、发布包启动和数据目录独占。发布包内可运行 `npm test`，不会操作 WorkBuddy。
 
 目标主机仍需确认 systemd/Nginx 实际运行、DNS/证书、正式账号在 WorkBuddy 中登录及重启刷新，以及一次真实自定义模型和工具调用。发布包验证不能替代这些现场验收。
+
+
+## 同机独立客户实例与定时备份
+
+在现有测试实例旁新增客户实例，使用 `--instance customer`。默认派生独立的 systemd 服务、非 root 服务账号、程序/配置/数据/备份目录、管理命令与 Nginx 日志；不会复用原实例的账号库或 delivery.key。HTTPS 支持 443 或 1024 以上端口，反向代理保留包含端口的 Host。不同实例必须选择不同的后端监听端口，以及不冲突的 HTTPS 入口。
+
+```sh
+sudo bash deploy/install.sh \
+  --instance customer \
+  --origin https://auth.example.com:8443 \
+  --port 8788 \
+  --tls-cert /etc/ssl/auth/fullchain.pem \
+  --tls-key /etc/ssl/auth/privkey.pem \
+  --node /usr/bin/node
+sudo workbuddy-auth-customer user add customer-demo --display-name 客户验证账号
+sudo workbuddy-auth-customer session list customer-demo
+sudo workbuddy-auth-customer session revoke customer-demo --all
+```
+
+客户实例使用 `/opt/workbuddy-auth-customer`、`/etc/workbuddy-auth-customer`、`/var/lib/workbuddy-auth-customer` 和 `workbuddy-auth-customer.service`。管理命令中的 status、logs、restore、rollback 也仅作用于该实例。旧部署记录未提供 service 字段时继续识别为原默认实例。
+
+每次部署会安装并启用该实例的 `*-backup.timer`：服务器本地时间每日 03:15，加最多 10 分钟随机延迟，停机漏跑后补执行。备份使用 SQLite 一致性快照，并包含交付密钥及被引用的私有内容资源。首次部署后应主动运行并检查一次：
+
+```sh
+sudo systemctl start workbuddy-auth-customer-backup.service
+sudo systemctl show workbuddy-auth-customer-backup.service -p Result -p ExecMainStatus
+sudo systemctl list-timers workbuddy-auth-customer-backup.timer
+```
+
+定时备份保存在实例数据目录同级的 `-backups`，权限受独立服务账号限制。不会自动删除旧备份；保留周期、磁盘监控、异机复制及故障通知由运维设置。同机备份不能抵御整机或磁盘损坏。新入口还需客户网络、云安全组及证书信任验收，脚本不会修改防火墙或关闭 TLS 检查。私有 CA 可以只分发公开证书，CA 私钥留在服务端。
