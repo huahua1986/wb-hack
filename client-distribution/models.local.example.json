@@ -1,0 +1,16 @@
+{
+  "models": [
+    {
+      "id": "qwen3.8:27b",
+      "name": "qwen3.8:27b",
+      "vendor": "Ollama",
+      "url": "http://127.0.0.1:11434/v1",
+      "apiKey": "",
+      "useCustomProtocol": false,
+      "supportsToolCall": true,
+      "supportsImages": false,
+      "disabled": false
+    }
+  ],
+  "availableModels": ["qwen3.8:27b"]
+}

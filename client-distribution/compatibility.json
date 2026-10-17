@@ -1,0 +1,11 @@
+[
+  {
+    "version": "5.8.3",
+    "verification": "macOS arm64: private account restore, runtime branding, existing custom model selection; model generation not repeated",
+    "files": {
+      "Contents/Resources/app.asar": "a7eff702411704d140d7d8d706fe9e711d9b13e304928481c9eba0af9c06f731",
+      "Contents/MacOS/Electron": "d19550dcdc752ea2836b988baf8e3025cdbbba3a1a57dc2ce5f913e9e0082c12",
+      "Contents/Resources/app.asar.unpacked/cli/product.json": "2ae6947b125a39bc6ea531a0e9fafe0e3e391019ae074654ae4d654ce8a08623"
+    }
+  }
+]
