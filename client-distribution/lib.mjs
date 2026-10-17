@@ -7,7 +7,7 @@ import { validatePublicUrl } from '../auth-gateway/src/config.mjs';
 
 export const KIND = 'workbuddy-enterprise-client';
 export const LABEL = 'local.workbuddy.enterprise-client.login';
-export const VERSION = '0.1.1';
+export const VERSION = '0.1.2';
 export const CLIENT_MODULES = ['desktop-launcher', 'double-click-launcher', 'runtime-branding', 'client-profile', 'compatibility', 'config', 'client-ip', 'connector-catalog', 'package-archive'];
 
 export function regular(filename) {

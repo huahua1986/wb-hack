@@ -2,7 +2,7 @@ import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { AuthStore, SessionConflictError } from './store.mjs';
 import { constantEquals, csrfToken, hashPassword, isLoginState, normalizeUsername, randomSecret, verifyPassword } from './credentials.mjs';
-import { compatibilityConfiguration } from './compatibility.mjs';
+import { compatibilityConfiguration, DISABLED_CLOUD_LIST_PATHS, disabledCloudList } from './compatibility.mjs';
 import { completePage, expiredPage, loginCss, loginPage } from './html.mjs';
 import { requestIp } from './client-ip.mjs';
 import { CatalogStore } from './catalog-store.mjs';
@@ -192,6 +192,10 @@ export async function createGateway(config, { now = Date.now, logger = () => {},
         return json(res, 200, 0, config.productName
           ? { exp_id: 'private-product-branding', value: { productName: config.productName } }
           : {});
+      }
+      if (req.method === 'GET' && DISABLED_CLOUD_LIST_PATHS.includes(route)) {
+        requireAccount(req);
+        return json(res, 200, 0, disabledCloudList(route, url.searchParams), '当前私有服务未配置云端助理目录');
       }
       if (await content.handle(req, res, { url, requireAccount, readBody: body })) return;
       if (req.method === 'POST' && /^\/console\/as\/netdrive\/(?:projects\/[^/]+\/)?access-token$/.test(route)) {

@@ -261,3 +261,16 @@ test('the shared _skillhub_meta filename does not make marketplace content a Ski
   assert.deepEqual(plain(client.skillHubGetInstalledMetas('/inert-fixture', () => { fetches++; })), []);
   assert.equal(fetches, 0);
 });
+
+
+test('5.8.3 installed-skill entitlement accepts opaque Unicode names without publishing or granting them',async()=>{
+  const {protocol}=setup([record('skill','private-review')]);
+  const send=skill_ids=>protocol.dispatch({method:'POST',path:'/v2/operation-platform/market/skill/get-by-ids',body:{skill_ids},account});
+  const mixed=await send(['private-review','本地技能','审查代码']);
+  assert.equal(mixed.status,200);assert.equal(mixed.body.code,0);
+  assert.deepEqual(mixed.body.data.skills.map(s=>s.skill_id),['private-review']);
+  const unknown=await send(['本地技能']);assert.equal(unknown.body.data.total_count,0);
+  for(const malformed of [['../本地技能'],['本地/技能'],['本地\u0000技能'],[{}],new Array(501).fill('本地技能')])assert.equal((await send(malformed)).status,400);
+  const experts=await protocol.dispatch({method:'POST',path:'/portal/operation-platform/market/expert/get-by-ids',body:{expert_ids:['本地技能']},account});
+  assert.equal(experts.status,400);
+});

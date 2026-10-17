@@ -11,7 +11,7 @@ import { retireLegacyLogin } from './install.mjs';
 import { requestGateway } from './setup.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 
-export async function bootstrap({ root, gateway, migrateFrom, setup = false, autostart = false, quiet = false }) {
+export async function bootstrap({ root, gateway, migrateFrom, setup = false, autostart = false, quiet = false }, { start } = {}) {
   const manifest = verifyPayload(root), template = json(path.join(root, 'client-config.json')), paths = clientPaths();
   const actions = path.join(root, 'native/ClientActions');
   if (process.getuid?.() === 0) throw new Error('请在实际登录的用户会话中启用企业配置。');
@@ -45,6 +45,7 @@ export async function bootstrap({ root, gateway, migrateFrom, setup = false, aut
         return { started: false };
       },
       prepare: filename => { const prepared = prepareDoubleClickLaunch(filename); seedModels(prepared.profile, template.models); return prepared; },
+      ...(start ? { start } : {}),
     });
     if (setup || !fs.existsSync(path.join(state.state, 'dock.json'))) {
       let legacy = '';

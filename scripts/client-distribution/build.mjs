@@ -59,6 +59,7 @@ try {
   const disableCommand = '#!/bin/zsh -f\nCLIENT="$HOME/Library/Application Support/EnterpriseWorkbenchClient/program"\nif [[ ! -x "$CLIENT/runtime/node" ]]; then print -- "未找到用户级企业配置组件。"; exit 1; fi\nexec "$CLIENT/runtime/node" "$CLIENT/client-distribution/uninstall.mjs"\n';
   fs.writeFileSync(path.join(delivery, '停用企业配置（保留数据）.command'), disableCommand, { mode: 0o755 });
   copy(path.join(root, 'client-distribution/README.md'), path.join(delivery, 'README.md'));
+  copy(path.join(root, 'docs/offline-validation.md'), path.join(delivery, '离线验收说明.md'));
   const prefix = '/Library/Application Support/EnterpriseWorkbenchClient', staging = path.join(cache, 'package-root'), scripts = path.join(cache, 'package-scripts');
   fs.mkdirSync(path.dirname(path.join(staging, prefix)), { recursive: true });
   fs.cpSync(payload, path.join(staging, prefix), { recursive: true });

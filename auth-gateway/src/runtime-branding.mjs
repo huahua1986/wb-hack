@@ -32,7 +32,50 @@ function applyRendererBranding({ productName, welcomeTitle }) {
   return apply();
 }
 
-function installMainBranding({ appAsarPath, rendererScript }) {
+export function coalescePrivateNotifications(contents, { intervalMs = 500, eligible = () => true } = {}) {
+  if (typeof contents.send !== 'function') return { dispose() {}, snapshot: () => ({ coalesced: 0 }) };
+  const original = contents.send, pending = new Map();
+  const topics = new Set(['skill:versionChanged', 'skillsVersionChanged', 'plugin:changed']);
+  let coalesced = 0, deliveryFailures = 0, disposed = false;
+  const topicOf = (value, depth = 0) => {
+    if (typeof value === 'string') return topics.has(value) ? value : undefined;
+    if (!value || typeof value !== 'object' || depth > 2) return;
+    for (const key of ['event', 'method', 'channel']) if (topics.has(value[key])) return value[key];
+    for (const key of ['payload', 'params', 'data']) {
+      const found = topicOf(value[key], depth + 1); if (found) return found;
+    }
+  };
+  function send(channel, ...args) {
+    const topic = topicOf(channel) || topicOf(args[0]);
+    if (disposed || !topic || !eligible()) return original.call(contents, channel, ...args);
+    const key = channel + ':' + topic, now = performance.now();
+    let state = pending.get(key);
+    if (!state) { state = { sentAt: -Infinity, timer: null, latest: null }; pending.set(key, state); }
+    const remaining = intervalMs - (now - state.sentAt);
+    if (remaining <= 0 && !state.timer) { state.sentAt = now; return original.call(contents, channel, ...args); }
+    state.latest = [channel, ...args]; coalesced++;
+    if (!state.timer) {
+      state.timer = setTimeout(() => {
+        state.timer = null;
+        if (disposed || contents.isDestroyed() || !eligible() || !state.latest) { state.latest = null; return; }
+        const latest = state.latest; state.latest = null; state.sentAt = performance.now();
+        try { original.call(contents, ...latest); }
+        catch {
+          deliveryFailures++;
+          if (!contents.isDestroyed()) console.warn('[private-notifications] deferred delivery failed');
+        }
+      }, Math.max(1, remaining));
+      state.timer.unref?.();
+    }
+  }
+  contents.send = send;
+  return {
+    snapshot: () => ({ coalesced, deliveryFailures }),
+    dispose() { disposed = true; for (const state of pending.values()) clearTimeout(state.timer); pending.clear(); if (contents.send === send) contents.send = original; },
+  };
+}
+
+function installMainBranding({ appAsarPath, rendererScript, notificationIntervalMs }, installNotifications) {
   const require = process.getBuiltinModule('module').createRequire(`${appAsarPath}/package.json`);
   const { app, webContents } = require('electron');
   if (!app || app.getAppPath() !== appAsarPath) throw new Error('Unexpected application');
@@ -57,21 +100,23 @@ function installMainBranding({ appAsarPath, rendererScript }) {
   const attach = contents => {
     if (attached.has(contents.id)) return;
     const load = () => { void apply(contents); };
-    const destroy = () => { attached.delete(contents.id); results.delete(contents.id); };
+    const notifications = installNotifications(contents, { intervalMs: notificationIntervalMs, eligible: () => eligible(contents) });
+    const destroy = () => { notifications.dispose(); attached.delete(contents.id); results.delete(contents.id); };
     contents.on('dom-ready', load);
     contents.on('did-finish-load', load);
     contents.once('destroyed', destroy);
-    attached.set(contents.id, { contents, load, destroy });
+    attached.set(contents.id, { contents, load, destroy, notifications });
     if (!contents.isLoadingMainFrame()) load();
   };
   const created = (_event, contents) => attach(contents);
   app.on('web-contents-created', created);
   webContents.getAllWebContents().forEach(attach);
   globalThis[key] = {
-    snapshot: () => ({ installed: true, pages: results.size }),
+    snapshot: () => ({ installed: true, pages: results.size, coalescedNotifications: [...attached.values()].reduce((sum, item) => sum + item.notifications.snapshot().coalesced, 0) }),
     dispose: () => {
       app.removeListener('web-contents-created', created);
-      for (const { contents, load, destroy } of attached.values()) {
+      for (const { contents, load, destroy, notifications } of attached.values()) {
+        notifications.dispose();
         if (contents.isDestroyed()) continue;
         contents.removeListener('dom-ready', load);
         contents.removeListener('did-finish-load', load);
@@ -83,11 +128,12 @@ function installMainBranding({ appAsarPath, rendererScript }) {
   return { installed: true };
 }
 
-export function brandingScripts({ appAsarPath, productName, welcomeTitle = `${productName}，我帮你` }) {
+export function brandingScripts({ appAsarPath, productName, welcomeTitle = `${productName}，我帮你`, notificationIntervalMs = 500 }) {
+  if (!Number.isInteger(notificationIntervalMs) || notificationIntervalMs < 25 || notificationIntervalMs > 5000) throw new Error('通知合并间隔无效。');
   const rendererScript = `(${applyRendererBranding.toString()})(${JSON.stringify({ productName, welcomeTitle })})`;
   return {
     rendererScript,
-    mainScript: `(${installMainBranding.toString()})(${JSON.stringify({ appAsarPath, rendererScript })})`,
+    mainScript: `(${installMainBranding.toString()})(${JSON.stringify({ appAsarPath, rendererScript, notificationIntervalMs })}, ${coalescePrivateNotifications.toString()})`,
   };
 }
 
@@ -152,7 +198,7 @@ class InspectorConnection {
   close() { this.socket.close(); }
 }
 
-export async function installRuntimeBranding(endpoint, options, { timeoutMs = 10000 } = {}) {
+export async function installRuntimeBranding(endpoint, options, { timeoutMs = 10000, beforeResume } = {}) {
   const url = new URL(endpoint);
   if (url.protocol !== 'ws:' || url.hostname !== '127.0.0.1' || !url.port || url.username || url.password || url.search || url.hash) throw new Error('名称启动钩子只能连接本次启动的本机调试入口。');
   const connection = new InspectorConnection(endpoint, timeoutMs);
@@ -165,6 +211,7 @@ export async function installRuntimeBranding(endpoint, options, { timeoutMs = 10
     const scripts = brandingScripts(options);
     const result = await connection.evaluate(scripts.mainScript);
     if (result?.installed !== true) throw new Error('名称启动钩子未完成安装。');
+    if (beforeResume) await beforeResume(expression => connection.evaluate(expression));
     installed = true;
     await connection.call('Debugger.resume');
     await connection.evaluate("setTimeout(() => process.getBuiltinModule('inspector').close(), 50).unref(); true");

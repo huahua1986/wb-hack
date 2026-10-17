@@ -33,3 +33,20 @@ export function compatibilityConfiguration(productName) {
     ...(productName ? { productFeatureExperiment: { enabled: true, pollingEnabled: false } } : {}),
   };
 }
+
+export const DISABLED_CLOUD_LIST_PATHS = Object.freeze([
+  '/v2/user/cloudagent/conversations',
+  '/v2/user/cloudagent/agents/enterprise-published',
+]);
+
+// These are read-only catalogues for a capability this private backend does not host.
+// Match the 5.8.3 consumers' pagination contract; writes and other routes stay unsupported.
+export function disabledCloudList(route, query) {
+  if (!DISABLED_CLOUD_LIST_PATHS.includes(route)) return undefined;
+  const page = Number(query.get('page') ?? 1);
+  const pageSize = Number(query.get('pageSize') ?? (route.endsWith('/conversations') ? 1000 : 100));
+  if (!Number.isSafeInteger(page) || page < 1 || page > 1000000 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 1000) {
+    throw Object.assign(new Error('无效的云目录分页参数'), { status: 400 });
+  }
+  return { items: [], total: 0, page, pageSize, ...(route.endsWith('/conversations') ? { totalPages: 0, hasNext: false } : {}) };
+}

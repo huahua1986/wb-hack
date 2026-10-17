@@ -154,3 +154,18 @@ test('oversized JSON and repeated bad passwords are rejected', async t => {
   for (let index = 0; index < 10; index++) { res = await submitLogin(client, login, { password: 'incorrect' }); assert.equal(res.status, 401); }
   res = await submitLogin(client, login); assert.equal(res.status, 429);
 });
+
+
+test('disabled cloud assistant reads return authenticated empty lists while writes and invalid requests remain errors', async t=>{
+  const client=await startGateway(t),auth=await completeLogin(client),headers={Authorization:`Bearer ${auth.accessToken}`};
+  for(const route of ['/v2/user/cloudagent/conversations','/v2/user/cloudagent/agents/enterprise-published']){
+    assert.equal((await client.request(route)).status,401);
+    const res=await client.request(route+'?page=2&pageSize=10',{headers});assert.equal(res.status,200);
+    const value=(await res.json()).data;assert.deepEqual(value.items,[]);assert.equal(value.total,0);assert.equal(value.page,2);assert.equal(value.pageSize,10);
+    assert.equal((await client.request(route+'?page=-1',{headers})).status,400);
+    assert.equal((await client.request(route,{method:'POST',headers,body:'{}'})).status,404);
+  }
+  assert.equal((await client.request('/v2/user/cloudagent/unknown',{headers})).status,404);
+  client.app.store.revoke(auth.refreshToken);
+  assert.equal((await client.request('/v2/user/cloudagent/conversations',{headers})).status,401);
+});

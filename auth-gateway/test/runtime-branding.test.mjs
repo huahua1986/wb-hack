@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
-import { brandingScripts, installRuntimeBranding, parseInspectorEndpoint } from '../src/runtime-branding.mjs';
+import { brandingScripts, installRuntimeBranding, parseInspectorEndpoint, coalescePrivateNotifications } from '../src/runtime-branding.mjs';
 import vm from 'node:vm';
 
 function renderer() {
@@ -73,7 +73,7 @@ test('real Inspector bootstrap runs before entry, reapplies on navigation, and c
   fs.writeFileSync(entry, `const fs=require('node:fs');const e=require('electron');
     const c=e.make(${JSON.stringify('file://' + appAsarPath + '/renderer/index.html?seed=private-fixture')});
     const guest=e.make('file:///unrelated/editor.html');
-    setTimeout(()=>{c.sidebar.data='WorkBuddy';c.welcome.data='WorkBuddy, 我帮你';c.emit('did-finish-load');setTimeout(()=>{fs.writeFileSync(${JSON.stringify(report + '.tmp')},JSON.stringify({sidebar:c.sidebar.data,welcome:c.welcome.data,evaluations:c.evaluations,guestEvaluations:guest.evaluations}));fs.renameSync(${JSON.stringify(report + '.tmp')},${JSON.stringify(report)})},20)},30);
+    setTimeout(()=>{c.sidebar.data='WorkBuddy';c.welcome.data='WorkBuddy, 我帮你';c.emit('did-finish-load');setTimeout(()=>{fs.writeFileSync(${JSON.stringify(report + '.tmp')},JSON.stringify({sidebar:c.sidebar.data,welcome:c.welcome.data,evaluations:c.evaluations,guestEvaluations:guest.evaluations,beforeResumeProbe:globalThis.beforeResumeProbe===true}));fs.renameSync(${JSON.stringify(report + '.tmp')},${JSON.stringify(report)})},20)},30);
     setInterval(()=>{},1000);
   `);
   const child = spawn(process.execPath, ['--inspect-brk=127.0.0.1:0', entry], { stdio: ['ignore', 'ignore', 'pipe'] });
@@ -87,10 +87,39 @@ test('real Inspector bootstrap runs before entry, reapplies on navigation, and c
     child.stderr.on('data', data => { output = (output + data.toString()).slice(-16384); const url = parseInspectorEndpoint(output); if(url){clearTimeout(timer);resolve(url);} });
     child.once('error', reject);
   });
-  const result = await installRuntimeBranding(endpoint, { appAsarPath, productName: '企业AI工作台', welcomeTitle: '企业AI工作台，我帮你' });
+  const result = await installRuntimeBranding(endpoint, { appAsarPath, productName: '企业AI工作台', welcomeTitle: '企业AI工作台，我帮你' }, { beforeResume: evaluate => evaluate('globalThis.beforeResumeProbe=true; true') });
   assert.equal(result.inspectorClosed, true);
   for(let i=0;i<50&&!fs.existsSync(report);i++) await delay(20);
   const data = JSON.parse(fs.readFileSync(report));
-  assert.equal(data.sidebar, '企业AI工作台'); assert.equal(data.welcome, '企业AI工作台，我帮你');
+  assert.equal(data.sidebar, '企业AI工作台'); assert.equal(data.welcome, '企业AI工作台，我帮你'); assert.equal(data.beforeResumeProbe, true);
   assert.ok(data.evaluations >= 2); assert.equal(data.guestEvaluations, 0);
+});
+
+
+test('repeated skill/plugin notifications keep latest state while model and auth events pass immediately',async()=>{
+  const sent=[];const contents={send:(...args)=>sent.push(args),isDestroyed:()=>false};const original=contents.send;
+  const coalescer=coalescePrivateNotifications(contents,{intervalMs:25});
+  for(let version=1;version<=80;version++)contents.send('wb:event',{event:'skill:versionChanged',payload:{version}});
+  for(let n=0;n<5;n++){contents.send('chat:delta',{text:'fixture'});contents.send('auth:logout',{n});}
+  assert.equal(sent.filter(([c])=>c==='chat:delta').length,5);assert.equal(sent.filter(([c])=>c==='auth:logout').length,5);
+  await delay(40);const versions=sent.filter(([c])=>c==='wb:event').map(([,e])=>e.payload.version);
+  assert.deepEqual(versions,[1,80]);assert.equal(coalescer.snapshot().coalesced,79);
+  contents.send('wb:event',{event:'skill:versionChanged',payload:{version:81}});coalescer.dispose();await delay(35);
+  assert.equal(contents.send,original);assert.equal(sent.filter(([c])=>c==='wb:event').length,2);
+});
+
+
+test('a delayed metadata event never crosses a navigation into an unrelated page',async()=>{
+  const sent=[];let eligible=true;const c={send:(...args)=>sent.push(args),isDestroyed:()=>false};
+  const gate=coalescePrivateNotifications(c,{intervalMs:25,eligible:()=>eligible});
+  c.send('wb:event',{event:'skill:versionChanged',payload:{version:1}});
+  c.send('wb:event',{event:'skill:versionChanged',payload:{version:2}});eligible=false;
+  await delay(40);assert.equal(sent.length,1);gate.dispose();
+});
+
+
+test('a renderer destroyed during deferred delivery cannot crash the main process',async()=>{
+  let destroyed=false,calls=0;const c={send(){if(++calls>1){destroyed=true;throw new Error('Object destroyed');}},isDestroyed:()=>destroyed};
+  const gate=coalescePrivateNotifications(c,{intervalMs:25});c.send('plugin:changed',{});c.send('plugin:changed',{});
+  await delay(40);assert.equal(gate.snapshot().deliveryFailures,1);gate.dispose();
 });

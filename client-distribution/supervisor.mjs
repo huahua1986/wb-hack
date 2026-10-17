@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFile, spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -21,9 +21,20 @@ export function ownedProcess(pid, settings, owner, fingerprint = processFingerpr
     && owner.runtimeBranding.welcomeTitle === settings.welcomeTitle;
 }
 
+export function belongsToProcess(pid, ancestor, query = execFileSync) {
+  const seen = new Set();
+  for (let depth = 0; depth < 32 && Number.isInteger(pid) && pid > 1 && !seen.has(pid); depth++) {
+    if (pid === ancestor) return true;
+    seen.add(pid);
+    try { pid = Number(query('/bin/ps', ['-p', String(pid), '-o', 'ppid='], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()); }
+    catch { return false; }
+  }
+  return false;
+}
+
 // Serialize events with controlled startup: its launch event arrives before last-launch.json is written.
 export function createLaunchController({ settings, readOwner, fingerprint, handoff, launch, verify,
-  findProcesses, report = () => {}, now = Date.now, wait = delay, refresh = () => {} }) {
+  findProcesses, related = belongsToProcess, report = () => {}, now = Date.now, wait = delay, refresh = () => {} }) {
   let pending = Promise.resolve(), closed = false;
   const seen = new Set();
   const managed = pid => ownedProcess(pid, settings, readOwner(), fingerprint);
@@ -58,7 +69,7 @@ export function createLaunchController({ settings, readOwner, fingerprint, hando
         if (managed(app?.pid)) return;
         if (!fresh(app)) { report('ignored-stale'); return; }
         const originalFingerprint = fingerprint(app.pid);
-        if (!originalFingerprint || findProcesses().some(pid => pid !== app.pid)) { report('ignored-conflict'); return; }
+        if (!originalFingerprint || findProcesses().some(pid => pid !== app.pid && !related(pid, app.pid))) { report('ignored-conflict'); return; }
         await verify();
         if (closed || !fresh(app) || fingerprint(app.pid) !== originalFingerprint) { report('ignored-changed'); return; }
         report('handoff-requested', { pid: app.pid });

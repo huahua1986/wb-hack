@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLaunchController, ownedProcess } from '../../client-distribution/supervisor.mjs';
+import { createLaunchController, ownedProcess, belongsToProcess } from '../../client-distribution/supervisor.mjs';
 
 const settings = { appPath: '/Applications/WorkBuddy.app', gateway: 'https://auth.example.test', mode: 'development', productName: '企业AI工作台', welcomeTitle: '企业AI工作台，我帮你' };
 const ownerFor = pid => ({ pid, processFingerprint: `start-${pid}`, executable: settings.appPath + '/Contents/MacOS/Electron', gateway: settings.gateway, mode: settings.mode,
@@ -107,4 +107,17 @@ test('gateway settings refresh precedes ownership checks and preserves a newly c
     now: () => 100000, verify: () => calls.push('verify'), launch: () => calls.push('launch'), handoff: () => calls.push('handoff') });
   await controller.handle({ pid: 30, launchedAt: 99900 });
   assert.deepEqual(calls, []);
+});
+
+
+test('startup sidecars belong to their main process, while unrelated Electron instances remain protected',async()=>{
+  const parents=new Map([[21,20],[22,21],[30,1]]);
+  const query=(_command,args)=>String(parents.get(Number(args[1]))??1);
+  assert.equal(belongsToProcess(22,20,query),true);
+  assert.equal(belongsToProcess(30,20,query),false);
+  const f=fixture({related:(pid,root)=>belongsToProcess(pid,root,query)});f.setPids([20,21,22]);
+  await f.controller.handle({pid:20,launchedAt:99900});
+  assert.deepEqual(f.calls,['verify',['handoff',20],['launch',false]]);
+  const other=fixture({related:(pid,root)=>belongsToProcess(pid,root,query)});other.setPids([20,21,30]);
+  await other.controller.handle({pid:20,launchedAt:99900});assert.deepEqual(other.calls,[]);
 });

@@ -5,6 +5,9 @@ const SKILL_MARKET = '/v2/operation-platform/market';
 const MAX_PAGE_SIZE = 500;
 const MAX_IDS = 500;
 const ID = /^[a-zA-Z0-9._-]{1,128}$/;
+// Desktop 5.8.3 uses a skill display name when an installed entry has no market ID.
+// Such names are opaque query keys, never package paths or published catalog IDs.
+const SKILL_QUERY_KEY = /^[\p{L}\p{N}\p{M}._-]{1,128}$/u;
 
 function result(data, status = 200, code = 0, msg = 'success') {
   return { status, body: { code, msg, data } };
@@ -50,7 +53,7 @@ function categoryId(value) {
 function requestedIds(value, allowNumeric = false) {
   if (!Array.isArray(value) || value.length > MAX_IDS) return undefined;
   const ids = value.map(id => allowNumeric && Number.isSafeInteger(id) && id >= 0 ? String(id) : id);
-  if (ids.some(id => typeof id !== 'string' || !ID.test(id))) return undefined;
+  if (ids.some(id => typeof id !== 'string' || !(ID.test(id) || allowNumeric && SKILL_QUERY_KEY.test(id)))) return undefined;
   return [...new Set(ids)];
 }
 
