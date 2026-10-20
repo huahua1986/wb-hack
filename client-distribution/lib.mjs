@@ -4,11 +4,12 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { validatePublicUrl } from '../auth-gateway/src/config.mjs';
+import { normalizeLexiangClient } from '../auth-gateway/src/lexiang-config.mjs';
 
 export const KIND = 'workbuddy-enterprise-client';
 export const LABEL = 'local.workbuddy.enterprise-client.login';
-export const VERSION = '0.1.2';
-export const CLIENT_MODULES = ['desktop-launcher', 'double-click-launcher', 'runtime-branding', 'client-profile', 'compatibility', 'config', 'client-ip', 'connector-catalog', 'package-archive'];
+export const VERSION = '0.1.3';
+export const CLIENT_MODULES = ['desktop-launcher', 'double-click-launcher', 'runtime-branding', 'runtime-lexiang', 'lexiang-config', 'client-profile', 'compatibility', 'config', 'client-ip', 'connector-catalog', 'package-archive'];
 
 export function regular(filename) {
   const stat = fs.lstatSync(filename);
@@ -124,6 +125,8 @@ export function initializeState(root, { home = os.homedir(), gateway, migrateFro
   const settings = { gateway: validatePublicUrl(chosen), appPath: template.appPath || '/Applications/WorkBuddy.app',
     productName: template.productName || '企业AI工作台', welcomeTitle: template.welcomeTitle || '企业AI工作台，我帮你', mode: 'development',
     reuseDevelopmentAuth: false, replaceProductionLogin: false, caCertificate: template.caFile ? path.join(root, template.caFile) : '' };
+  const lexiang = normalizeLexiangClient(previous?.lexiang ?? template.lexiang);
+  if (lexiang) settings.lexiang = lexiang;
   if (settings.caCertificate && !manifest.files[template.caFile]) throw new Error('CA 文件未包含在交付清单中。');
   if (migrateFrom) {
     const source = path.join(path.resolve(migrateFrom), 'auth-gateway/client-profiles/double-click');

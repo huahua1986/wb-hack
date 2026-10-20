@@ -7,9 +7,10 @@ import { fileURLToPath } from 'node:url';
 import { X509Certificate } from 'node:crypto';
 import { CLIENT_MODULES, KIND, LABEL, VERSION, digest, validateModelPreset, json, launchAgent } from '../../client-distribution/lib.mjs';
 import { validatePublicUrl } from '../../auth-gateway/src/config.mjs';
+import { normalizeLexiangClient } from '../../auth-gateway/src/lexiang-config.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const { values } = parseArgs({ options: { 'node-dir': { type: 'string' }, output: { type: 'string' }, gateway: { type: 'string' }, ca: { type: 'string' }, models: { type: 'string' }, 'application-signing-identity': { type: 'string' }, 'installer-signing-identity': { type: 'string' }, 'require-signed': { type: 'boolean' } } });
+const { values } = parseArgs({ options: { 'node-dir': { type: 'string' }, output: { type: 'string' }, gateway: { type: 'string' }, ca: { type: 'string' }, models: { type: 'string' }, 'lexiang-config': { type: 'string' }, 'application-signing-identity': { type: 'string' }, 'installer-signing-identity': { type: 'string' }, 'require-signed': { type: 'boolean' } } });
 if (process.platform !== 'darwin' || process.arch !== 'arm64') throw new Error('当前构建目标为 macOS arm64。');
 if (!values['node-dir']) throw new Error('请用 --node-dir 指定已校验的官方 Node 24 arm64 解压目录。');
 if (values['require-signed'] && (!values['application-signing-identity'] || !values['installer-signing-identity'])) throw new Error('正式构建必须提供应用和安装包签名身份。');
@@ -33,6 +34,7 @@ try {
   for (const name of ['lib.mjs', 'bootstrap.mjs', 'install.mjs', 'uninstall.mjs', 'setup.mjs', 'supervisor.mjs']) copy(path.join(root, 'client-distribution', name), path.join(payload, 'client-distribution', name));
   const config = json(path.join(root, 'client-distribution/client-config.example.json'));
   config.gateway = values.gateway ? validatePublicUrl(values.gateway) : '';
+  if (values['lexiang-config']) config.lexiang = normalizeLexiangClient(json(path.resolve(values['lexiang-config'])));
   if (values.models) config.models = validateModelPreset(json(path.resolve(values.models)));
   if (values.ca) {
     const bytes = fs.readFileSync(path.resolve(values.ca)), certificate = new X509Certificate(bytes);
@@ -58,7 +60,8 @@ try {
   fs.writeFileSync(path.join(delivery, '安装企业配置.command'), command, { mode: 0o755 });
   const disableCommand = '#!/bin/zsh -f\nCLIENT="$HOME/Library/Application Support/EnterpriseWorkbenchClient/program"\nif [[ ! -x "$CLIENT/runtime/node" ]]; then print -- "未找到用户级企业配置组件。"; exit 1; fi\nexec "$CLIENT/runtime/node" "$CLIENT/client-distribution/uninstall.mjs"\n';
   fs.writeFileSync(path.join(delivery, '停用企业配置（保留数据）.command'), disableCommand, { mode: 0o755 });
-  copy(path.join(root, 'client-distribution/README.md'), path.join(delivery, 'README.md'));
+  fs.writeFileSync(path.join(delivery, 'README.md'), fs.readFileSync(path.join(root, 'client-distribution/README.md'), 'utf8').replace('../docs/lexiang-private-integration.md', '私有乐享接入说明.md'));
+  copy(path.join(root, 'docs/lexiang-private-integration.md'), path.join(delivery, '私有乐享接入说明.md'));
   copy(path.join(root, 'docs/offline-validation.md'), path.join(delivery, '离线验收说明.md'));
   const prefix = '/Library/Application Support/EnterpriseWorkbenchClient', staging = path.join(cache, 'package-root'), scripts = path.join(cache, 'package-scripts');
   fs.mkdirSync(path.dirname(path.join(staging, prefix)), { recursive: true });

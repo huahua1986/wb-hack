@@ -1,6 +1,6 @@
 {
   "name": "workbuddy-local-auth-gateway",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "type": "module",
   "engines": { "node": ">=24" },
@@ -19,6 +19,7 @@
     "client:prepare": "node scripts/prepare-client.mjs",
     "client:launch": "node scripts/launch-workbuddy.mjs",
     "preview": "node test/preview.mjs",
-    "mock": "node scripts/mock-gateway.mjs"
+    "mock": "node scripts/mock-gateway.mjs",
+    "lexiang:mock": "node scripts/lexiang-mock.mjs"
   }
 }

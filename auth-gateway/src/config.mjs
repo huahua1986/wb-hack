@@ -37,6 +37,7 @@ export function readConfig(env = process.env) {
     publicUrl: validatePublicUrl(env.GATEWAY_PUBLIC_URL || `http://127.0.0.1:${port}`),
     dataDir,
     productName: productName?.trim(),
+    ...(env.GATEWAY_LEXIANG_CONFIG_FILE ? { lexiangConfigFile: path.resolve(env.GATEWAY_LEXIANG_CONFIG_FILE) } : {}),
     accessTtlSeconds: integer(env.GATEWAY_ACCESS_TTL_SECONDS, 3600, 60, 86400, 'access TTL'),
     refreshTtlSeconds: integer(env.GATEWAY_REFRESH_TTL_SECONDS, 1209600, 3600, 2592000, 'refresh TTL'),
     loginTtlSeconds: 300,

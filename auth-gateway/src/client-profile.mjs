@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID, X509Certificate } from 'node:crypto';
 import { localProductOverlay } from './compatibility.mjs';
+import { privateLexiangProduct } from './lexiang-config.mjs';
 import { validatePublicUrl } from './config.mjs';
 import { CONNECTOR_CATALOG_PATH, CONNECTOR_MARKETPLACE_NAME } from './connector-catalog.mjs';
 
@@ -96,13 +97,15 @@ export function inspectConnectorCatalogSource(profile, { expectedSha256 } = {}) 
 
 export { inspectConnectorCatalogSource as verifyConnectorCatalogSource };
 
-export function buildClientProduct(baseProduct, gateway) {
+export function buildClientProduct(baseProduct, gateway, { lexiang } = {}) {
   const overlay = localProductOverlay(validatePublicUrl(gateway));
+  const knowledge = privateLexiangProduct(lexiang);
   return {
     ...structuredClone(baseProduct), ...overlay,
+    ...(knowledge.privateHost ? { privateHost: { ...baseProduct.privateHost, ...knowledge.privateHost } } : {}),
     mergeStrategy: 'override',
     config: { ...baseProduct.config, ...overlay.config },
-    productFeatures: { ...baseProduct.productFeatures, ...overlay.productFeatures },
+    productFeatures: { ...baseProduct.productFeatures, ...overlay.productFeatures, ...knowledge.productFeatures },
     // Default entries remain inert compatibility objects; they are not served
     // by the auth gateway. Select an enabled custom model in WorkBuddy.
     models: (baseProduct.models || []).map(model => ({ ...model, disabled: true })),

@@ -1,10 +1,12 @@
 # 企业AI工作台：WorkBuddy 私有后端与外部启动器
 
-当前推荐入口是 [客户端配置组件](client-distribution/README.md)：附带独立运行时，用户登录任务监听原版 WorkBuddy 的新启动，自动交接到带后端配置和企业名称的进程。用户仍点击原版 Dock 图标，不新增启动 `.app`；交接时可能出现短暂窗口切换。当前客户端版本为 0.1.2，交付为 macOS arm64 内部测试包，尚未正式签名公证。原有 `.command` 和旧 Dock 启动应用代码作为兼容及回退方案保留。
+开发版后端 **0.3.3**、客户端 **0.1.3** 新增[私有乐享接入](docs/lexiang-private-integration.md)：外置地址配置、既有账号认证复用、乐享链接定向和本地 Mock 验证。现有客户服务器和已发布的 0.3.2/0.1.2 交付包未在本次更新；客户真实乐享仍需按其版本联调。
+
+当前推荐入口是 [客户端配置组件](client-distribution/README.md)：附带独立运行时，用户登录任务监听原版 WorkBuddy 的新启动，自动交接到带后端配置和企业名称的进程。用户仍点击原版 Dock 图标，不新增启动 `.app`；交接时可能出现短暂窗口切换。已发布客户端为 0.1.2，本次开发版为 0.1.3，均属于 macOS arm64 内部测试交付，尚未正式签名、公证。原有 `.command` 和旧 Dock 启动应用代码作为兼容及回退方案保留。
 
 本项目让原版 WorkBuddy 使用自建账号与内容后端，并通过独立配置直连模型服务。后端支持本地账号密码、会话撤销、专家/技能/连接器目录和版本化安装包；macOS 启动入口显示“企业AI工作台”，支持 Dock 与用户登录时自动启动。实现不修改 `/Applications/WorkBuddy.app` 安装包。
 
-仓库开发配置默认指向 `http://127.0.0.1:8787`。2026-10-17 已在服务器部署客户独立后端 0.3.2，本机已安装的客户端改为 `https://21.130.240.28:8443`，详细方案见 [客户交付](docs/customer-delivery.md)。原测试服务仍保留在 `https://21.130.240.28`。安装后的配置与登录态保存在当前用户的数据目录，不提交到 Git。
+仓库开发配置默认指向 `http://127.0.0.1:8787`。2026-10-17 在服务器部署客户独立后端 0.3.2，并将当时本机已安装客户端改为 `https://21.130.240.28:8443`，详细方案见 [客户交付](docs/customer-delivery.md)。该次部署保留原测试服务 `https://21.130.240.28`；本次乐享验证使用独立本地配置，不更新这两个远端实例。安装后的配置与登录态保存在当前用户的数据目录，不提交到 Git。
 
 当前客户端组件验证 **WorkBuddy 5.8.3 / macOS Apple Silicon**，并按文件哈希匹配版本。旧版启动器另有 5.8.1 验证，认证 provider 有 5.8.0 协议回放；这些记录不能代替新版本验收。客户端升级后需要复验协议、启动参数和界面选择器。
 
@@ -36,12 +38,79 @@ flowchart LR
 | [auth-gateway/deploy/](auth-gateway/deploy/README.md) | Linux systemd + Nginx 安装、升级、回滚、备份恢复 |
 | [client-distribution/](client-distribution/README.md) | 当前客户端组件、原版图标监听、安装与停用 |
 | [docs/customer-delivery.md](docs/customer-delivery.md) | 客户实例、交付清单、账号运维、备份与验收边界 |
+| [docs/lexiang-private-integration.md](docs/lexiang-private-integration.md) | 私有乐享原理、客户端配置、身份 bridge 合同与验证结果 |
 | [macos-launcher/](macos-launcher/README.md) | 历史 AppKit 启动应用，供兼容与回退 |
 | `scripts/macos-launcher/` | 启动应用构建和当前用户安装脚本 |
 | [ollama-local/](ollama-local/README.md) | 本机 Ollama 参数、缓存预热、量化对比与回退说明 |
 | `scripts/ollama-local/` | 本机采集、复放、预热与配置恢复工具 |
 | [workbuddy-launcher.json](workbuddy-launcher.json) | 网关、原版路径、显示名称与 Node 路径 |
 | [auth-gateway/test/fixtures/](auth-gateway/test/fixtures/README.md) | 协议回放所需的有限客户端片段与来源哈希 |
+
+## 私有乐享接入（后端 0.3.3 / 客户端 0.1.3）
+
+入口保留在原版 WorkBuddy 的“更多 → 乐享知识库”，右侧继续使用原版知识库视图。客户端将公开地址写入安装包外的 `privateHost.lexiangHost/lexiangMCP`，网关复用现有账号密码登录、单会话限制和会话撤销。模型 URL 与 API Key 仍由自定义模型配置独立管理，不经乐享适配层。
+
+| 代码 | 本次能力 |
+| --- | --- |
+| `auth-gateway/src/lexiang-config.mjs`、`client-profile.mjs` | 地址校验、产品配置生成及默认乐享链接转换 |
+| `auth-gateway/src/lexiang-http.mjs` | 乐享连接状态、短期凭据、一次性预览登录、MCP 和 bridge 会话校验 |
+| `auth-gateway/src/runtime-lexiang.mjs` | 复用短时 Inspector，定向乐享外部打开及现有/新建窗口导航，随后关闭调试端口 |
+| `auth-gateway/src/lexiang-mock.mjs`、`auth-gateway/scripts/lexiang-mock.mjs` | 仅本机使用的账号隔离目录、搜索和文档预览 Mock |
+| `client-distribution/` | 持久化 `lexiang` 设置，启动时重新生成产品配置，并将地址变更纳入进程所有权检查 |
+
+### 客户端地址配置
+
+在开发启动器的 `workbuddy-launcher.json`，或已安装组件的 `~/Library/Application Support/EnterpriseWorkbenchClient/state/workbuddy-launcher.json` 中，保留其他设置并合并：
+
+```json
+{
+  "gateway": "https://auth.customer.example",
+  "lexiang": {
+    "enabled": true,
+    "webOrigin": "https://knowledge.customer.example",
+    "mcpOrigin": "https://knowledge-mcp.customer.example"
+  }
+}
+```
+
+地址必须是无路径、查询或账号信息的 origin；远程只允许 HTTPS，本机允许回环 HTTP。不要填写完整的 `/wb` 或 `/api/mcp` 路径，也不要在客户端填写 bridge 密钥或用户 Token。后台完整 MCP URL 单独配置。后续初始化和重启保留该对象；修改后完整退出 WorkBuddy，再从同一受控入口启动。不能手改每次启动都会重新生成的 `product.local.json`。
+
+构建预置地址的客户端包时，在现有构建命令增加 `--lexiang-config client-distribution/lexiang.example.json`。恢复到关闭入口的配置可设 `"lexiang":{"enabled":false}` 后重新启动；不删除账号、知识库或模型文件。
+
+### 本机 Mock
+
+从仓库根目录运行，使用独立数据目录，保留原有账号库：
+
+```sh
+node auth-gateway/scripts/lexiang-mock.mjs --port 8791 --data-dir ./auth-gateway/data/lexiang-mock
+```
+
+将测试客户端的 `gateway`、`lexiang.webOrigin`、`lexiang.mcpOrigin` 都设为 `http://127.0.0.1:8791`。首次创建 `lexiang-demo`，随机密码只写入所选数据目录的 `initial-credentials.json`（0600），不打印。首次正常登录后，可打开知识库目录、点击文档预览，或在“添加文件 → 乐享知识库”输入“重启”并回车搜索。同一数据目录重启会保留账号、有效会话和文档；停止 Mock 使用 Ctrl+C。
+
+Mock 使用现有真实账号密码认证，不是旧的免密码 Mock 登录按钮；仅允许回环服务地址和监听地址。它需要单独运行，不由客户端隐式创建或启动。生产后端归档排除 Mock 实现、测试账号和运行数据。
+
+### 客户身份 bridge
+
+服务端以 [lexiang.bridge.example.json](auth-gateway/examples/lexiang.bridge.example.json) 为模板，通过 `GATEWAY_LEXIANG_CONFIG_FILE` 指定配置；字段包括私有网页 origin、完整 `mcpUrl`、`bridgeOrigin`、权限 0600 的 `bridgeSecretFile` 和本地用户名到乐享成员 ID 的 `members` 映射。客户端仅持有公开地址与成员短期令牌，不接收 bridge 服务密钥。地址配置和 TLS 信任应在两端对应，不能关闭证书校验。
+
+客户 bridge 需实现 `POST /session`（最长 300 秒的成员令牌）与 `POST /login-url`（受限登录 origin）。网关提供 `POST /private/lexiang/bridge/introspect`，供客户接入层检查绑定的 `subject/session_id` 是否仍有效。**客户必须执行该校验或等效撤销机制，才能让管理员释放会话同时约束其上游 Token/Cookie。** 这些是身份适配合同，不能假定所有乐享私有版原生具备相同接口。
+
+残余公网链接通过限定域名的转换处理：清除旧凭据 query/fragment，并在跨 origin 加载时去除旧 POST、额外请求头和 referrer。该机制不改模型请求，也不提供整进程网络阻断。详细合同与 API 路径见[私有乐享说明](docs/lexiang-private-integration.md#客户服务端-bridge-配置)。
+
+### 验证结果与范围
+
+2026-10-19 本机验证使用原版 **WorkBuddy 5.8.3 / macOS Apple Silicon**、独立 profile 和本地 Mock；2026-10-20 提交前从 Git 暂存区导出的干净副本完整回归 **124/124 通过**，语法、JSON 和文档本地链接检查通过：
+
+| 验证项 | 结果与证据范围 |
+| --- | --- |
+| 账号登录、目录与搜索 | 原版登录表单成功；原版知识库显示 Mock 团队及个人/团队文档；内容选择器检索“重启”返回对应文档 |
+| 文档预览与外部打开 | 原版 webview 显示本地文档，“打开乐享”最终指向本地 `/spaces/...` |
+| 完整退出与后端重启 | 同一外置入口重新启动，免登录恢复账号、品牌名称、目录及 `qwen3.8:27b` 模型选择 |
+| 安全与稳定性 | 自动化覆盖账号/团队范围隔离、一次性票据、管理员释放、受限登录目标、140 次连续预览、bridge 成员映射和服务凭据隔离 |
+| 安装包和模型 | ASAR、可执行文件、内置产品配置、核对的 renderer 文件以及复制的模型配置哈希未变；本次未重新运行模型推理性能测试 |
+| 构建 | 后端 0.3.3 归档与客户端 0.1.3 PKG/ZIP 构建成功，客户端 21 个清单文件校验通过；未安装系统级 PKG、未正式签名公证 |
+
+本次采用 `personal/native` 路径，没有伪造企业身份或商业许可；客户企业整页 iframe、真实 SSO/SPAPI/MCP、上传/导入、权限编辑和知识附件的模型工具调用仍待客户联调。未重启整台电脑，也未在本次更新远端部署。现场截图、日志、账号及构建物仅保存在被忽略的 `evidence/`、`dist/` 中；源码测试可使用临时目录独立运行。
 
 ## 开发工作区本地首次启动
 

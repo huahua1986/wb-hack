@@ -99,6 +99,19 @@ test('changing gateway regenerates owned product and dev resolver, preserving us
   assert.equal(createHash('sha256').update(fs.readFileSync(f.product)).digest('hex'), sourceHash);
 });
 
+test('private Lexiang survives repeated profile generation and retains custom model bytes', t => {
+  const f = fixture(t);
+  f.settings.lexiang = { enabled: true, webOrigin: 'http://127.0.0.1:8791' }; f.write();
+  const first = f.prepare();
+  const models = path.join(first.profile.configDir, 'models.json'); fs.writeFileSync(models, '{"models":[{"id":"local-direct"}]}');
+  for (let i = 0; i < 2; i++) {
+    const recovered = f.prepare(), product = JSON.parse(fs.readFileSync(recovered.profile.productPath));
+    assert.equal(product.privateHost.lexiangHost, f.settings.lexiang.webOrigin);
+    assert.equal(product.productFeatures.TencentLexiangKnowledge, true);
+    assert.equal(fs.readFileSync(models, 'utf8'), '{"models":[{"id":"local-direct"}]}');
+  }
+});
+
 test('double-click refuses an unowned source override without removing installed content', t => {
   const f = fixture(t), first = f.prepare();
   const sourcePath = path.join(first.profile.configDir, 'connectors', 'connector-marketplace.json');

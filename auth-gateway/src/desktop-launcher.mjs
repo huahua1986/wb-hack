@@ -59,6 +59,7 @@ export async function launchDesktopWorkbench(configFilename, {
     try { owner = JSON.parse(fs.readFileSync(path.join(path.dirname(configFilename), 'auth-gateway', 'client-profiles', 'double-click', 'last-launch.json'), 'utf8')); } catch {}
     const branded = owner && pids.includes(owner.pid) && owner.processFingerprint && owner.processFingerprint === fingerprint(owner.pid)
       && owner.executable === executable && owner.gateway === settings.gateway && owner.mode === settings.mode
+      && JSON.stringify(owner.lexiang) === JSON.stringify(settings.lexiang)
       && (!settings.productName || owner.runtimeBranding?.inspectorClosed === true && owner.runtimeBranding.productName === settings.productName && owner.runtimeBranding.welcomeTitle === settings.welcomeTitle);
     if (!branded) throw new Error('检测到其他入口启动的 WorkBuddy。请完整退出 WorkBuddy，再打开企业AI工作台；不会强制停止已有任务。');
     return { status: 'running', pid: owner.pid, appPath: settings.appPath, productName: settings.productName || 'WorkBuddy' };

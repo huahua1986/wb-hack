@@ -7,6 +7,7 @@ import { completePage, expiredPage, loginCss, loginPage } from './html.mjs';
 import { requestIp } from './client-ip.mjs';
 import { CatalogStore } from './catalog-store.mjs';
 import { ContentHttp } from './content-http.mjs';
+import { LexiangHttp, readLexiangConfig } from './lexiang-http.mjs';
 
 class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -63,11 +64,14 @@ async function body(req, form = false) {
 }
 
 export async function createGateway(config, { now = Date.now, logger = () => {}, allowMockData = false } = {}) {
+  const lexiangSettings = readLexiangConfig(config);
   const store = new AuthStore(config, now, { allowMockData });
-  let catalog;
+  let catalog, lexiang;
   try {
     store.reconcileActiveSessions();
     catalog = new CatalogStore(config, { db: store.db, key: store.key, now });
+    const mock = lexiangSettings?.mode === 'mock' ? new (await import('./lexiang-mock.mjs')).LexiangMock(store) : undefined;
+    lexiang = new LexiangHttp({ config, store, settings: lexiangSettings, mock });
   }
   catch (error) { store.close(); throw error; }
   const content = new ContentHttp({ config, store, catalog, now });
@@ -176,7 +180,7 @@ export async function createGateway(config, { now = Date.now, logger = () => {},
         await body(req); store.revoke(req.headers['x-refresh-token']); return json(res, 200, 0, {});
       }
       if (req.method === 'GET' && ['/v1/config', '/v2/config', '/v3/config'].includes(route)) {
-        return json(res, 200, 0, compatibilityConfiguration(config.productName));
+        return json(res, 200, 0, compatibilityConfiguration(config.productName, { lexiang: lexiang.clientConfig() }));
       }
       if (req.method === 'POST' && route === '/v2/feature-flag/api/product-config') {
         requireAccount(req);
@@ -197,6 +201,7 @@ export async function createGateway(config, { now = Date.now, logger = () => {},
         requireAccount(req);
         return json(res, 200, 0, disabledCloudList(route, url.searchParams), '当前私有服务未配置云端助理目录');
       }
+      if (await lexiang.handle(req, res, { url, requireAccount, readBody: body })) return;
       if (await content.handle(req, res, { url, requireAccount, readBody: body })) return;
       if (req.method === 'POST' && /^\/console\/as\/netdrive\/(?:projects\/[^/]+\/)?access-token$/.test(route)) {
         requireAccount(req); await body(req);
@@ -221,7 +226,7 @@ export async function createGateway(config, { now = Date.now, logger = () => {},
   const timer = setInterval(() => { try { store.cleanup(); } catch { logger({ event: 'cleanup_failed' }); } }, 60000);
   timer.unref();
   return {
-    server, store, catalog, config,
+    server, store, catalog, lexiang, config,
     async close() { clearInterval(timer); if (server.listening) await new Promise(resolve => server.close(resolve)); store.close(); },
   };
 }

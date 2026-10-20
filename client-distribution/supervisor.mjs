@@ -16,6 +16,7 @@ export function ownedProcess(pid, settings, owner, fingerprint = processFingerpr
   return owner?.pid === pid && owner.processFingerprint && owner.processFingerprint === fingerprint(pid)
     && owner.executable === path.join(settings.appPath, 'Contents/MacOS/Electron')
     && owner.gateway === settings.gateway && owner.mode === settings.mode
+    && JSON.stringify(owner.lexiang) === JSON.stringify(settings.lexiang)
     && owner.runtimeBranding?.inspectorClosed === true
     && owner.runtimeBranding.productName === settings.productName
     && owner.runtimeBranding.welcomeTitle === settings.welcomeTitle;

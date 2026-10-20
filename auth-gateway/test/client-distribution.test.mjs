@@ -81,6 +81,19 @@ test('foreign user state and symlinked configuration remain untouched', t => {
   assert.equal(fs.readFileSync(target, 'utf8'), '{}');
 });
 
+test('private Lexiang settings survive initialization and gateway changes without distributing service credentials', t => {
+  const f = fixture(t);
+  f.rehashConfig({ gateway: 'http://127.0.0.1:8791', appPath: '/Applications/WorkBuddy.app', lexiang: { enabled: true, webOrigin: 'http://127.0.0.1:8791' } });
+  const first = initializeState(f.payload, { home: f.home });
+  assert.equal(first.settings.lexiang.webOrigin, 'http://127.0.0.1:8791');
+  const settings = JSON.parse(fs.readFileSync(first.filename)); settings.lexiang.webOrigin = 'https://knowledge.customer.test'; settings.lexiang.mcpOrigin = 'https://mcp.customer.test';
+  fs.writeFileSync(first.filename, JSON.stringify(settings));
+  const recovered = initializeState(f.payload, { home: f.home, gateway: 'https://auth.customer.test' });
+  assert.equal(recovered.settings.lexiang.webOrigin, settings.lexiang.webOrigin);
+  assert.equal(recovered.settings.lexiang.mcpOrigin, settings.lexiang.mcpOrigin);
+  assert.ok(!JSON.stringify(recovered.settings).includes('bridgeSecret'));
+});
+
 test('user-level install survives source removal and refuses foreign programs and agents', t => {
   const f = fixture(t);
   const installed = installPayload(f.payload, { home: f.home, register: false });

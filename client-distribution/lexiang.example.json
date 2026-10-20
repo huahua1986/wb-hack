@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "webOrigin": "https://knowledge.customer.example",
+  "mcpOrigin": "https://knowledge-mcp.customer.example"
+}

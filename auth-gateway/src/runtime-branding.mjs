@@ -1,4 +1,5 @@
 import { setTimeout as delay } from 'node:timers/promises';
+import { lexiangRoutingScript } from './runtime-lexiang.mjs';
 
 function applyRendererBranding({ productName, welcomeTitle }) {
   const key = '__privateWorkbuddyBranding';
@@ -128,12 +129,13 @@ function installMainBranding({ appAsarPath, rendererScript, notificationInterval
   return { installed: true };
 }
 
-export function brandingScripts({ appAsarPath, productName, welcomeTitle = `${productName}，我帮你`, notificationIntervalMs = 500 }) {
+export function brandingScripts({ appAsarPath, productName, welcomeTitle = `${productName}，我帮你`, notificationIntervalMs = 500, lexiang }) {
   if (!Number.isInteger(notificationIntervalMs) || notificationIntervalMs < 25 || notificationIntervalMs > 5000) throw new Error('通知合并间隔无效。');
-  const rendererScript = `(${applyRendererBranding.toString()})(${JSON.stringify({ productName, welcomeTitle })})`;
+  const rendererScript = productName ? `(${applyRendererBranding.toString()})(${JSON.stringify({ productName, welcomeTitle })})` : '({})';
+  const routing = lexiangRoutingScript(appAsarPath, lexiang);
   return {
     rendererScript,
-    mainScript: `(${installMainBranding.toString()})(${JSON.stringify({ appAsarPath, rendererScript, notificationIntervalMs })}, ${coalescePrivateNotifications.toString()})`,
+    mainScript: `(() => { ${routing ? routing + ';' : ''} return (${installMainBranding.toString()})(${JSON.stringify({ appAsarPath, rendererScript, notificationIntervalMs })}, ${coalescePrivateNotifications.toString()}); })()`,
   };
 }
 

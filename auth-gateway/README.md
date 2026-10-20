@@ -1,5 +1,21 @@
 # WorkBuddy 私有认证与内容后端
 
+开发版 **0.3.3** 新增私有乐享接入，原版客户端验证版本为 5.8.3。客户端地址配置、身份 bridge 合同和验收范围见仓库 `docs/lexiang-private-integration.md`。
+
+本地 Mock 使用独立账号库，仅在源码工作区运行：
+
+```sh
+node scripts/lexiang-mock.mjs --port 8791 --data-dir ./data/lexiang-mock
+```
+
+测试账号为 `lexiang-demo`，随机密码只写入该目录的 `initial-credentials.json`，不会打印。原版客户端的认证入口和 `lexiang.webOrigin/mcpOrigin` 都设为 `http://127.0.0.1:8791`。Mock 采用既有账号密码登录、单会话限制和撤销机制，知识库按用户隔离；它只用于本机验证，生产归档不包含 Mock 实现、测试账户或运行数据。
+
+真实客户接入使用 `examples/lexiang.bridge.example.json`，在环境配置中添加 `GATEWAY_LEXIANG_CONFIG_FILE` 指向实际文件。服务端配置 `webOrigin`、完整 `mcpUrl`、`bridgeOrigin`、权限 0600 的 `bridgeSecretFile` 和本地账号到乐享成员 ID 的 `members` 映射。客户 bridge 需要实现服务认证的 `POST /session`（用户短期令牌，最长 300 秒）与 `POST /login-url`；只有明确允许的登录 origin 才能返回给客户端。
+
+服务端还提供 `POST /private/lexiang/bridge/introspect`，bridge 使用同一服务 Bearer 凭据提交 `{subject,session_id}`，返回 `code:0,data:{active,expires_at?}`。客户接入层必须用它或等效机制约束已经签发的用户令牌和网页会话，并在校验不可用时拒绝访问；否则本地会话撤销不能自动吊销客户的 Cookie。该 bridge 合同需要按客户版本实现，当前 Mock 结果不代表真实乐享部署已经验收。私有 CA 使用正常证书信任配置，不关闭 TLS 校验。后端不接管模型请求。
+
+完整回归 124/124；新增覆盖账号和团队检索范围、一次性预览票据、管理员释放、后端重启、140 次重复预览，以及 bridge 成员映射、短期令牌和上游登录目标校验。原版 WorkBuddy 5.8.3 的登录、目录、搜索、预览和完整退出重启已完成本地 Mock 验证；真实客户 SSO/SPAPI/MCP 与外部 Cookie 撤销仍待现场联调。
+
 为原版 WorkBuddy 提供本地账号密码登录、专家/技能/连接器目录管理和版本化安装包分发。0.3.1 默认启用单账号单会话，已有有效会话时拒绝新的密码登录。认证兼容 5.8.0/5.8.1，内容协议按当前 5.8.1 核对和联调。模型由客户端的自定义模型设置配置，使用独立 URL 和 API key 直连模型服务。后端不提供模型目录、模型转发、腾讯上游凭证、虚构额度或计费接口。
 
 正式部署使用 Linux systemd + Nginx，安装、升级、回滚、账号管理和备份恢复步骤见 [部署说明](deploy/README.md)。发布包不包含 Mock、账号数据、客户端 profile 或 WorkBuddy 安装包。

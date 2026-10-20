@@ -7,6 +7,7 @@ import { buildClientProduct, clientEnvironment, prepareManagedConnectorSource, p
 import { validatePublicUrl } from './config.mjs';
 import { installRuntimeBranding, parseInspectorEndpoint } from './runtime-branding.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
+import { normalizeLexiangClient } from './lexiang-config.mjs';
 
 const MANAGED = 'workbuddy-double-click-profile';
 
@@ -57,7 +58,8 @@ export function readLauncherSettings(filename, home = os.homedir()) {
       if (!certificate.ca || Date.parse(certificate.validFrom) > Date.now() || Date.parse(certificate.validTo) <= Date.now()) throw new Error('Invalid CA or validity');
     } catch { throw new Error('caCertificate 应指向有效且未过期的 PEM CA 证书文件。'); }
   }
-  return { gateway, appPath, mode, caCertificate, productName, welcomeTitle, reuseDevelopmentAuth: data.reuseDevelopmentAuth === true, replaceProductionLogin: data.replaceProductionLogin === true };
+  const lexiang = normalizeLexiangClient(data.lexiang);
+  return { gateway, appPath, mode, caCertificate, productName, welcomeTitle, ...(lexiang ? { lexiang } : {}), reuseDevelopmentAuth: data.reuseDevelopmentAuth === true, replaceProductionLogin: data.replaceProductionLogin === true };
 }
 
 export function sharedAuthFilename(mode, home = os.homedir(), platform = process.platform) {
@@ -147,7 +149,7 @@ export function prepareDoubleClickLaunch(configFilename, {
     configDir: path.join(directory, 'config'), userDataDir: path.join(directory, 'user-data'), productPath };
   prepareManagedConnectorSource(profile);
   prepareClientCaBundle(profile);
-  const product = buildClientProduct(baseProduct, settings.gateway);
+  const product = buildClientProduct(baseProduct, settings.gateway, { lexiang: settings.lexiang });
   if (settings.productName) product.productName = settings.productName;
   atomicJson(productPath, product);
   atomicJson(path.join(directory, 'launch.json'), profile);
@@ -173,7 +175,7 @@ export function spawnPreparedWorkBuddy(prepared, {
   brandingInstaller = installRuntimeBranding, brandingTimeoutMs = 15000,
 } = {}) {
   const env = clientEnvironment(prepared.profile, parentEnvironment);
-  const branded = !!prepared.settings.productName;
+  const branded = !!prepared.settings.productName || prepared.settings.lexiang?.enabled === true;
   const inspectorLog = branded ? path.join(prepared.directory, `.branding-${randomUUID()}.tmp`) : undefined;
   return new Promise((resolve, reject) => {
     let child, descriptor;
@@ -218,6 +220,7 @@ export function spawnPreparedWorkBuddy(prepared, {
             runtimeBranding = await brandingInstaller(endpoint, {
               appAsarPath: path.join(prepared.settings.appPath, 'Contents', 'Resources', 'app.asar'),
               productName: prepared.settings.productName, welcomeTitle: prepared.settings.welcomeTitle,
+              lexiang: prepared.settings.lexiang,
             });
             if (runtimeBranding?.installed !== true || runtimeBranding?.inspectorClosed !== true) throw new Error('名称启动钩子未完成或临时调试入口未关闭。');
           }
@@ -229,6 +232,7 @@ export function spawnPreparedWorkBuddy(prepared, {
             gateway: prepared.settings.gateway, mode: prepared.settings.mode,
             executable: prepared.profile.executable, productSourceHash: prepared.productSourceHash,
             startedAt: new Date().toISOString(),
+            ...(prepared.settings.lexiang ? { lexiang: prepared.settings.lexiang } : {}),
             ...(runtimeBranding ? { runtimeBranding: { productName: prepared.settings.productName, welcomeTitle: prepared.settings.welcomeTitle, inspectorClosed: true, inspectorPort: runtimeBranding.inspectorPort } } : {}),
           });
           settled = true; child.unref(); resolve({ pid: child.pid, env, ...(runtimeBranding ? { runtimeBranding } : {}) });

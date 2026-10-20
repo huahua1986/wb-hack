@@ -271,6 +271,20 @@ export class AuthStore {
     return { uid: row.id, username: row.username, nickname: row.nickname, type: 'personal', lastLogin: true };
   }
 
+  sessionForAccessToken(value) {
+    if (!isAccessToken(value)) return;
+    return this.db.prepare(`SELECT s.id,s.user_id,s.refresh_expires FROM sessions s
+      JOIN access_tokens a ON a.session_id=s.id JOIN users u ON u.id=s.user_id
+      WHERE a.hash=? AND a.expires>? AND s.refresh_expires>? AND s.revoked=0 AND u.disabled=0`)
+      .get(tokenHash(value), this.now(), this.now());
+  }
+
+  sessionUser(id) {
+    return this.db.prepare(`SELECT u.id,u.username,u.nickname,s.refresh_expires FROM sessions s
+      JOIN users u ON u.id=s.user_id WHERE s.id=? AND s.refresh_expires>? AND s.revoked=0 AND u.disabled=0`)
+      .get(id, this.now());
+  }
+
   refresh(refreshToken, expectedUserId = undefined) {
     if (!isRefreshToken(refreshToken)) return undefined;
     return this.transaction(() => {

@@ -1,5 +1,25 @@
 # WorkBuddy 企业配置客户端：本地测试交付
 
+开发版 **0.1.3** 增加私有乐享配置，已发布的 **0.1.2** 仍是上一版交付包。配置方式与本地验证结果见[私有乐享接入说明](../docs/lexiang-private-integration.md)。
+
+管理员可在用户数据目录 `state/workbuddy-launcher.json` 增加 `lexiang` 对象，例如：
+
+```json
+{
+  "lexiang": {
+    "enabled": true,
+    "webOrigin": "https://knowledge.customer.example",
+    "mcpOrigin": "https://knowledge-mcp.customer.example"
+  }
+}
+```
+
+将该片段合并到启动配置，保留原来的 `gateway`、名称和模型配置。后续初始化与重启会保留此设置；修改后完整退出 WorkBuddy，再从受控入口启动。地址只接受 HTTPS origin，本地 Mock 可用 `http://127.0.0.1:8791`。不要把账号、Token、bridge 密钥放进客户端配置。
+
+构建时可用 `scripts/client-distribution/build.mjs --lexiang-config client-distribution/lexiang.example.json` 将公开地址预置到交付包，其余构建参数沿用下文。运行时钩子只定向默认乐享域名的打开/导航行为，并清除旧凭据；不修改模型 HTTP 请求，也不充当网络防火墙。
+
+本次原版 5.8.3 使用独立本地 profile 验证登录、目录、搜索和 webview 预览；完整退出并重启后端后，同一受控入口免登录恢复，品牌和 `qwen3.8:27b` 选择保留。完整回归 124/124，0.1.3 PKG/ZIP 已构建、21 个 payload 文件校验通过；这些结果不代表系统级 PKG、整机重启或客户真实乐享已经验收。
+
 此组件在原版安装包外准备认证入口、私有目录来源、功能开关和两处企业名称。安装后只固定原版 WorkBuddy 图标，不新建启动应用。登录任务运行附带 Node 和原生事件监听器。用户从原版图标启动时自动接入受控启动；运行时显示钩子完成后关闭 Inspector。监听器不代理模型，也不保留调试端口。
 
 本版本为 macOS arm64 内部测试交付。支持的原版版本和文件哈希见 compatibility.json，目前验证 5.8.3。0.1.2 已在网络故障注入条件下实际调用本地模型；该结果不等于完整模型压测。未知版本或文件变化会停止受控启动并提示联系管理员，不自动修改或降级 WorkBuddy。

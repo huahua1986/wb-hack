@@ -1,3 +1,5 @@
+import { privateLexiangProduct } from './lexiang-config.mjs';
+
 export const LOCAL_FEATURES = Object.freeze({
   CustomModelsJSON: true,
   CustomModelIdPrefix: true,
@@ -28,8 +30,9 @@ export function localProductOverlay(endpoint) {
 
 // Compatibility metadata only. No remote model definitions, quota balances,
 // model proxying, or Tencent upstream calls are provided by this service.
-export function compatibilityConfiguration(productName) {
-  return { productFeatures: { ...LOCAL_FEATURES }, config: { disabled: true }, models: [],
+export function compatibilityConfiguration(productName, { lexiang } = {}) {
+  const knowledge = privateLexiangProduct(lexiang);
+  return { ...knowledge, productFeatures: { ...LOCAL_FEATURES, ...knowledge.productFeatures }, config: { disabled: true }, models: [],
     ...(productName ? { productFeatureExperiment: { enabled: true, pollingEnabled: false } } : {}),
   };
 }
