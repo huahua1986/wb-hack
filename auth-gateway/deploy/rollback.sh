@@ -20,7 +20,7 @@ NODE="$("$NODE" -e 'process.stdout.write(require(process.argv[1]).node)' "$PREFI
 SERVICE="$("$NODE" -e 'const s=require(process.argv[1]).service||"workbuddy-auth";if(!/^workbuddy-auth(?:-[a-z][a-z0-9-]{0,15})?$/.test(s))process.exit(1);process.stdout.write(s)' "$PREFIX/deployment.json")"
 OLD="$(readlink -f "$PREFIX/current")"
 if [ -n "$RELEASE_ID" ]; then
-    [[ "$RELEASE_ID" =~ ^0\.(2|3)\.[0-9]+-[a-f0-9]{12}$ ]] || { echo "Invalid release id" >&2; exit 1; }
+    [[ "$RELEASE_ID" =~ ^0\.(2|3|4)\.[0-9]+-[a-f0-9]{12}$ ]] || { echo "Invalid release id" >&2; exit 1; }
     TARGET="$PREFIX/releases/$RELEASE_ID"
 else
     [ -L "$PREFIX/previous" ] || { echo "No previous release; select --release explicitly" >&2; exit 1; }

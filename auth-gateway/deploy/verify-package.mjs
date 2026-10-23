@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'release-manifest.json'), 'utf8'));
-if (manifest.kind !== 'workbuddy-auth-release' || manifest.schema !== 2 || !/^0\.(?:2|3)\.\d+-[a-f0-9]{12}$/.test(manifest.id)) throw new Error('Unsupported release manifest');
+if (manifest.kind !== 'workbuddy-auth-release' || manifest.schema !== 2 || !/^0\.(?:2|3|4)\.\d+-[a-f0-9]{12}$/.test(manifest.id)) throw new Error('Unsupported release manifest');
 const files = [];
 function walk(directory) {
   for (const name of fs.readdirSync(directory)) {

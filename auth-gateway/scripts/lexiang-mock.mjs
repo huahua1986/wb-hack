@@ -20,9 +20,14 @@ try {
     app.store.addUser('lexiang-demo', '私有乐享测试账号', await hashPassword(password));
     fs.writeFileSync(path.join(config.dataDir, 'initial-credentials.json'), JSON.stringify({ username: 'lexiang-demo', password }) + '\n', { mode: 0o600, flag: 'wx' });
   }
+  if (!app.lexiang.mock.account('knowledge-demo')) {
+    const password = randomSecret();
+    await app.lexiang.mock.addAccount('knowledge-demo', '乐享独立测试账号', password);
+    fs.writeFileSync(path.join(config.dataDir, 'lexiang-credentials.json'), JSON.stringify({ username: 'knowledge-demo', password }) + '\n', { mode: 0o600, flag: 'wx' });
+  }
 } catch (error) { await app?.close(); release(); console.error(error.message); process.exit(1); }
 app.server.once('error', async () => { console.error('乐享 Mock 无法监听指定端口。'); await app.close(); release(); process.exitCode = 1; });
-app.server.listen(config.port, config.host, () => console.log(JSON.stringify({ service: 'lexiang-local-mock', origin: config.publicUrl, username: 'lexiang-demo', credentialsFile: path.join(config.dataDir, 'initial-credentials.json') })));
+app.server.listen(config.port, config.host, () => console.log(JSON.stringify({ service: 'lexiang-local-mock', origin: config.publicUrl, workbuddyAccount: 'lexiang-demo', lexiangAccount: 'knowledge-demo', credentialsFile: path.join(config.dataDir, 'initial-credentials.json'), lexiangCredentialsFile: path.join(config.dataDir, 'lexiang-credentials.json') })));
 let stopping = false;
 const stop = async () => { if (stopping) return; stopping = true; await app.close(); release(); };
 process.once('SIGINT', stop); process.once('SIGTERM', stop);

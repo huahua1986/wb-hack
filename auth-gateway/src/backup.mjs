@@ -158,6 +158,8 @@ export function restoreBackup(config, input, { actor = 'system' } = {}) {
     try {
       store.transaction(() => {
         invalidatedSessions = store.db.prepare('SELECT COUNT(*) AS n FROM sessions').get().n;
+        if (store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='lexiang_bindings'").get()) store.db.exec('DELETE FROM lexiang_bindings;');
+        if (store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='lexiang_mock_refresh_tokens'").get()) store.db.exec('UPDATE lexiang_mock_refresh_tokens SET revoked=1;');
         store.db.exec('DELETE FROM login_states; DELETE FROM access_tokens; DELETE FROM sessions;');
         store.audit('backup_restored_sessions_invalidated', null, null, { actor });
       });

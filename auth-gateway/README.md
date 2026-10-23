@@ -1,20 +1,20 @@
 # WorkBuddy 私有认证与内容后端
 
-开发版 **0.3.3** 新增私有乐享接入，原版客户端验证版本为 5.8.3。客户端地址配置、身份 bridge 合同和验收范围见仓库 `docs/lexiang-private-integration.md`。
-
-本地 Mock 使用独立账号库，仅在源码工作区运行：
+开发版 **0.4.0** 支持 WorkBuddy 与乐享双账号独立登录、授权绑定、解除绑定、令牌刷新和重启恢复。客户端地址和完整 bridge 合同见 [私有乐享接入说明](../docs/lexiang-private-integration.md)。原版 5.9.1 已做本地 Mock 验证，真实客户身份源仍待联调。
 
 ```sh
 node scripts/lexiang-mock.mjs --port 8791 --data-dir ./data/lexiang-mock
 ```
 
-测试账号为 `lexiang-demo`，随机密码只写入该目录的 `initial-credentials.json`，不会打印。原版客户端的认证入口和 `lexiang.webOrigin/mcpOrigin` 都设为 `http://127.0.0.1:8791`。Mock 采用既有账号密码登录、单会话限制和撤销机制，知识库按用户隔离；它只用于本机验证，生产归档不包含 Mock 实现、测试账户或运行数据。
+WorkBuddy 测试账号 `lexiang-demo` 的随机密码保存在所选目录的 `initial-credentials.json`；独立乐享账号 `knowledge-demo` 的密码在 `lexiang-credentials.json`，两文件均为 0600，不打印。客户端主网关和 `lexiang.webOrigin/mcpOrigin` 均配置回环地址。先登录 WorkBuddy，再在乐享入口独立登录并确认绑定；知识库按乐享账号隔离。解绑不退出 WorkBuddy。保留数据目录与密钥后重启可恢复有效绑定。
 
-真实客户接入使用 `examples/lexiang.bridge.example.json`，在环境配置中添加 `GATEWAY_LEXIANG_CONFIG_FILE` 指向实际文件。服务端配置 `webOrigin`、完整 `mcpUrl`、`bridgeOrigin`、权限 0600 的 `bridgeSecretFile` 和本地账号到乐享成员 ID 的 `members` 映射。客户 bridge 需要实现服务认证的 `POST /session`（用户短期令牌，最长 300 秒）与 `POST /login-url`；只有明确允许的登录 origin 才能返回给客户端。
+bridge 示例为 `examples/lexiang.bridge.example.json`，使用 `GATEWAY_LEXIANG_CONFIG_FILE` 加载。服务端独占服务密钥与加密的 B 刷新令牌；客户端仅获得最长 300 秒的成员访问令牌。需要客户适配 `/authorize`、`/exchange`、`/refresh`、`/login-url`、`/revoke`。`members` 只是可选绑定限制，不再自动创建授权。`authorizationOrigins/loginOrigins` 分别限制授权页与预览登录入口；私有 CA 按正常 TLS 信任配置。
 
-服务端还提供 `POST /private/lexiang/bridge/introspect`，bridge 使用同一服务 Bearer 凭据提交 `{subject,session_id}`，返回 `code:0,data:{active,expires_at?}`。客户接入层必须用它或等效机制约束已经签发的用户令牌和网页会话，并在校验不可用时拒绝访问；否则本地会话撤销不能自动吊销客户的 Cookie。该 bridge 合同需要按客户版本实现，当前 Mock 结果不代表真实乐享部署已经验收。私有 CA 使用正常证书信任配置，不关闭 TLS 校验。后端不接管模型请求。
+`POST /private/lexiang/bridge/introspect` 使用服务 Bearer，提交 `{subject,session_id,binding_id}`，返回 `code:0,data:{active,expires_at?}`。客户必须将已发出的 Token/Cookie 绑定到该三元组并实时校验或实现等效撤销；校验不可用时拒绝访问。解绑本地立即失效，上游撤销是尽力调用，无后台重试队列。
 
-完整回归 124/124；新增覆盖账号和团队检索范围、一次性预览票据、管理员释放、后端重启、140 次重复预览，以及 bridge 成员映射、短期令牌和上游登录目标校验。原版 WorkBuddy 5.8.3 的登录、目录、搜索、预览和完整退出重启已完成本地 Mock 验证；真实客户 SSO/SPAPI/MCP 与外部 Cookie 撤销仍待现场联调。
+0.4.0 首次启动会使旧版隐式乐享凭据失效，保留主账号会话，要求独立授权；旧 Mock 内容不自动归属到新 B 账号。备份恢复会清除 B 绑定并撤销 Mock 刷新令牌，防止旧授权复活。回滚到 0.3.x 会回到旧认证策略，不应视为保持双账号隔离的透明回滚；生产切换前保留一致性备份并安排重新授权。
+
+生产归档不包含 Mock 实现、测试凭据或运行数据。模型仍按客户端自定义配置直连，未接入此适配层。原版 UI 已验证目录、搜索、预览、局部刷新、解绑重绑和双重重启；完整回归结果及证据范围见 [根 README](../README.md)。
 
 为原版 WorkBuddy 提供本地账号密码登录、专家/技能/连接器目录管理和版本化安装包分发。0.3.1 默认启用单账号单会话，已有有效会话时拒绝新的密码登录。认证兼容 5.8.0/5.8.1，内容协议按当前 5.8.1 核对和联调。模型由客户端的自定义模型设置配置，使用独立 URL 和 API key 直连模型服务。后端不提供模型目录、模型转发、腾讯上游凭证、虚构额度或计费接口。
 

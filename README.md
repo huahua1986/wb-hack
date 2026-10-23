@@ -1,6 +1,6 @@
 # 企业AI工作台：WorkBuddy 私有后端与外部启动器
 
-开发版后端 **0.3.3**、客户端 **0.1.3** 新增[私有乐享接入](docs/lexiang-private-integration.md)：外置地址配置、既有账号认证复用、乐享链接定向和本地 Mock 验证。现有客户服务器和已发布的 0.3.2/0.1.2 交付包未在本次更新；客户真实乐享仍需按其版本联调。
+开发版后端 **0.4.0**、客户端 **0.1.3** 支持[私有乐享双账号独立登录](docs/lexiang-private-integration.md)：WorkBuddy 主账号与乐享账号分别登录，显式授权绑定、解除绑定、令牌刷新和重启恢复。现有客户服务器和已发布的 0.3.2/0.1.2 交付包未在本次更新；客户真实乐享仍需按其版本联调。
 
 当前推荐入口是 [客户端配置组件](client-distribution/README.md)：附带独立运行时，用户登录任务监听原版 WorkBuddy 的新启动，自动交接到带后端配置和企业名称的进程。用户仍点击原版 Dock 图标，不新增启动 `.app`；交接时可能出现短暂窗口切换。已发布客户端为 0.1.2，本次开发版为 0.1.3，均属于 macOS arm64 内部测试交付，尚未正式签名、公证。原有 `.command` 和旧 Dock 启动应用代码作为兼容及回退方案保留。
 
@@ -46,21 +46,21 @@ flowchart LR
 | [workbuddy-launcher.json](workbuddy-launcher.json) | 网关、原版路径、显示名称与 Node 路径 |
 | [auth-gateway/test/fixtures/](auth-gateway/test/fixtures/README.md) | 协议回放所需的有限客户端片段与来源哈希 |
 
-## 私有乐享接入（后端 0.3.3 / 客户端 0.1.3）
+## 私有乐享双账号接入（后端 0.4.0 / 客户端 0.1.3）
 
-入口保留在原版 WorkBuddy 的“更多 → 乐享知识库”，右侧继续使用原版知识库视图。客户端将公开地址写入安装包外的 `privateHost.lexiangHost/lexiangMCP`，网关复用现有账号密码登录、单会话限制和会话撤销。模型 URL 与 API Key 仍由自定义模型配置独立管理，不经乐享适配层。
+入口仍是原版“更多 → 乐享知识库”。先登录 WorkBuddy 主账号 A，再用独立的乐享账号 B 登录并确认授权。知识库权限与内容归 B；WorkBuddy 登录不自动获得乐享权限，乐享失效或解除绑定也不会退出 WorkBuddy。自定义模型仍使用独立 URL 和 API Key 直连。
 
-| 代码 | 本次能力 |
+| 代码 | 能力 |
 | --- | --- |
-| `auth-gateway/src/lexiang-config.mjs`、`client-profile.mjs` | 地址校验、产品配置生成及默认乐享链接转换 |
-| `auth-gateway/src/lexiang-http.mjs` | 乐享连接状态、短期凭据、一次性预览登录、MCP 和 bridge 会话校验 |
-| `auth-gateway/src/runtime-lexiang.mjs` | 复用短时 Inspector，定向乐享外部打开及现有/新建窗口导航，随后关闭调试端口 |
-| `auth-gateway/src/lexiang-mock.mjs`、`auth-gateway/scripts/lexiang-mock.mjs` | 仅本机使用的账号隔离目录、搜索和文档预览 Mock |
-| `client-distribution/` | 持久化 `lexiang` 设置，启动时重新生成产品配置，并将地址变更纳入进程所有权检查 |
+| `auth-gateway/src/lexiang-config.mjs`、`client-profile.mjs` | 外置地址配置及产品配置生成 |
+| `lexiang-http.mjs`、`lexiang-controller.mjs` | 配置校验、授权协议、令牌刷新、预览、MCP 和 bridge 校验 |
+| `lexiang-auth-store.mjs`、`lexiang-auth-html.mjs` | 持久授权、加密令牌、独立登录及二次确认页面 |
+| `runtime-lexiang.mjs` | 现有运行时钩子定向残余公网链接，不改模型请求 |
+| `lexiang-mock.mjs`、`scripts/lexiang-mock.mjs` | 回环测试服务、独立 B 账号库和按 B 隔离的内容 |
 
 ### 客户端地址配置
 
-在开发启动器的 `workbuddy-launcher.json`，或已安装组件的 `~/Library/Application Support/EnterpriseWorkbenchClient/state/workbuddy-launcher.json` 中，保留其他设置并合并：
+在开发启动器或已安装组件的 `state/workbuddy-launcher.json` 中保留原设置并合并：
 
 ```json
 {
@@ -73,44 +73,49 @@ flowchart LR
 }
 ```
 
-地址必须是无路径、查询或账号信息的 origin；远程只允许 HTTPS，本机允许回环 HTTP。不要填写完整的 `/wb` 或 `/api/mcp` 路径，也不要在客户端填写 bridge 密钥或用户 Token。后台完整 MCP URL 单独配置。后续初始化和重启保留该对象；修改后完整退出 WorkBuddy，再从同一受控入口启动。不能手改每次启动都会重新生成的 `product.local.json`。
+只填 origin，不含路径、查询、账号或凭据；远程必须 HTTPS。本地测试三个地址均设为 `http://127.0.0.1:8791`。启动器仍通过安装包外的 `privateHost.lexiangHost/lexiangMCP` 下发；修改后完整退出并从同一受控入口启动，不能手改每次重新生成的 `product.local.json`。构建客户端可使用 `--lexiang-config client-distribution/lexiang.example.json`；关闭入口可设 `"lexiang":{"enabled":false}`。
 
-构建预置地址的客户端包时，在现有构建命令增加 `--lexiang-config client-distribution/lexiang.example.json`。恢复到关闭入口的配置可设 `"lexiang":{"enabled":false}` 后重新启动；不删除账号、知识库或模型文件。
-
-### 本机 Mock
-
-从仓库根目录运行，使用独立数据目录，保留原有账号库：
+### 本地 Mock 与使用流程
 
 ```sh
 node auth-gateway/scripts/lexiang-mock.mjs --port 8791 --data-dir ./auth-gateway/data/lexiang-mock
 ```
 
-将测试客户端的 `gateway`、`lexiang.webOrigin`、`lexiang.mcpOrigin` 都设为 `http://127.0.0.1:8791`。首次创建 `lexiang-demo`，随机密码只写入所选数据目录的 `initial-credentials.json`（0600），不打印。首次正常登录后，可打开知识库目录、点击文档预览，或在“添加文件 → 乐享知识库”输入“重启”并回车搜索。同一数据目录重启会保留账号、有效会话和文档；停止 Mock 使用 Ctrl+C。
+| 系统 | 测试账号 | 随机密码文件（所选数据目录，0600） |
+| --- | --- | --- |
+| WorkBuddy | `lexiang-demo` | `initial-credentials.json` |
+| 乐享 | `knowledge-demo` | `lexiang-credentials.json` |
 
-Mock 使用现有真实账号密码认证，不是旧的免密码 Mock 登录按钮；仅允许回环服务地址和监听地址。它需要单独运行，不由客户端隐式创建或启动。生产后端归档排除 Mock 实现、测试账号和运行数据。
+1. 用 A 登录 WorkBuddy；已有有效主会话时直接恢复。
+2. 在“更多 → 乐享知识库”点击授权，用 B 登录，再点击“确认授权绑定”。
+3. 查看 B 的知识库，点击文档预览；“添加文件 → 乐享知识库”中输入“重启”并回车搜索。
+4. 乐享右上角“⋯ → 解除绑定”仅断开 B；重新使用时再次登录并授权。
+5. 保留相同数据目录、`delivery.key` 和客户端 profile，完整退出客户端并重启后端后可恢复有效绑定。
+
+脚本不会打印密码。B 密码使用 scrypt；B 刷新令牌只在后端加密保存，短期凭据仅保存哈希。旧版自动映射不算用户授权，升级会清除旧乐享访问凭据，保留 WorkBuddy 会话，首次需独立绑定。旧 Mock 文档保留原表，不静默迁移到 B 名下。生产归档不包含 Mock、密码文件或运行数据。
 
 ### 客户身份 bridge
 
-服务端以 [lexiang.bridge.example.json](auth-gateway/examples/lexiang.bridge.example.json) 为模板，通过 `GATEWAY_LEXIANG_CONFIG_FILE` 指定配置；字段包括私有网页 origin、完整 `mcpUrl`、`bridgeOrigin`、权限 0600 的 `bridgeSecretFile` 和本地用户名到乐享成员 ID 的 `members` 映射。客户端仅持有公开地址与成员短期令牌，不接收 bridge 服务密钥。地址配置和 TLS 信任应在两端对应，不能关闭证书校验。
+以 [配置示例](auth-gateway/examples/lexiang.bridge.example.json) 配置 `GATEWAY_LEXIANG_CONFIG_FILE`。新增 `authorizationOrigins` 用于允许的授权入口，`loginOrigins` 用于预览登录入口；服务凭据使用权限 0600 的 `bridgeSecretFile`，留在后端。可选 `members` 仅限制 A 可以绑定的 B 成员 ID，不能替代独立登录和同意。
 
-客户 bridge 需实现 `POST /session`（最长 300 秒的成员令牌）与 `POST /login-url`（受限登录 origin）。网关提供 `POST /private/lexiang/bridge/introspect`，供客户接入层检查绑定的 `subject/session_id` 是否仍有效。**客户必须执行该校验或等效撤销机制，才能让管理员释放会话同时约束其上游 Token/Cookie。** 这些是身份适配合同，不能假定所有乐享私有版原生具备相同接口。
+客户适配层需实现 `/authorize`、`/exchange`（授权码 + PKCE）、`/refresh`、`/login-url`、`/revoke`。网关提供 `/private/lexiang/bridge/introspect`，校验 `{subject,session_id,binding_id}`。真实系统必须约束已发出的 Token/Cookie，并在校验不可用时拒绝访问；解绑先本地失效，上游撤销失败会返回 `upstream_revoked:false`，目前无后台重试队列。详细字段与联调边界见[接入说明](docs/lexiang-private-integration.md#客户服务端-bridge-配置)。这是客户适配合同，不是乐享原生 API 的保证。
 
-残余公网链接通过限定域名的转换处理：清除旧凭据 query/fragment，并在跨 origin 加载时去除旧 POST、额外请求头和 referrer。该机制不改模型请求，也不提供整进程网络阻断。详细合同与 API 路径见[私有乐享说明](docs/lexiang-private-integration.md#客户服务端-bridge-配置)。
+### 本次验证
 
-### 验证结果与范围
+2026-10-23 使用原版 **WorkBuddy 5.9.1 / macOS Apple Silicon**、独立 profile 和本地 Mock，已验证：
 
-2026-10-19 本机验证使用原版 **WorkBuddy 5.8.3 / macOS Apple Silicon**、独立 profile 和本地 Mock；2026-10-20 提交前从 Git 暂存区导出的干净副本完整回归 **124/124 通过**，语法、JSON 和文档本地链接检查通过：
-
-| 验证项 | 结果与证据范围 |
+| 验证项 | 结果 |
 | --- | --- |
-| 账号登录、目录与搜索 | 原版登录表单成功；原版知识库显示 Mock 团队及个人/团队文档；内容选择器检索“重启”返回对应文档 |
-| 文档预览与外部打开 | 原版 webview 显示本地文档，“打开乐享”最终指向本地 `/spaces/...` |
-| 完整退出与后端重启 | 同一外置入口重新启动，免登录恢复账号、品牌名称、目录及 `qwen3.8:27b` 模型选择 |
-| 安全与稳定性 | 自动化覆盖账号/团队范围隔离、一次性票据、管理员释放、受限登录目标、140 次连续预览、bridge 成员映射和服务凭据隔离 |
-| 安装包和模型 | ASAR、可执行文件、内置产品配置、核对的 renderer 文件以及复制的模型配置哈希未变；本次未重新运行模型推理性能测试 |
-| 构建 | 后端 0.3.3 归档与客户端 0.1.3 PKG/ZIP 构建成功，客户端 21 个清单文件校验通过；未安装系统级 PKG、未正式签名公证 |
+| 双账号与授权 | A 自动恢复；B 单独密码登录、明确确认后展示 B 的知识库 |
+| 搜索与预览 | 原版搜索“重启”返回 B 的个人/团队文档，原版 WebView 显示 B 的内容 |
+| 令牌刷新 | 仅使本地 Mock 短期凭据过期，SPAPI 401 后客户端自动取新令牌并重试 200；A 会话保持有效 |
+| 解绑与重绑 | 原版菜单解绑后绑定数和乐享凭据数归零，A 仍在线；独立重新授权成功 |
+| 完整重启 | 客户端正常退出、后端重启后，两账号免重新登录恢复，并能继续预览 |
+| 边界 | 安装包三项核心文件及模型配置哈希未变，`qwen3.8:27b` 选择保留；未重跑模型推理性能测试 |
 
-本次采用 `personal/native` 路径，没有伪造企业身份或商业许可；客户企业整页 iframe、真实 SSO/SPAPI/MCP、上传/导入、权限编辑和知识附件的模型工具调用仍待客户联调。未重启整台电脑，也未在本次更新远端部署。现场截图、日志、账号及构建物仅保存在被忽略的 `evidence/`、`dist/` 中；源码测试可使用临时目录独立运行。
+完整回归 **137/137 通过**，其中乐享定向回归 **21/21 通过**。自动化验证涵盖密码隔离、CSRF、状态重放、令牌轮换、跨账号/绑定代次隔离、解绑失效、备份恢复清授权及在途回调/刷新竞态。原版授权 guest 会把后续导航转成外部打开，因此自有登录/确认页使用同源 fetch 提交及 CSP 脚本哈希，不增加 WorkBuddy 注入权限。
+
+5.9.1 此次通过有限核对后的本地验证入口启动，**没有扩展公开客户端包的版本哈希白名单**；公开组件原有 5.8.3 验证范围不变。未更新远端服务或 Release。真实客户 SSO/SPAPI/MCP、企业整页 iframe、写入/上传及模型知识工具调用仍需现场验收；证据、私有账号和数据库仅在被忽略的 `evidence/` 内。
 
 ## 开发工作区本地首次启动
 

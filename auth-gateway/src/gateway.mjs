@@ -39,7 +39,7 @@ function cookies(req) {
   return result;
 }
 
-async function body(req, form = false) {
+async function body(req, form = false, fields = ['state', 'csrf', 'username', 'password']) {
   const contentType = (req.headers['content-type'] || '').split(';')[0].trim();
   if (form ? contentType !== 'application/x-www-form-urlencoded' : contentType && contentType !== 'application/json') {
     throw new HttpError(415, '不支持的请求类型');
@@ -53,7 +53,7 @@ async function body(req, form = false) {
   const text = Buffer.concat(chunks).toString('utf8');
   if (form) {
     const values = new URLSearchParams(text);
-    for (const name of ['state', 'csrf', 'username', 'password']) if (values.getAll(name).length !== 1) throw new HttpError(400, '无效的登录表单');
+    for (const name of new Set([...fields, ...values.keys()])) if (values.getAll(name).length !== 1) throw new HttpError(400, '无效的登录表单');
     return Object.fromEntries(values);
   }
   try {

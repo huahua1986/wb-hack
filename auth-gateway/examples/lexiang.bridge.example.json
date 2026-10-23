@@ -4,7 +4,7 @@
   "mcpUrl": "https://knowledge-mcp.customer.example/api/mcp?preset=meta",
   "bridgeOrigin": "https://knowledge-bridge.customer.example",
   "bridgeSecretFile": "./lexiang-bridge.key",
-  "members": { "local-user": "customer-lexiang-member-id" },
+  "authorizationOrigins": ["https://sso.customer.example", "https://knowledge-bridge.customer.example"],
   "loginOrigins": ["https://knowledge.customer.example"],
   "timeoutMs": 5000
 }
