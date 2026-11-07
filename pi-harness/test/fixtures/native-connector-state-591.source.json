@@ -1,0 +1,67 @@
+{
+  "workbuddyVersion": "5.9.1",
+  "artifactSHA256": "1fc0a56ddec5437d4dc55a55ba1c028b291ab29cb17306500827015987424233",
+  "purpose": "Exact connector getStates projection and delegation; pure VM verification, no running connector or account data.",
+  "slices": [
+    {
+      "name": "collectProjectedStates",
+      "member": "main/module.app-server.js",
+      "memberSHA256": "60fbf6fd53b74d53760a0b5d41ed1d17d3622ed92c2df7f184dab847ae8e139c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 88019,
+        "end": 88405
+      },
+      "sha256": "06ae8902d7948a531f5ef4402cbc781be3736c24af7f130a4ccfea6f830d269b",
+      "source": "collectProjectedStates(e){let t={},n=new Set([...Object.keys(this.host.getStateStore().persistentState.connectors),...this.host.getPluginAccount().pluginSource?.boundSources().filter(e=>this.host.getStateStore().isPluginManaged(e))??[],...this.host.getStates().ids()]);for(let r of n)g.sn.isConnectorAllowed(e,[r,`connector:${r}`])!==!1&&(t[r]=this.projectConnectorState(r,e));return t}"
+    },
+    {
+      "name": "projectConnectorState",
+      "member": "main/module.app-server.js",
+      "memberSHA256": "60fbf6fd53b74d53760a0b5d41ed1d17d3622ed92c2df7f184dab847ae8e139c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 88405,
+        "end": 89517
+      },
+      "sha256": "9b9c78ae24aca3beec06aee32cb6b4a7304b5f08f3c51e33f93338ee6d511c4b",
+      "source": "projectConnectorState(e,t){let n=this.host.getStateStore().isBound(e),r=this.host.getStateStore().isEnabledForSession(e,t),i=this.host.getStates().get(e),a=this.host.getMcpManager()?.getDependencySnapshot(g.Gn(e)),s=this.host.getConnectIntents().isInFlight(e),c=e===`wecom`&&o.c(this.host.getWecomSkillAccount()),l=g.sn.isConnectorAllowed(t,[e,`connector:${e}`])===!0&&n&&i?.status!==`unauthorized`&&i?.status!==`error`,u=i?.status===`connected`||l,d=!s&&n&&r&&(c||(a?.present?a.ready:u)),f=this.buildStateReason(e,i);!f&&a?.present&&!a.ready&&(a.state===`unauthorized`?f={code:`auth-required`,message:a.blockedDetail??`Authorization required`}:a.state===`error`&&(f={code:`runtime`,message:a.blockedDetail??`Connection failed`}));let p=!d&&(s||i?.status===`connecting`||this.host.getServerSideAuth().pendingServerSideAuthAborts.has(e)||r&&a?.state===`starting`),m=d&&this.host.getGmailLocal().isBundled(e)?this.host.getGmailLocal().getCapabilities():void 0;return{configId:e,bound:n,enabled:r,connected:d,connecting:p,reason:d||p?void 0:f,...m?{capabilities:{granted:[...m.granted],missing:[...m.missing]}}:{}}}"
+    },
+    {
+      "name": "buildStateReason",
+      "member": "main/module.app-server.js",
+      "memberSHA256": "60fbf6fd53b74d53760a0b5d41ed1d17d3622ed92c2df7f184dab847ae8e139c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 90000,
+        "end": 90358
+      },
+      "sha256": "ad68627428298ad727b7dae8069eb8b1e401accb7149604444455a69795aea69",
+      "source": "buildStateReason(e,t){if(t){if(t.status===`unauthorized`)return this.host.getConnectorConfigById(e)?.authMode===`token`?t.error?{code:`config-required`,message:t.error}:void 0:{code:t.reasonCode??`auth-required`,message:t.error??`Authorization required`};if(t.status===`error`)return{code:t.reasonCode??`runtime`,message:t.error??`Connector runtime error`}}}"
+    },
+    {
+      "name": "serviceGetStates",
+      "member": "main/module.app-server.js",
+      "memberSHA256": "60fbf6fd53b74d53760a0b5d41ed1d17d3622ed92c2df7f184dab847ae8e139c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 324700,
+        "end": 324757
+      },
+      "sha256": "c7cf040548170fdf20712f5ef5ef6ff57dc962e066cf1660f465496728539e00",
+      "source": "async getStates(e){return this.configReader.getStates(e)}"
+    },
+    {
+      "name": "configReaderGetStates",
+      "member": "main/authority-snapshot.js",
+      "memberSHA256": "15b99c97a1f8c2e0206c2907a7894c5a08db644ccec92bcead376e5c60653a93",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 775898,
+        "end": 776210
+      },
+      "sha256": "93dc2cc2c2c86ecf3b884d8770c987606fdede5201320dcb3a6f6a475c34136b",
+      "source": "async getStates(e){let t=this.host.getMcpDeclarations().collectProjectedStates();if(shouldIgnoreBuddyAllowlist(e))return t;let n=await this.host.getIndustryAllowlist().getAllowlist();if(!n)return t;let r=new Set(n),i={};for(let[e,n]of Object.entries(t))(r.has(e)||isStatefulConnectorState(n))&&(i[e]=n);return i}"
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "workbuddyVersion": "5.9.2",
+  "artifactSHA256": "0b79c0358c129749bc3355f52bbae13f115577ab37c082a76dfdc54f66fd3f79",
+  "settingsKey": "defaultWorkspacePath",
+  "nativeMaxCollisionAttempts": 100,
+  "reaStatus": "Summary requested with record-and-continue after unpacked node-pty companion integrity mismatch; summary wait cancelled. These narrowly selected JavaScript members were then independently read and member integrity verified; no native code execution.",
+  "slices": [
+    {
+      "name": "formatDefaultCwdTimestamp",
+      "member": "main/server.js",
+      "memberSHA256": "a471fc017f34ac8d18b7cdea7e0072232e476543b4244c9649556c690be07bba",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3006945,
+        "end": 3007157
+      },
+      "sha256": "26e2f961000971446c2d7ba02ea39cbd075ae114828e3d4647883647fb3bd3ab",
+      "source": "function formatDefaultCwdTimestamp(e){let pad=e=>String(e).padStart(2,`0`);return`${e.getFullYear()}-${pad(e.getMonth()+1)}-${pad(e.getDate())}-${pad(e.getHours())}-${pad(e.getMinutes())}-${pad(e.getSeconds())}`}"
+    },
+    {
+      "name": "generateDefaultCwd",
+      "member": "main/server.js",
+      "memberSHA256": "a471fc017f34ac8d18b7cdea7e0072232e476543b4244c9649556c690be07bba",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3007157,
+        "end": 3007245
+      },
+      "sha256": "1e5287e2c0a6bd606014935ab77259ab36bee144edc884c00e8d4ad60faae749",
+      "source": "function generateDefaultCwd(e,t=new Date){return K.join(e,formatDefaultCwdTimestamp(t))}"
+    },
+    {
+      "name": "createDefaultCwd",
+      "member": "main/server.js",
+      "memberSHA256": "a471fc017f34ac8d18b7cdea7e0072232e476543b4244c9649556c690be07bba",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3007245,
+        "end": 3007598
+      },
+      "sha256": "fbf5d72b40683d96b7b6163a75b6720f691582521d4894c916999fbfc5e0504e",
+      "source": "async function createDefaultCwd(e,t=new Date){if(!await ensureDirReady(e))throw Error(`Workspace root \"${e}\" is not an accessible directory`);for(let n=0;n<100;n+=1){let r=generateDefaultCwd(e,new Date(t.getTime()+n*1e3));try{return await q.mkdir(r),r}catch(e){if(e.code!==`EEXIST`)throw e}}throw Error(`Failed to create unique default cwd under ${e}`)}"
+    },
+    {
+      "name": "getSystemDefaultWorkspaceRoot",
+      "member": "main/server.js",
+      "memberSHA256": "a471fc017f34ac8d18b7cdea7e0072232e476543b4244c9649556c690be07bba",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 583449,
+        "end": 583586
+      },
+      "sha256": "4e5493d73fe21e0327dd21e46518e8594f05cd64bc5e71a3961d01d71c0457ee",
+      "source": "function getSystemDefaultWorkspaceRoot(){let e=Ss?.()||process.env.WORKBUDDY_APP_NAME?.trim()||`WorkBuddy`;return K.join(Ue.homedir(),e)}"
+    },
+    {
+      "name": "resolveDefaultWorkspaceRootUncached",
+      "member": "main/server.js",
+      "memberSHA256": "a471fc017f34ac8d18b7cdea7e0072232e476543b4244c9649556c690be07bba",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 587635,
+        "end": 587913
+      },
+      "sha256": "0dfc0d73ed812ab9ae9e86e05dc649d4d23f3fbd7447023401ea4ea0d390f1f7",
+      "source": "function resolveDefaultWorkspaceRootUncached(){if(bs)try{let e=bs.get(ys),t=validateDefaultWorkspaceRoot(e);if(t.ok)return t.root;clearConfiguredDefaultWorkspacePath(e,t.reason)}catch{}let e=getSystemDefaultWorkspaceRoot(),t=validateDefaultWorkspaceRoot(e);return t.ok?t.root:e}"
+    },
+    {
+      "name": "resolveWorkspaceRoot",
+      "member": "main/server.js",
+      "memberSHA256": "a471fc017f34ac8d18b7cdea7e0072232e476543b4244c9649556c690be07bba",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3005993,
+        "end": 3006945
+      },
+      "sha256": "2ffec0978f4ceaa725776565c6177005d379b60d4252d6aeaec9472305a1b161",
+      "source": "async function resolveWorkspaceRoot(e,t,n){if(n){let e=getUnexpandedPlaceholderReason(n);if(e)t?.warn(`[WorkspaceHandlers] Rejected requested workspace root \"${n}\" (${e}), falling back to daemon default`);else if(await ensureDirReady(n))return n;else t?.warn(`[WorkspaceHandlers] Requested workspace root \"${n}\" is inaccessible, falling back to daemon default`)}if(e.resolveDefaultWorkspaceRoot)return await e.resolveDefaultWorkspaceRoot();let r=e.getBrandFolderName?.()??getDefaultBrandFolderName(),i=K.join(Ue.homedir(),r);try{let n=await(await e.services).config.get(ys);if(typeof n==`string`){let e=n.trim();if(e&&K.isAbsolute(e)){let n=getUnexpandedPlaceholderReason(e);if(n)t?.warn(`[WorkspaceHandlers] Rejected configured workspace path \"${e}\" (${n}), falling back to \"${i}\"`);else if(await ensureDirReady(e))return e;else t?.warn(`[WorkspaceHandlers] Configured workspace path \"${e}\" is inaccessible, falling back to \"${i}\"`)}}}catch{}return i}"
+    },
+    {
+      "name": "getUnexpandedPlaceholderReason",
+      "member": "main/server.js",
+      "memberSHA256": "a471fc017f34ac8d18b7cdea7e0072232e476543b4244c9649556c690be07bba",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 585186,
+        "end": 585541
+      },
+      "sha256": "8f5e1493ac6fd16437d10a68179d59a36364ff5d0668d4fdd942c20911b18c97",
+      "source": "function getUnexpandedPlaceholderReason(e){if(/[{}]/.test(e))return`path contains an unexpanded template placeholder (e.g. \"{user}\")`;if(/%[A-Za-z_][A-Za-z0-9_]*%/.test(e))return`path contains an unexpanded environment variable (e.g. \"%USERNAME%\")`;if(/(?:^|[\\\\/])~(?:[\\\\/]|$)/.test(e))return`path contains an unexpanded home directory placeholder (\"~\")`}"
+    },
+    {
+      "name": "validateDefaultWorkspaceRoot",
+      "member": "main/server.js",
+      "memberSHA256": "a471fc017f34ac8d18b7cdea7e0072232e476543b4244c9649556c690be07bba",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 585870,
+        "end": 586636
+      },
+      "sha256": "04ee46dc849d1b320ce3cfbfe64d76c76477fcdaad5fee94a9b4e4edadd4dcbd",
+      "source": "function validateDefaultWorkspaceRoot(e){if(typeof e!=`string`)return{ok:!1,reason:`path is not a string`,reasonCode:Do.INVALID_TYPE};let t=e.trim();if(!t)return{ok:!1,reason:`path is empty`,reasonCode:Do.EMPTY};if(!K.isAbsolute(t))return{ok:!1,reason:`path is not absolute`,reasonCode:Do.NOT_ABSOLUTE};if(isDisallowedFilesystemRoot(t))return{ok:!1,reason:`filesystem root cannot be used as workspace root`,reasonCode:Do.FILESYSTEM_ROOT};let n=getUnexpandedPlaceholderReason(t);if(n)return{ok:!1,reason:n,reasonCode:Do.UNEXPANDED_PLACEHOLDER};let r=getDirReadyFailureReason(t);if(r)return{ok:!1,reason:r,reasonCode:reasonCodeFromFsFailure(r)};let i=getWorkspaceRootProbeFailureReason(t);return i?{ok:!1,reason:i,reasonCode:reasonCodeFromFsFailure(i)}:{ok:!0,root:t}}"
+    }
+  ]
+}

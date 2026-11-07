@@ -1,0 +1,67 @@
+{
+  "workbuddyVersion": "5.9.1",
+  "artifactSHA256": "1fc0a56ddec5437d4dc55a55ba1c028b291ab29cb17306500827015987424233",
+  "purpose": "Native create-Expert prefill and local custom Expert manifest preservation. Pure fixtures only; candidate and account data untouched.",
+  "slices": [
+    {
+      "name": "createPrefill",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3287768,
+        "end": 3288013
+      },
+      "sha256": "1884306f5b4393852c9ec4780f0e77e5a1f94c1c493dd841e03310219f3db8fd",
+      "source": "function buildCreateExpertModeBlocks(e){let t=getInputIntentLocale(),n=e.editExpert?getEditExpertPrompt(e.editExpert.id,t):e.defaultPrompt??getDefaultCreateExpertPrompt(t),r=buildSkillBlock({skillName:vOe});return n?[r,{type:`text`,text:n}]:[r]}"
+    },
+    {
+      "name": "publishPrefill",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3288013,
+        "end": 3288150
+      },
+      "sha256": "c0258f4c83ab349acbfe1876365fa1e018aade84df3b75bce0376566031d2266",
+      "source": "function publishCreateExpertModeInputIntent(e){return publishInputDraftIntent({kind:`set-blocks`,blocks:buildCreateExpertModeBlocks(e)})}"
+    },
+    {
+      "name": "skillBlock",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1018200,
+        "end": 1018495
+      },
+      "sha256": "483991d71ceb45b36b00b4bff62086592f10343c471cafc3c42296b469d32109",
+      "source": "function buildSkillBlock(e){let t=e.displayText??e.skillName,n=e.skillId??e.skillName;return Zr(t,`skill://${n}`,{title:`Use skill ${e.skillName}. `,description:``,meta:{type:`skill`,mentionType:`skill`,displayText:t,skillId:e.skillId,...e.autoAttached===!0?{autoAttached:!0}:{}},icon:`skill`})}"
+    },
+    {
+      "name": "readManifest",
+      "member": "main/module.app-server.js",
+      "memberSHA256": "60fbf6fd53b74d53760a0b5d41ed1d17d3622ed92c2df7f184dab847ae8e139c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 377737,
+        "end": 377887
+      },
+      "sha256": "2b8b5b20db2e24545e41aa39888a3f2178c2e9ab92a59fbcb3255661c5a61dbc",
+      "source": "async readPluginManifestAsync(e){for(let t of Bn){let n=A.join(e,t,Vn);try{let e=await z.readFile(n,`utf-8`);return JSON.parse(e)}catch{}}return null}"
+    },
+    {
+      "name": "readCustomExpert",
+      "member": "main/module.app-server.js",
+      "memberSHA256": "60fbf6fd53b74d53760a0b5d41ed1d17d3622ed92c2df7f184dab847ae8e139c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 384835,
+        "end": 385785
+      },
+      "sha256": "504b3adeb10799e8c9b9ecac71d80e3891d74b9b914fbff8084b3e572d900c24",
+      "source": "async readCustomExpertFromDir(e,t){let n=await this.readPluginManifestAsync(e);if(!n)return null;let r={...n};for(let e of[`tags`,`quickPrompts`,`triggerPrompts`]){let t=normalizeLocalizedManifestItems(r[e]);t!==void 0&&(r[e]=t)}for(let e of[`members`,`connectorIds`,`bin`,`references`]){let t=normalizeManifestItems(r[e]);t!==void 0&&(r[e]=t)}if(r.version||=`1.0.0`,r.avatar&&=await this.resolveAvatarUrl(r.avatar,e),Array.isArray(r.members))for(let t of r.members)typeof t==`object`&&t&&((!t.id||typeof t.id!=`string`)&&typeof t.agent==`string`&&t.agent.trim()&&(t.id=t.agent.trim()),t.avatar&&=await this.resolveAvatarUrl(t.avatar,e));r.expertRootDir=e,r.id=r.id||r.name||t,r.isCustomExpert=!0,r.marketplace=x.M;try{let t=A.join(e,`.created-by-session`),n=A.join(e,`.pending-preview-session`),i=await pathExists$2(t)?t:await pathExists$2(n)?n:void 0;if(i){let e=await z.readFile(i,`utf-8`);e.trim()&&(r.createdBySession=e.trim())}}catch{}return r}"
+    }
+  ]
+}

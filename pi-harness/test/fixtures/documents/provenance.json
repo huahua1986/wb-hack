@@ -1,0 +1,13 @@
+{
+  "kind": "synthetic-pdf-fixtures",
+  "generator": "../../helpers/pdf-fixtures.swift",
+  "containsUserData": false,
+  "regeneration": "swift pi-harness/test/helpers/pdf-fixtures.swift pi-harness/test/fixtures/documents",
+  "note": "The encrypted PDF uses a public fixture-only passphrase in the generator; not a user credential.",
+  "sha256": {
+    "text.pdf": "aee3f290fe1561080dcae73eef02e17e0ea99dfbba8cfa0c6e25f55a54004ad4",
+    "scan.pdf": "3421359379ac992e9d82a08fe77367af0f3e03d22115b04b9015bb499e412102",
+    "blank.pdf": "8bb116ec6234f198ebde8406401102bacf2b6a008efeac9b514cf29db94b8f6e",
+    "encrypted.pdf": "e95b10af45f37fc2a80248cc0996976f637b07ab07dd51830d92f242dc087b5f"
+  }
+}

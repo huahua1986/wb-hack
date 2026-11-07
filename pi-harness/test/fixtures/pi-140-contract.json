@@ -1,0 +1,279 @@
+{
+  "version": "1.4.0",
+  "name": "@earendil-works/pi-coding-agent",
+  "nodeRequirement": ">=22.19.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/earendil-works/pi.git",
+    "directory": "packages/coding-agent"
+  },
+  "license": "MIT",
+  "npmIntegrity": "sha512-Z41LpZ3yYHSC/UUps6Mr39UMFPwH8elhJBG9DY1P7kuzsE5qSK/6eMj2EHzO5evJRQWLbKSqUMw+4nCNtIyiQg==",
+  "upstreamRelease": "https://github.com/earendil-works/pi/releases/tag/v1.4.0",
+  "licenseSource": "https://raw.githubusercontent.com/earendil-works/pi/v1.4.0/LICENSE",
+  "rpcComparisonTo110": [
+    {
+      "member": "dist/modes/rpc/rpc-mode.js",
+      "baselineVersion": "1.1.0",
+      "baselineSHA256": "631697cd35928fc827f4a423538c43ff227b8cbf63c2a2f11060616f55eba6db",
+      "currentSHA256": "631697cd35928fc827f4a423538c43ff227b8cbf63c2a2f11060616f55eba6db",
+      "identical": true
+    },
+    {
+      "member": "dist/modes/rpc/rpc-types.d.ts",
+      "baselineVersion": "1.1.0",
+      "baselineSHA256": "68b6dc2e47a3969c09c961a40d0462473407b6786f3bd02715fa035e816e2af1",
+      "currentSHA256": "68b6dc2e47a3969c09c961a40d0462473407b6786f3bd02715fa035e816e2af1",
+      "identical": true
+    },
+    {
+      "member": "dist/modes/rpc/jsonl.js",
+      "baselineVersion": "1.1.0",
+      "baselineSHA256": "049a9f8ca4242c79f1911ed977949e8d8906b4561f424c2729687f426fabaacf",
+      "currentSHA256": "049a9f8ca4242c79f1911ed977949e8d8906b4561f424c2729687f426fabaacf",
+      "identical": true
+    }
+  ],
+  "slices": [
+    {
+      "name": "dialogPromise",
+      "member": "dist/modes/rpc/rpc-mode.js",
+      "memberSHA256": "631697cd35928fc827f4a423538c43ff227b8cbf63c2a2f11060616f55eba6db",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 2008,
+        "end": 3255
+      },
+      "sha256": "815bac8fefb11889798ea3ec68785b76d9f81a6287e62ff9b28504de3061cb76",
+      "source": "    function createDialogPromise(opts, defaultValue, request, parseResponse) {\n        if (opts?.signal?.aborted)\n            return Promise.resolve(defaultValue);\n        const id = crypto.randomUUID();\n        return new Promise((resolve, reject) => {\n            let timeoutId;\n            const cleanup = () => {\n                if (timeoutId)\n                    clearTimeout(timeoutId);\n                opts?.signal?.removeEventListener(\"abort\", onAbort);\n                pendingExtensionRequests.delete(id);\n            };\n            const onAbort = () => {\n                cleanup();\n                resolve(defaultValue);\n            };\n            opts?.signal?.addEventListener(\"abort\", onAbort, { once: true });\n            if (opts?.timeout) {\n                timeoutId = setTimeout(() => {\n                    cleanup();\n                    resolve(defaultValue);\n                }, opts.timeout);\n            }\n            pendingExtensionRequests.set(id, {\n                resolve: (response) => {\n                    cleanup();\n                    resolve(parseResponse(response));\n                },\n                reject,\n            });\n            output({ type: \"extension_ui_request\", id, ...request });\n        });\n    }\n"
+    },
+    {
+      "name": "rpcUIContext",
+      "member": "dist/modes/rpc/rpc-mode.js",
+      "memberSHA256": "631697cd35928fc827f4a423538c43ff227b8cbf63c2a2f11060616f55eba6db",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3337,
+        "end": 9158
+      },
+      "sha256": "b57df2e403623e629dfe64b40a3d977d09205a0e12b95ea95f8222351b3d47ee",
+      "source": "    const createExtensionUIContext = () => ({\n        select: (title, options, opts) => createDialogPromise(opts, undefined, { method: \"select\", title, options, timeout: opts?.timeout }, (r) => \"cancelled\" in r && r.cancelled ? undefined : \"value\" in r ? r.value : undefined),\n        confirm: (title, message, opts) => createDialogPromise(opts, false, { method: \"confirm\", title, message, timeout: opts?.timeout }, (r) => \"cancelled\" in r && r.cancelled ? false : \"confirmed\" in r ? r.confirmed : false),\n        input: (title, placeholder, opts) => createDialogPromise(opts, undefined, { method: \"input\", title, placeholder, timeout: opts?.timeout }, (r) => \"cancelled\" in r && r.cancelled ? undefined : \"value\" in r ? r.value : undefined),\n        notify(message, type) {\n            // Fire and forget - no response needed\n            output({\n                type: \"extension_ui_request\",\n                id: crypto.randomUUID(),\n                method: \"notify\",\n                message,\n                notifyType: type,\n            });\n        },\n        onTerminalInput() {\n            // Raw terminal input not supported in RPC mode\n            return () => { };\n        },\n        setStatus(key, text) {\n            // Fire and forget - no response needed\n            output({\n                type: \"extension_ui_request\",\n                id: crypto.randomUUID(),\n                method: \"setStatus\",\n                statusKey: key,\n                statusText: text,\n            });\n        },\n        setWorkingMessage(_message) {\n            // Working message not supported in RPC mode - requires TUI loader access\n        },\n        setWorkingVisible(_visible) {\n            // Working visibility not supported in RPC mode - requires TUI loader access\n        },\n        setWorkingIndicator(_options) {\n            // Working indicator customization not supported in RPC mode - requires TUI loader access\n        },\n        setHiddenThinkingLabel(_label) {\n            // Hidden thinking label not supported in RPC mode - requires TUI message rendering access\n        },\n        setWidget(key, content, options) {\n            // Only support string arrays in RPC mode - factory functions are ignored\n            if (content === undefined || Array.isArray(content)) {\n                output({\n                    type: \"extension_ui_request\",\n                    id: crypto.randomUUID(),\n                    method: \"setWidget\",\n                    widgetKey: key,\n                    widgetLines: content,\n                    widgetPlacement: options?.placement,\n                });\n            }\n            // Component factories are not supported in RPC mode - would need TUI access\n        },\n        setFooter(_factory) {\n            // Custom footer not supported in RPC mode - requires TUI access\n        },\n        setHeader(_factory) {\n            // Custom header not supported in RPC mode - requires TUI access\n        },\n        setTitle(title) {\n            // Fire and forget - host can implement terminal title control\n            output({\n                type: \"extension_ui_request\",\n                id: crypto.randomUUID(),\n                method: \"setTitle\",\n                title,\n            });\n        },\n        async custom() {\n            // Custom UI not supported in RPC mode\n            return undefined;\n        },\n        pasteToEditor(text) {\n            // Paste handling not supported in RPC mode - falls back to setEditorText\n            this.setEditorText(text);\n        },\n        setEditorText(text) {\n            // Fire and forget - host can implement editor control\n            output({\n                type: \"extension_ui_request\",\n                id: crypto.randomUUID(),\n                method: \"set_editor_text\",\n                text,\n            });\n        },\n        getEditorText() {\n            // Synchronous method can't wait for RPC response\n            // Host should track editor state locally if needed\n            return \"\";\n        },\n        async editor(title, prefill) {\n            const id = crypto.randomUUID();\n            return new Promise((resolve, reject) => {\n                pendingExtensionRequests.set(id, {\n                    resolve: (response) => {\n                        if (\"cancelled\" in response && response.cancelled) {\n                            resolve(undefined);\n                        }\n                        else if (\"value\" in response) {\n                            resolve(response.value);\n                        }\n                        else {\n                            resolve(undefined);\n                        }\n                    },\n                    reject,\n                });\n                output({ type: \"extension_ui_request\", id, method: \"editor\", title, prefill });\n            });\n        },\n        addAutocompleteProvider() {\n            // Autocomplete provider composition is not supported in RPC mode\n        },\n        setEditorComponent() {\n            // Custom editor components not supported in RPC mode\n        },\n        getEditorComponent() {\n            // Custom editor components not supported in RPC mode\n            return undefined;\n        },\n        get theme() {\n            return theme;\n        },\n        getAllThemes() {\n            return [];\n        },\n        getTheme(_name) {\n            return undefined;\n        },\n        setTheme(_theme) {\n            // Theme switching not supported in RPC mode\n            return { success: false, error: \"Theme switching not supported in RPC mode\" };\n        },\n        getToolsExpanded() {\n            // Tool expansion not supported in RPC mode - no TUI\n            return false;\n        },\n        setToolsExpanded(_expanded) {\n            // Tool expansion not supported in RPC mode - no TUI\n        },\n    });\n"
+    },
+    {
+      "name": "promptCase",
+      "member": "dist/modes/rpc/rpc-mode.js",
+      "memberSHA256": "631697cd35928fc827f4a423538c43ff227b8cbf63c2a2f11060616f55eba6db",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 12187,
+        "end": 13152
+      },
+      "sha256": "2cd87372e480d07b5d57af1c1b21ed59f2bce532a37fca429c181f8c6334f1c6",
+      "source": "            case \"prompt\": {\n                // Start prompt handling immediately, but emit the authoritative response only after\n                // prompt preflight succeeds. Queued and immediately handled prompts also count as success.\n                let preflightSucceeded = false;\n                void session\n                    .prompt(command.message, {\n                    images: command.images,\n                    streamingBehavior: command.streamingBehavior,\n                    source: \"rpc\",\n                    preflightResult: (disposition) => {\n                        preflightSucceeded = true;\n                        output(success(id, \"prompt\", { disposition }));\n                    },\n                })\n                    .catch((e) => {\n                    if (!preflightSucceeded) {\n                        output(error(id, \"prompt\", e.message));\n                    }\n                });\n                return undefined;\n            }\n"
+    },
+    {
+      "name": "abortCase",
+      "member": "dist/modes/rpc/rpc-mode.js",
+      "memberSHA256": "631697cd35928fc827f4a423538c43ff227b8cbf63c2a2f11060616f55eba6db",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 13589,
+        "end": 13715
+      },
+      "sha256": "0c252ebd6a048b57cbe975fd85a453b5002acd3303aff21e1585f6f7bb9a2d1d",
+      "source": "            case \"abort\": {\n                await session.abort();\n                return success(id, \"abort\");\n            }\n"
+    },
+    {
+      "name": "getStateCase",
+      "member": "dist/modes/rpc/rpc-mode.js",
+      "memberSHA256": "631697cd35928fc827f4a423538c43ff227b8cbf63c2a2f11060616f55eba6db",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 14408,
+        "end": 15244
+      },
+      "sha256": "11649f785ad3cfd8f4fbb65c892ddb448d3a5e3a1ed9c5a388232771a2b8f3ee",
+      "source": "            case \"get_state\": {\n                const state = {\n                    model: session.model,\n                    thinkingLevel: session.thinkingLevel,\n                    isStreaming: session.isStreaming,\n                    isCompacting: session.isCompacting,\n                    steeringMode: session.steeringMode,\n                    followUpMode: session.followUpMode,\n                    sessionFile: session.sessionFile,\n                    sessionId: session.sessionId,\n                    sessionName: session.sessionName,\n                    autoCompactionEnabled: session.autoCompactionEnabled,\n                    messageCount: session.messages.length,\n                    pendingMessageCount: session.pendingMessageCount,\n                };\n                return success(id, \"get_state\", state);\n            }\n"
+    },
+    {
+      "name": "getSessionStatsCase",
+      "member": "dist/modes/rpc/rpc-mode.js",
+      "memberSHA256": "631697cd35928fc827f4a423538c43ff227b8cbf63c2a2f11060616f55eba6db",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 20321,
+        "end": 20496
+      },
+      "sha256": "7a0ce314ca3dc1fb3a55c436debbbd723bb3419dddca650c740f8ea201402a34",
+      "source": "            case \"get_session_stats\": {\n                const stats = session.getSessionStats();\n                return success(id, \"get_session_stats\", stats);\n            }\n"
+    },
+    {
+      "name": "uiResponseDispatch",
+      "member": "dist/modes/rpc/rpc-mode.js",
+      "memberSHA256": "631697cd35928fc827f4a423538c43ff227b8cbf63c2a2f11060616f55eba6db",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 26680,
+        "end": 27124
+      },
+      "sha256": "94a4e35303da7a17a3990e25158a1c36cd4cdea6b4b612668e6bfab91470f720",
+      "source": "        if (typeof parsed === \"object\" &&\n            parsed !== null &&\n            \"type\" in parsed &&\n            parsed.type === \"extension_ui_response\") {\n            const response = parsed;\n            const pending = pendingExtensionRequests.get(response.id);\n            if (pending) {\n                pendingExtensionRequests.delete(response.id);\n                pending.resolve(response);\n            }\n            return;\n        }\n"
+    },
+    {
+      "name": "settledSubscription",
+      "member": "dist/modes/rpc/rpc-mode.js",
+      "memberSHA256": "631697cd35928fc827f4a423538c43ff227b8cbf63c2a2f11060616f55eba6db",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 10931,
+        "end": 11147
+      },
+      "sha256": "0c854c61b5afac1495d2cc400364c9567c16df3577e3de0c680ac44eab495f1d",
+      "source": "        unsubscribe = session.subscribe((event) => {\n            output(toJsonEvent(event));\n            if (event.type === \"agent_settled\") {\n                void checkShutdownRequested();\n            }\n        });\n"
+    },
+    {
+      "name": "getContextUsage",
+      "member": "dist/core/agent-session.js",
+      "memberSHA256": "436e8be3bbab2db475ce30bb5d0bb30f0046b19a3476f8cd57b8133e68891162",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 163842,
+        "end": 165616
+      },
+      "sha256": "b21def1b7449ef4cc93e1d3415b15c802722c834ce396a093922b8d8eae0aadc",
+      "source": "    getContextUsage() {\n        const model = this._limitsModel();\n        if (!model)\n            return undefined;\n        const contextWindow = model.contextWindow ?? 0;\n        if (contextWindow <= 0)\n            return undefined;\n        // After compaction, the last assistant usage reflects pre-compaction context size.\n        // We can only trust usage from an assistant that responded after the latest compaction.\n        // If no such assistant exists, context token count is unknown until the next LLM response.\n        const projection = this.sessionManager.buildSessionProjection();\n        const branch = this.sessionManager.getBranch();\n        const latestCompaction = getLatestCompactionEntry(branch);\n        if (latestCompaction) {\n            const projectedAssistants = new Set(projection.entries.flatMap((entry) => entry.messages.some((message) => message.role === \"assistant\" &&\n                message.stopReason !== \"aborted\" &&\n                message.stopReason !== \"error\" &&\n                calculateContextTokens(message.usage) > 0)\n                ? [entry.sourceEntry.id]\n                : []));\n            const compactionIndex = branch.findIndex((entry) => entry.id === latestCompaction.id);\n            const hasPostCompactionUsage = branch\n                .slice(compactionIndex + 1)\n                .some((entry) => projectedAssistants.has(entry.id));\n            if (!hasPostCompactionUsage)\n                return { tokens: null, contextWindow, percent: null };\n        }\n        const estimate = estimateProjectedContextTokens(projection, branch);\n        const percent = (estimate.tokens / contextWindow) * 100;\n        return {\n            tokens: estimate.tokens,\n            contextWindow,\n            percent,\n        };\n    }\n"
+    },
+    {
+      "name": "getSessionStats",
+      "member": "dist/core/agent-session.js",
+      "memberSHA256": "436e8be3bbab2db475ce30bb5d0bb30f0046b19a3476f8cd57b8133e68891162",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 161736,
+        "end": 163842
+      },
+      "sha256": "2c663e0bd322627bb511be8221a89ba69ea8670893c29442d5a97250f4ec6d69",
+      "source": "    getSessionStats() {\n        let userMessages = 0;\n        let assistantMessages = 0;\n        let toolResults = 0;\n        let totalMessages = 0;\n        let toolCalls = 0;\n        const usageTotals = createUsageTotals();\n        for (const entry of this.sessionManager.getEntries()) {\n            if (entry.type === \"usage\") {\n                addUsageToTotals(usageTotals, entry.usage);\n            }\n            else if ((entry.type === \"branch_summary\" || entry.type === \"compaction\") && entry.usage) {\n                addUsageToTotals(usageTotals, entry.usage);\n            }\n            if (entry.type !== \"message\")\n                continue;\n            totalMessages++;\n            const message = entry.message;\n            if (message.role === \"user\") {\n                userMessages++;\n            }\n            else if (message.role === \"toolResult\") {\n                toolResults++;\n                if (message.usage) {\n                    addUsageToTotals(usageTotals, message.usage);\n                }\n            }\n            else if (message.role === \"assistant\") {\n                assistantMessages++;\n                const assistantMsg = message;\n                if (Array.isArray(assistantMsg.content)) {\n                    toolCalls += assistantMsg.content.filter((c) => c.type === \"toolCall\").length;\n                }\n                addUsageToTotals(usageTotals, assistantMsg.usage);\n            }\n        }\n        return {\n            sessionFile: this.sessionFile,\n            sessionId: this.sessionId,\n            userMessages,\n            assistantMessages,\n            toolCalls,\n            toolResults,\n            totalMessages,\n            tokens: {\n                input: usageTotals.input,\n                output: usageTotals.output,\n                cacheRead: usageTotals.cacheRead,\n                cacheWrite: usageTotals.cacheWrite,\n                total: usageTotals.input + usageTotals.output + usageTotals.cacheRead + usageTotals.cacheWrite,\n            },\n            cost: usageTotals.cost,\n            contextUsage: this.getContextUsage(),\n        };\n    }\n"
+    },
+    {
+      "name": "limitsModel",
+      "member": "dist/core/agent-session.js",
+      "memberSHA256": "436e8be3bbab2db475ce30bb5d0bb30f0046b19a3476f8cd57b8133e68891162",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 14666,
+        "end": 14747
+      },
+      "sha256": "ad2d66d9d0791287323ccf6b54f4fbb08d635fb973f68103856adeb5596ef8d6",
+      "source": "    _limitsModel() {\n        return this.routedModel?.model ?? this.model;\n    }\n"
+    },
+    {
+      "name": "usageFormula",
+      "member": "dist/core/compaction/compaction.js",
+      "memberSHA256": "f51e78ef1da66b5803fc91e185f07b968f8f989ab9326b7744958416aad3f6f6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 2834,
+        "end": 2980
+      },
+      "sha256": "18654bda66c5e052bfaba9317f20c68fdb9377fd3ba1ca9fdb08afc150d4627b",
+      "source": "export function calculateContextTokens(usage) {\n    return usage.totalTokens || usage.input + usage.output + usage.cacheRead + usage.cacheWrite;\n}"
+    },
+    {
+      "name": "contextType",
+      "member": "dist/core/extensions/types.d.ts",
+      "memberSHA256": "c5038d9410cfb13f5be391f46f13de338bc46ab4c9a7d064f7b962c0dc4a807c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 11018,
+        "end": 11334
+      },
+      "sha256": "232b1ec36bf97c9f781ace8136560a8c5b4b253804c49e4ef689fd266d9497fd",
+      "source": "export interface ContextUsage {\n    /** Estimated context tokens, or null if unknown (e.g. right after compaction, before next LLM response). */\n    tokens: number | null;\n    contextWindow: number;\n    /** Context usage as percentage of context window, or null if tokens is unknown. */\n    percent: number | null;\n}"
+    },
+    {
+      "name": "toolDefinition",
+      "member": "dist/core/extensions/types.d.ts",
+      "memberSHA256": "c5038d9410cfb13f5be391f46f13de338bc46ab4c9a7d064f7b962c0dc4a807c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 22796,
+        "end": 26899
+      },
+      "sha256": "3596a7d352bfa13c71870c13963b82c46b5a80e8fd4dc73954cf0ab00043a412",
+      "source": "export interface ToolDefinition<TParams extends TSchema = TSchema, TDetails = unknown, TState = any> {\n    /** Tool name (used in LLM tool calls) */\n    name: string;\n    /** Human-readable label for UI */\n    label: string;\n    /** Description for LLM */\n    description: string;\n    /** Optional one-line snippet for the Available tools section in the default system prompt. Custom tools are omitted from that section when this is not provided. */\n    promptSnippet?: string;\n    /** Optional guideline bullets appended to the default system prompt Guidelines section when this tool is active. */\n    promptGuidelines?: string[];\n    /** Parameter schema (TypeBox) */\n    parameters: TParams;\n    /** Optional provider-side constrained sampling request for this tool. Set false to explicitly disable it, equivalent to leaving it undefined. */\n    constrainedSampling?: false | ConstrainedSamplingConfig;\n    /** Controls whether ToolExecutionComponent renders the standard colored shell or the tool renders its own framing. */\n    renderShell?: \"default\" | \"self\";\n    /** Optional compatibility shim to prepare raw tool call arguments before schema validation. Must return an object conforming to TParams. */\n    prepareArguments?: (args: unknown) => Static<TParams>;\n    /**\n     * JSON Schema of `structuredContent` in successful results. Tools that declare it should always\n     * set `structuredContent`; codemode scripts then receive it instead of the text content.\n     */\n    outputSchema?: TSchema;\n    /**\n     * How the model reaches the tool. Default: `\"direct\"`. See {@link ToolExposure}.\n     */\n    exposure?: ToolExposure;\n    /** Group the tool belongs to, for example its MCP server. */\n    namespace?: ToolNamespace;\n    /**\n     * For tools that reach other tools (such as `codemode`, which calls them, and `tool_search`, which\n     * loads them): which tools a call with `input` may reach. `\"all\"`, or the words of the input that\n     * may name them, where a word refers to a tool or namespace whose name it contains, so words may\n     * over-match. Extensions that register tools late, such as MCP servers that are still connecting,\n     * use it from their `tool_call` handler to finish registering those tools before the call runs.\n     */\n    reachesTools?: (input: Record<string, unknown>) => \"all\" | readonly string[];\n    /** Hints about what the tool does, for example from an MCP server. */\n    annotations?: ToolAnnotations;\n    /**\n     * Whether registering the tool activates it. Default: `true` for `direct` and `model-only` tools;\n     * other exposures are never activated on registration. A tool with `defaultActive: false` is\n     * activated by naming it in `--tools` or the `defaultTools` setting, or with `setActiveTools()`.\n     */\n    defaultActive?: boolean;\n    /**\n     * Adjust how the loadout is presented to the model while this tool is active. Called whenever\n     * the active tools change. Tools that orchestrate other tools use it, for example to list the\n     * callable tools in their own description.\n     */\n    prepareLoadout?: (loadout: ToolLoadout) => ToolLoadoutChanges | undefined;\n    /**\n     * Per-tool execution mode override.\n     * - \"sequential\": this tool must execute one at a time with other tool calls.\n     * - \"parallel\": this tool can execute concurrently with other tool calls.\n     *\n     * If omitted, the default execution mode applies.\n     */\n    executionMode?: ToolExecutionMode;\n    /** Execute the tool. */\n    execute(toolCallId: string, params: Static<TParams>, signal: AbortSignal | undefined, onUpdate: AgentToolUpdateCallback<TDetails> | undefined, ctx: ExtensionToolContext): Promise<AgentToolResult<TDetails>>;\n    /** Custom rendering for tool call display */\n    renderCall?: (args: Static<TParams>, theme: Theme, context: ToolRenderContext<TState, Static<TParams>>) => Component;\n    /** Custom rendering for tool result display */\n    renderResult?: (result: AgentToolResult<TDetails>, options: ToolRenderResultOptions, theme: Theme, context: ToolRenderContext<TState, Static<TParams>>) => Component;\n}"
+    },
+    {
+      "name": "toolCall",
+      "member": "dist/core/extensions/types.d.ts",
+      "memberSHA256": "c5038d9410cfb13f5be391f46f13de338bc46ab4c9a7d064f7b962c0dc4a807c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 42665,
+        "end": 43119
+      },
+      "sha256": "6e4d2a6f81c35976ba2097f4b127dd550831d76f00baec5682d65b261b23ca35",
+      "source": "interface ToolCallEventBase {\n    type: \"tool_call\";\n    /**\n     * The call's id. For calls another tool made (with `parentToolCallId` set), pi assigns\n     * `<parent id>/<n>`; such ids never appear as tool calls or tool results in the transcript, only\n     * in the parent result's `nestedCalls` record.\n     */\n    toolCallId: string;\n    /** Set when another tool (for example a codemode script) issued this call. */\n    parentToolCallId?: string;\n}"
+    },
+    {
+      "name": "toolCallResult",
+      "member": "dist/core/extensions/types.d.ts",
+      "memberSHA256": "c5038d9410cfb13f5be391f46f13de338bc46ab4c9a7d064f7b962c0dc4a807c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 50272,
+        "end": 50686
+      },
+      "sha256": "86131d86bbcedeb4119122aa0c418bea13b2468e78caf83a7afeb67fae46d302",
+      "source": "export interface ToolCallEventResult {\n    /** Block tool execution. To modify arguments, mutate `event.input` in place instead. */\n    block?: boolean;\n    reason?: string;\n    /**\n     * Hint that the agent should stop after the current tool batch when this call is blocked.\n     * Early termination only happens when every finalized tool result in the batch sets this to true.\n     */\n    terminate?: boolean;\n}"
+    },
+    {
+      "name": "beforeAgentStart",
+      "member": "dist/core/extensions/types.d.ts",
+      "memberSHA256": "c5038d9410cfb13f5be391f46f13de338bc46ab4c9a7d064f7b962c0dc4a807c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 35386,
+        "end": 36559
+      },
+      "sha256": "aa3868f6dc92d3a2a99fa54d876210ecfbd06d9493ae3d3e26d119c84effe638",
+      "source": "interface BeforeAgentStartEventBase {\n    type: \"before_agent_start\";\n    /** The current system prompt, rendered from systemPromptOptions and earlier handler changes. */\n    readonly systemPrompt: string;\n    /** Mutable prompt sections. Later handlers observe mutations made by earlier handlers. */\n    systemPromptOptions: NormalizedBuildSystemPromptOptions;\n}\n/** A run started by a submitted prompt, RPC prompt, or `pi.sendUserMessage()`. */\nexport interface BeforeAgentStartUserEvent extends BeforeAgentStartEventBase {\n    messageType: \"user\";\n    /** The raw user prompt text (after expansion). */\n    prompt: string;\n    /** Images attached to the user prompt, if any. */\n    images?: ImageContent[];\n}\n/** A run started by `pi.sendMessage(..., { triggerTurn: true })` while idle. */\nexport interface BeforeAgentStartCustomEvent extends BeforeAgentStartEventBase {\n    messageType: \"custom\";\n    /** The custom message that starts the run. */\n    message: CustomMessage;\n}\n/** Fired before a run starts from a user message or an idle custom message with `triggerTurn`. */\nexport type BeforeAgentStartEvent = BeforeAgentStartUserEvent | BeforeAgentStartCustomEvent;"
+    },
+    {
+      "name": "uiTypes",
+      "member": "dist/core/extensions/types.d.ts",
+      "memberSHA256": "c5038d9410cfb13f5be391f46f13de338bc46ab4c9a7d064f7b962c0dc4a807c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 4544,
+        "end": 5205
+      },
+      "sha256": "29a705dc0154d6d3bde15dafeeac1b8228f2c9b64147ec92f02e476389c8c664",
+      "source": " * UI context for extensions to request interactive UI.\n * Each mode (interactive, RPC, print) provides its own implementation.\n */\nexport interface ExtensionUIContext {\n    /** Show a selector and return the user's choice. */\n    select(title: string, options: string[], opts?: ExtensionUIDialogOptions): Promise<string | undefined>;\n    /** Show a confirmation dialog. */\n    confirm(title: string, message: string, opts?: ExtensionUIDialogOptions): Promise<boolean>;\n    /** Show a text input dialog. */\n    input(title: string, placeholder?: string, opts?: ExtensionUIDialogOptions): Promise<string | undefined>;\n    /** Show a notification to the user. */\n"
+    },
+    {
+      "name": "loaderAliases",
+      "member": "dist/core/extensions/loader.js",
+      "memberSHA256": "c63226a56ab2f4f9e4e6c8ea97e4bcb9c71d723b38eba1ee3569559bba21a666",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 2099,
+        "end": 4606
+      },
+      "sha256": "b78b844cbb032fd95987d545d7b1d31541a06845dbe7ad8b3557106ed29f599a",
+      "source": "    const packagesRoot = path.resolve(__dirname, \"../../../../\");\n    const resolveWorkspaceOrImport = (workspaceRelativePath, specifier) => {\n        const workspacePath = path.join(packagesRoot, workspaceRelativePath);\n        if (fs.existsSync(workspacePath)) {\n            return workspacePath;\n        }\n        return fileURLToPath(import.meta.resolve(specifier));\n    };\n    const piCodingAgentEntry = packageIndex;\n    const piAgentCoreEntry = resolveWorkspaceOrImport(\"agent/dist/index.js\", \"@earendil-works/pi-agent-core\");\n    const piTuiEntry = resolveWorkspaceOrImport(\"tui/dist/index.js\", \"@earendil-works/pi-tui\");\n    // Extensions resolve the pi-ai root to the compat entrypoint (a strict\n    // superset of the core entrypoint): existing extensions using the old\n    // global API keep working at runtime until compat is removed.\n    const piAiCompatEntry = resolveWorkspaceOrImport(\"ai/dist/compat.js\", \"@earendil-works/pi-ai/compat\");\n    const piAiModelsEntry = resolveWorkspaceOrImport(\"ai/dist/models.js\", \"@earendil-works/pi-ai/models\");\n    const piAiOauthEntry = resolveWorkspaceOrImport(\"ai/dist/oauth.js\", \"@earendil-works/pi-ai/oauth\");\n    const piAiProvidersEntry = resolveWorkspaceOrImport(\"ai/dist/providers/all.js\", \"@earendil-works/pi-ai/providers/all\");\n    _aliases = {\n        \"@earendil-works/pi-coding-agent\": piCodingAgentEntry,\n        \"@earendil-works/pi-agent-core\": piAgentCoreEntry,\n        \"@earendil-works/pi-tui\": piTuiEntry,\n        \"@earendil-works/pi-ai/providers/all\": piAiProvidersEntry,\n        \"@earendil-works/pi-ai/compat\": piAiCompatEntry,\n        \"@earendil-works/pi-ai/models\": piAiModelsEntry,\n        \"@earendil-works/pi-ai/oauth\": piAiOauthEntry,\n        \"@earendil-works/pi-ai\": piAiCompatEntry,\n        \"@mariozechner/pi-coding-agent\": piCodingAgentEntry,\n        \"@mariozechner/pi-agent-core\": piAgentCoreEntry,\n        \"@mariozechner/pi-tui\": piTuiEntry,\n        \"@mariozechner/pi-ai/providers/all\": piAiProvidersEntry,\n        \"@mariozechner/pi-ai/compat\": piAiCompatEntry,\n        \"@mariozechner/pi-ai/models\": piAiModelsEntry,\n        \"@mariozechner/pi-ai/oauth\": piAiOauthEntry,\n        \"@mariozechner/pi-ai\": piAiCompatEntry,\n        typebox: typeboxEntry,\n        \"typebox/compile\": typeboxCompileEntry,\n        \"typebox/value\": typeboxValueEntry,\n        \"@sinclair/typebox\": typeboxEntry,\n        \"@sinclair/typebox/compile\": typeboxCompileEntry,\n        \"@sinclair/typebox/value\": typeboxValueEntry,\n    };\n    return _aliases;\n}\n"
+    },
+    {
+      "name": "rpcTypes",
+      "member": "dist/modes/rpc/rpc-types.d.ts",
+      "memberSHA256": "68b6dc2e47a3969c09c961a40d0462473407b6786f3bd02715fa035e816e2af1",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 0,
+        "end": 10031
+      },
+      "sha256": "68b6dc2e47a3969c09c961a40d0462473407b6786f3bd02715fa035e816e2af1",
+      "source": "/**\n * RPC protocol types for headless operation.\n *\n * Commands are sent as JSON lines on stdin.\n * Responses and events are emitted as JSON lines on stdout.\n */\nimport type { AgentMessage, ThinkingLevel } from \"@earendil-works/pi-agent-core\";\nimport type { ImageContent, Model } from \"@earendil-works/pi-ai\";\nimport type { PromptDisposition, QueuedInputDisposition, SessionStats } from \"../../core/agent-session.ts\";\nimport type { BashResult } from \"../../core/bash-executor.ts\";\nimport type { CompactionResult } from \"../../core/compaction/index.ts\";\nimport type { SessionEntry, SessionTreeNode } from \"../../core/session-manager.ts\";\nimport type { SourceInfo } from \"../../core/source-info.ts\";\nexport type RpcCommand = {\n    id?: string;\n    type: \"prompt\";\n    message: string;\n    images?: ImageContent[];\n    streamingBehavior?: \"steer\" | \"followUp\";\n} | {\n    id?: string;\n    type: \"steer\";\n    message: string;\n    images?: ImageContent[];\n} | {\n    id?: string;\n    type: \"follow_up\";\n    message: string;\n    images?: ImageContent[];\n} | {\n    id?: string;\n    type: \"abort\";\n} | {\n    id?: string;\n    type: \"clear_queue\";\n} | {\n    id?: string;\n    type: \"new_session\";\n    parentSession?: string;\n} | {\n    id?: string;\n    type: \"get_state\";\n} | {\n    id?: string;\n    type: \"set_model\";\n    provider: string;\n    modelId: string;\n} | {\n    id?: string;\n    type: \"cycle_model\";\n} | {\n    id?: string;\n    type: \"get_available_models\";\n} | {\n    id?: string;\n    type: \"set_thinking_level\";\n    level: ThinkingLevel;\n} | {\n    id?: string;\n    type: \"cycle_thinking_level\";\n} | {\n    id?: string;\n    type: \"get_available_thinking_levels\";\n} | {\n    id?: string;\n    type: \"set_steering_mode\";\n    mode: \"all\" | \"one-at-a-time\";\n} | {\n    id?: string;\n    type: \"set_follow_up_mode\";\n    mode: \"all\" | \"one-at-a-time\";\n} | {\n    id?: string;\n    type: \"compact\";\n    customInstructions?: string;\n} | {\n    id?: string;\n    type: \"set_auto_compaction\";\n    enabled: boolean;\n} | {\n    id?: string;\n    type: \"set_auto_retry\";\n    enabled: boolean;\n} | {\n    id?: string;\n    type: \"abort_retry\";\n} | {\n    id?: string;\n    type: \"bash\";\n    command: string;\n    excludeFromContext?: boolean;\n} | {\n    id?: string;\n    type: \"abort_bash\";\n} | {\n    id?: string;\n    type: \"get_session_stats\";\n} | {\n    id?: string;\n    type: \"export_html\";\n    outputPath?: string;\n} | {\n    id?: string;\n    type: \"switch_session\";\n    sessionPath: string;\n} | {\n    id?: string;\n    type: \"fork\";\n    entryId: string;\n} | {\n    id?: string;\n    type: \"clone\";\n} | {\n    id?: string;\n    type: \"get_fork_messages\";\n} | {\n    id?: string;\n    type: \"get_entries\";\n    since?: string;\n} | {\n    id?: string;\n    type: \"get_tree\";\n} | {\n    id?: string;\n    type: \"get_last_assistant_text\";\n} | {\n    id?: string;\n    type: \"set_session_name\";\n    name: string;\n} | {\n    id?: string;\n    type: \"get_messages\";\n} | {\n    id?: string;\n    type: \"get_commands\";\n};\n/** A command available for invocation via prompt */\nexport interface RpcSlashCommand {\n    /** Command name (without leading slash) */\n    name: string;\n    /** Human-readable description */\n    description?: string;\n    /** What kind of command this is */\n    source: \"extension\" | \"prompt\" | \"skill\";\n    /** Source metadata for the owning resource */\n    sourceInfo: SourceInfo;\n}\nexport interface RpcSessionState {\n    model?: Model<any>;\n    thinkingLevel: ThinkingLevel;\n    isStreaming: boolean;\n    isCompacting: boolean;\n    steeringMode: \"all\" | \"one-at-a-time\";\n    followUpMode: \"all\" | \"one-at-a-time\";\n    sessionFile?: string;\n    sessionId: string;\n    sessionName?: string;\n    autoCompactionEnabled: boolean;\n    messageCount: number;\n    pendingMessageCount: number;\n}\nexport type RpcResponse = {\n    id?: string;\n    type: \"response\";\n    command: \"prompt\";\n    success: true;\n    data: {\n        disposition: PromptDisposition;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"steer\";\n    success: true;\n    data: {\n        disposition: QueuedInputDisposition;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"follow_up\";\n    success: true;\n    data: {\n        disposition: QueuedInputDisposition;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"abort\";\n    success: true;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"clear_queue\";\n    success: true;\n    data: {\n        steering: string[];\n        followUp: string[];\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"new_session\";\n    success: true;\n    data: {\n        cancelled: boolean;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"get_state\";\n    success: true;\n    data: RpcSessionState;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"set_model\";\n    success: true;\n    data: Model<any>;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"cycle_model\";\n    success: true;\n    data: {\n        model: Model<any>;\n        thinkingLevel: ThinkingLevel;\n        isScoped: boolean;\n    } | null;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"get_available_models\";\n    success: true;\n    data: {\n        models: Model<any>[];\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"set_thinking_level\";\n    success: true;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"cycle_thinking_level\";\n    success: true;\n    data: {\n        level: ThinkingLevel;\n    } | null;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"get_available_thinking_levels\";\n    success: true;\n    data: {\n        levels: ThinkingLevel[];\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"set_steering_mode\";\n    success: true;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"set_follow_up_mode\";\n    success: true;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"compact\";\n    success: true;\n    data: CompactionResult;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"set_auto_compaction\";\n    success: true;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"set_auto_retry\";\n    success: true;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"abort_retry\";\n    success: true;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"bash\";\n    success: true;\n    data: BashResult;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"abort_bash\";\n    success: true;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"get_session_stats\";\n    success: true;\n    data: SessionStats;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"export_html\";\n    success: true;\n    data: {\n        path: string;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"switch_session\";\n    success: true;\n    data: {\n        cancelled: boolean;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"fork\";\n    success: true;\n    data: {\n        text: string;\n        cancelled: boolean;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"clone\";\n    success: true;\n    data: {\n        cancelled: boolean;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"get_fork_messages\";\n    success: true;\n    data: {\n        messages: Array<{\n            entryId: string;\n            text: string;\n        }>;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"get_entries\";\n    success: true;\n    data: {\n        entries: SessionEntry[];\n        leafId: string | null;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"get_tree\";\n    success: true;\n    data: {\n        tree: SessionTreeNode[];\n        leafId: string | null;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"get_last_assistant_text\";\n    success: true;\n    data: {\n        text: string | null;\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"set_session_name\";\n    success: true;\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"get_messages\";\n    success: true;\n    data: {\n        messages: AgentMessage[];\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: \"get_commands\";\n    success: true;\n    data: {\n        commands: RpcSlashCommand[];\n    };\n} | {\n    id?: string;\n    type: \"response\";\n    command: string;\n    success: false;\n    error: string;\n};\n/** Emitted when an extension needs user input */\nexport type RpcExtensionUIRequest = {\n    type: \"extension_ui_request\";\n    id: string;\n    method: \"select\";\n    title: string;\n    options: string[];\n    timeout?: number;\n} | {\n    type: \"extension_ui_request\";\n    id: string;\n    method: \"confirm\";\n    title: string;\n    message: string;\n    timeout?: number;\n} | {\n    type: \"extension_ui_request\";\n    id: string;\n    method: \"input\";\n    title: string;\n    placeholder?: string;\n    timeout?: number;\n} | {\n    type: \"extension_ui_request\";\n    id: string;\n    method: \"editor\";\n    title: string;\n    prefill?: string;\n} | {\n    type: \"extension_ui_request\";\n    id: string;\n    method: \"notify\";\n    message: string;\n    notifyType?: \"info\" | \"warning\" | \"error\";\n} | {\n    type: \"extension_ui_request\";\n    id: string;\n    method: \"setStatus\";\n    statusKey: string;\n    statusText: string | undefined;\n} | {\n    type: \"extension_ui_request\";\n    id: string;\n    method: \"setWidget\";\n    widgetKey: string;\n    widgetLines: string[] | undefined;\n    widgetPlacement?: \"aboveEditor\" | \"belowEditor\";\n} | {\n    type: \"extension_ui_request\";\n    id: string;\n    method: \"setTitle\";\n    title: string;\n} | {\n    type: \"extension_ui_request\";\n    id: string;\n    method: \"set_editor_text\";\n    text: string;\n};\n/** Response to an extension UI request */\nexport type RpcExtensionUIResponse = {\n    type: \"extension_ui_response\";\n    id: string;\n    value: string;\n} | {\n    type: \"extension_ui_response\";\n    id: string;\n    confirmed: boolean;\n} | {\n    type: \"extension_ui_response\";\n    id: string;\n    cancelled: true;\n};\nexport type RpcCommandType = RpcCommand[\"type\"];\n//# sourceMappingURL=rpc-types.d.ts.map"
+    }
+  ]
+}

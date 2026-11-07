@@ -34,5 +34,7 @@ dist/
 *.dmg
 *.asar
 *.gguf
+/pi-harness/document-engine/pdf-parser
+/pi-harness/src/official-aicc-sdk.mjs
 /ollama-local/models/
 /ollama-local/source/

@@ -1,0 +1,209 @@
+{
+  "workbuddyVersion": "5.9.2",
+  "artifactSHA256": "0b79c0358c129749bc3355f52bbae13f115577ab37c082a76dfdc54f66fd3f79",
+  "purpose": "Static shipped 5.9.2 SDK, native context usage, sandbox sync, typed request patch and task list contracts. Isolated fixture replay only; no application, account, model or connector execution.",
+  "members": [
+    {
+      "member": "renderer/assets/wb-DkFLYXY0.js",
+      "bytes": 112068,
+      "sha256": "1f0175d71409396bb408f72450f9ca09c8d9fcdc66ed58d3a0dc618e8e3f0c5c",
+      "previous591Member": "renderer/assets/wb-DkFLYXY0.js",
+      "previous591SHA256": "1f0175d71409396bb408f72450f9ca09c8d9fcdc66ed58d3a0dc618e8e3f0c5c",
+      "byteIdentical": true
+    },
+    {
+      "member": "renderer/assets/wb-CrFqhgjB.js",
+      "bytes": 179,
+      "sha256": "1e6e9635e314c8f1cf042d1936901a299a2ce19baedc577456d615b7d4268753",
+      "previous591Member": "renderer/assets/wb-CrFqhgjB.js",
+      "previous591SHA256": "1e6e9635e314c8f1cf042d1936901a299a2ce19baedc577456d615b7d4268753",
+      "byteIdentical": true
+    },
+    {
+      "member": "renderer/assets/src-C-yvPLiT.js",
+      "bytes": 2348962,
+      "sha256": "7e4438995d9f67ac10a67b964bfdad2a543def60a7df06f708df2ed41454a1f8",
+      "previous591Member": "renderer/assets/src-C-yvPLiT.js",
+      "previous591SHA256": "7e4438995d9f67ac10a67b964bfdad2a543def60a7df06f708df2ed41454a1f8",
+      "byteIdentical": true
+    },
+    {
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "bytes": 7265868,
+      "sha256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "previous591Member": "renderer/assets/contexts-BqwNadeD.js",
+      "previous591SHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "byteIdentical": false
+    }
+  ],
+  "bindingOnlyChanges": {
+    "providerHook": [
+      "c$ -> r$",
+      "s$ -> n$",
+      "Vnn -> Hnn",
+      "Bnn -> Vnn"
+    ],
+    "cacheNormalize": [
+      "lO -> gO"
+    ],
+    "contextUsageEvent": [
+      "Jo -> Zo"
+    ]
+  },
+  "slices": [
+    {
+      "name": "useWbContextUsageProvider",
+      "kind": "function",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5544134,
+        "end": 5546029
+      },
+      "bytes": 1895,
+      "sha256": "676dba57965844180f988753f57957f50af182fb902aacecc2ddd9346c92b00a",
+      "identicalSourceIn591": false,
+      "source": "function useWbContextUsageProvider(e,t,n,r){let i=r&&r>0?r:void 0,a=useConversationController(),o=useConversationSessionSelector(selectContextUsageSession,shallow$1),s=(0,r$.useStore)(a.getMessageStore(),selectLatestContextUsage),c=(0,r$.useStore)(a.getMessageStore(),selectHasAssistantChunk),l=(0,r$.useStore)(a.getMessageStore(),selectConversationContextUsage),u=(s?.lastTokens??0)>0||(l?.totalTokens??0)>0,d=l?.hasCompletedLlmCall===!0||c&&u||o.isBusy&&u,f=i??t,p=d&&(l?.totalTokens??0)>0,m=(0,n$.useMemo)(()=>{if(p&&l?.byCategory)return{inputTokens:0,outputTokens:0,lastTokens:l.totalTokens,maxAllowedSize:l.contextWindow,usageByCategory:l.byCategory};let e=s?.usageByCategory;return s?e===s.usageByCategory?s:{...s,usageByCategory:e}:!l||!p?void 0:{inputTokens:0,outputTokens:0,lastTokens:l.totalTokens,maxAllowedSize:l.contextWindow,...e?{usageByCategory:e}:{}}},[p,s,l]),h=Si(m?.usageByCategory),g=(0,n$.useMemo)(()=>{if(!m)return;let e=i??m.maxAllowedSize;return h===m.usageByCategory&&e===m.maxAllowedSize?m:{...m,maxAllowedSize:e,usageByCategory:h}},[m,i,h]),v=g?.usageByCategory!==void 0,[y,b]=(0,n$.useState)(void 0);(0,n$.useEffect)(()=>{v&&b(void 0)},[v]),(0,n$.useEffect)(()=>{b(void 0)},[o.conversationId]);let x=!v&&y===o.conversationId,S=(0,n$.useCallback)(async()=>{let e=o.conversationId;b(e);try{if(await a.restoreContextUsageFromCache())return;let t=a.getConversation();if(!t?.refreshContextUsage){throwConversationApiError({errorCode:Hnn,message:Hnn});return}let n=t.refreshContextUsage();a.acknowledgeRuntimeActivatedByCore(`context_usage`),throwConversationApiError(await n),window.setTimeout(()=>{b(t=>t===e?void 0:t)},Vnn)}catch(t){throw b(t=>t===e?void 0:t),t}},[a,o.conversationId]);return(0,n$.useMemo)(()=>{if(e&&d)return mapMessageUsageToProvider(g,o.conversationId,o.isBusy,f,x,o.isBusy?void 0:S,o.isBusy&&!v,i,n)},[e,d,o.conversationId,o.isBusy,i,g,f,x,S,v,n])}"
+    },
+    {
+      "name": "normalizeSnapshot$1",
+      "kind": "function",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1962342,
+        "end": 1962952
+      },
+      "bytes": 610,
+      "sha256": "4d9339bf3650fee8ebbadb5951e3f580175b4bffc00d0efd971f7cbf9c635a20",
+      "identicalSourceIn591": false,
+      "source": "function normalizeSnapshot$1(e){if(!e||typeof e!=`object`||Array.isArray(e))return;let t=e,n=normalizeCategory(t.usageByCategory),r=t.size,i=n?n.systemPrompt+n.conversation+n.tools+n.mcp+n.skills:void 0,a=t.version===gO?t.hasCompletedLlmCall===!0:t.version===1&&isNonNegativeInteger(t.used)&&t.used>0;if(!(!isNonNegativeInteger(t.used)||!isNonNegativeInteger(r)||r<=0||!isNonNegativeInteger(t.updatedAt)||!n||i!==t.used||!a||t.modelId!==void 0&&typeof t.modelId!=`string`))return{version:gO,used:t.used,size:r,usageByCategory:n,hasCompletedLlmCall:!0,...t.modelId?{modelId:t.modelId}:{},updatedAt:t.updatedAt}}"
+    },
+    {
+      "name": "resolveRequestPatchRole",
+      "kind": "function",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 4964664,
+        "end": 4964866
+      },
+      "bytes": 202,
+      "sha256": "cdc6ffbcab0c473539072c71db9c85aed8ab757cc1a4b3dde6f58debbfbcdae1",
+      "identicalSourceIn591": true,
+      "source": "function resolveRequestPatchRole(e){switch(e.kind){case`user-content-replaced`:return`user`;case`assistant-block-upserted`:case`assistant-usage-updated`:return`assistant`;default:return assertNever(e)}}"
+    },
+    {
+      "name": "readRequestPatchMessageId",
+      "kind": "function",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 4964866,
+        "end": 4965052
+      },
+      "bytes": 186,
+      "sha256": "d468b0c41fd4395d9e72067cd508e37245e79a46f4f188c9f389d5fd10dc508a",
+      "identicalSourceIn591": true,
+      "source": "function readRequestPatchMessageId(e){if(e.kind===`assistant-block-upserted`)return readBlockMessageId(e.block);if(e.kind===`user-content-replaced`)return firstBlockMessageId(e.content)}"
+    },
+    {
+      "name": "resolveRequestPatchTarget",
+      "kind": "function",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 4965052,
+        "end": 4965218
+      },
+      "bytes": 166,
+      "sha256": "ab378a0eb606abeceb69f89e871895d2709e631ef6b9fced7a3986f9fabd7850",
+      "identicalSourceIn591": false,
+      "source": "function resolveRequestPatchTarget(e,t){let n=resolveRequestPatchRole(e);return{role:n,id:t??readRequestPatchMessageId(e)??(n===`user`?e.requestId:Uae(e.requestId))}}"
+    },
+    {
+      "name": "applyRequestPatchToUiMessage",
+      "kind": "function",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 4965218,
+        "end": 4966133
+      },
+      "bytes": 915,
+      "sha256": "c98e90c94c4537de8afc6897dde23a0db3b65a87b06e8ee363ce0b6aa40c903b",
+      "identicalSourceIn591": true,
+      "source": "function applyRequestPatchToUiMessage(e){let{previous:t,patch:n,conversationId:r,now:i}=e,a=resolveRequestPatchTarget(n,t?.id),o=applyPatchContext(t??createBaseMessage(a,r,n,i),n);switch(n.kind){case`user-content-replaced`:{let e=normalizeUserPromptBlocksForRender(n.content),t=contentMarksHiddenContinue(e);return{...o,content:e,...t?{extra:{...o.extra,hiddenContinue:!0}}:{}}}case`assistant-usage-updated`:{let e=normalizeUsage(n.usage);return e?{...o,usage:{...o.usage,...e}}:o}case`assistant-block-upserted`:{let e=normalizeAssistantContent([n.block],`streaming`)[0];if(!e)return o;let r=stripCoreMessageId(e),i=Array.isArray(o.content)?[...o.content]:[],a=i.flatMap((e,t)=>e.type===`conversation-event`?[]:[t])[n.index];if(a!==void 0){let e=i[a];if(sameStreamingBlock(e,r)){if(o===t&&t?.complete===!1)return t;i[a]=e}else i[a]=r}else i.push(r);return{...o,content:i,complete:!1}}default:return assertNever(n)}}"
+    },
+    {
+      "name": "syncSandboxModeBeforeStart",
+      "kind": "method",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5175354,
+        "end": 5175603
+      },
+      "bytes": 249,
+      "sha256": "545c1fcab20cdc90cf1d2315396a435292dd1f0d4bc69b93fe195a001f551a26",
+      "identicalSourceIn591": true,
+      "source": "async syncSandboxModeBeforeStart(e){if(e.info.transport!==`local`||!this.resolveSandboxMode)return;let t=this.resolveSandboxMode();if(e.configManager.useSandboxCLI===t)return;let n=await e.configManager.setSandboxMode(t);if(n)throw Error(n.message)}"
+    },
+    {
+      "name": "emitRequestUpdate",
+      "kind": "method",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 674848,
+        "end": 674980
+      },
+      "bytes": 132,
+      "sha256": "eb5233d13e25e6400dedc144bc692b467141c7b49f324d0bc9de9b124c07d7df",
+      "identicalSourceIn591": true,
+      "source": "emitRequestUpdate(e,t,n,r){let i=annotateUnclassifiedNetworkRetry(n);for(let n of this.requestUpdateHandlers)try{n(e,t,i,r)}catch{}}"
+    },
+    {
+      "name": "withLocalListOrigin",
+      "kind": "function",
+      "member": "renderer/assets/wb-DkFLYXY0.js",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 72256,
+        "end": 72523
+      },
+      "bytes": 267,
+      "sha256": "e11a5f1d619b36dd795f2dc450e1a2c66c8064a1e8d7f905df574cde377bf1ed",
+      "identicalSourceIn591": true,
+      "source": "function withLocalListOrigin(e,t){if(!t||!e?.conversationOrigin||e.transport===`cloud`)return e;let n=e.conversationOrigin,r=typeof n==`string`?n.split(`,`).map(e=>e.trim()).filter(Boolean):[...n];return r.includes(`local`)?e:{...e,conversationOrigin:[...r,`local`]}}"
+    },
+    {
+      "name": "fetchListForSpace",
+      "kind": "function",
+      "member": "renderer/assets/wb-DkFLYXY0.js",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 73075,
+        "end": 73371
+      },
+      "bytes": 296,
+      "sha256": "d7382ba04140d23f352413c5cfd7a19d30b5b4ee49fc3a7acc1ed72bda29468f",
+      "identicalSourceIn591": true,
+      "source": "function fetchListForSpace(e,t,n,r){let i=stripTraceId({...r,space:n});switch(n){case`local`:return t.local.list(i);case`project`:return e.list(i);case`assistant`:return t.claw.list(i);case`genie`:return t.genie.list(i);case`cloud`:return t.cloud.list(i);default:return emptyConversationList(i)}}"
+    },
+    {
+      "name": "context-usage-event",
+      "kind": "subscription",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5162927,
+        "end": 5163502
+      },
+      "bytes": 575,
+      "sha256": "37e06bb67238fa4775fef3dd5ad5d4a178725f429721655160c9c2a00730016c",
+      "identicalSourceIn591": false,
+      "source": "n.on(Zo.ContextUsageChanged,e=>{if(shouldSkip())return;let t=normalizeUsage({totalTokens:e.totalTokens,contextWindow:e.contextWindow,...e.byCategory?{byCategory:e.byCategory}:{}}),n=e.totalTokens>0&&(V||hasAssistantChunk(r.getState().messages));r.getState().applyConversationContextUsage({totalTokens:e.totalTokens,contextWindow:e.contextWindow,...t?.usageByCategory?{byCategory:t.usageByCategory}:{},...n?{hasCompletedLlmCall:!0}:{}}),t?.usageByCategory&&n&&w?.({totalTokens:e.totalTokens,contextWindow:e.contextWindow,byCategory:t.usageByCategory,hasCompletedLlmCall:!0})})"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "financialbuddy-document-engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated offline document parsing dependencies; not part of the Pi dependency graph",
+  "dependencies": {
+    "saxes": "6.0.0",
+    "yauzl": "3.4.0"
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "artifact": "/Applications/WorkBuddy.app/Contents/Resources/app.asar",
+  "artifactSha256": "1fc0a56ddec5437d4dc55a55ba1c028b291ab29cb17306500827015987424233",
+  "version": "5.9.1",
+  "framing": "Unchanged complete native constructor slices. Test harness substitutes external display constants and pure filename helpers; never executes the shipped app.",
+  "constants": {
+    "BLOCK_STATUS": "blockStatus",
+    "BLOCK_ID": "blockId",
+    "Hln": "tencentDocsSelection",
+    "Bln": "tdoc-selection://"
+  },
+  "slices": [
+    {
+      "name": "createFileMentionBlock",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSha256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "byteStart": 308355,
+      "byteEnd": 308840,
+      "utf16Start": 308355,
+      "sha256": "397376ccdf56698ed798f3fe6d0e21a2234c911d8ba8e2d4fb727ec5af165628",
+      "source": "function createFileMentionBlock(e){let t=e.metadata,n=t?.type===`folder`?`folder`:`file`,r=typeof t?.relativePath==`string`?t.relativePath:e.id,i=typeof t?.filePath==`string`?t.filePath:void 0,a=e.description||i;return{type:`resource_link`,name:e.label,uri:r,title:a,_meta:{[ca.DISPLAY_AS_CONTEXT]:!1,[ca.DISPLAY_AS_PHRASE]:!0,[ca.DISPLAY_TEXT]:e.insertText||e.label,[ri.ICON]:n,mentionType:n,type:n,trigger:hi.at,suggestionId:e.id,filePath:i,relativePath:r,fileName:e.label,title:a}}}"
+    },
+    {
+      "name": "createAttachmentBlock",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSha256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "byteStart": 313848,
+      "byteEnd": 314485,
+      "utf16Start": 313848,
+      "sha256": "b14abd625c86cf8779530b82638c18d4273a802d16c18ee4996b43cb073562d3",
+      "source": "function createAttachmentBlock(e,t,n=e.name,r=createBlockId$1(),i=`completed`,a,o,s){let c=e.type||mimeFromFilename(n)||`application/octet-stream`,l=isPromptImageAttachment(e,n),u={[ca.DISPLAY_AS_CONTEXT]:!1,[ca.DISPLAY_AS_PHRASE]:!0,[ri.ICON]:l?`image`:`file`,[bi.BLOCK_ID]:r,[bi.BLOCK_STATUS]:i,timestamp:Date.now(),filename:n,fileName:n,originalFilename:e.name,size:e.size,displayText:n,title:o??n,...a?{attachmentTransport:a}:{},...o?{filePath:o,path:o,relativePath:o,type:`file`,mentionType:`file`}:{}};return l?{type:`image`,uri:t,mimeType:c,...s?{data:s}:{},_meta:u}:{type:`resource_link`,name:n,uri:t,title:n,mimeType:c,_meta:u}}"
+    },
+    {
+      "name": "createLocalFileAttachmentBlock",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSha256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "byteStart": 314974,
+      "byteEnd": 315359,
+      "utf16Start": 314974,
+      "sha256": "771ce5b0e231ce80617645cc2c7ac1431ac08a4da96d9c5ed7509ebb3e0fa784",
+      "source": "function createLocalFileAttachmentBlock(e){let t=e.mimeType||mimeFromFilename(e.filename)||`application/octet-stream`,n=e.size??0,r=!!e.imageData&&isPromptImageAttachment({name:e.filename,type:t}),i=createAttachmentBlock({name:e.filename,type:r?t:``,size:n},toLocalFileUri(e.filePath),e.filename,void 0,`completed`,`local`,e.filePath,r?e.imageData:void 0);return r?i:{...i,mimeType:t}}"
+    },
+    {
+      "name": "buildSelectionQuotePhraseBlock",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSha256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "byteStart": 4017456,
+      "byteEnd": 4018079,
+      "utf16Start": 4017456,
+      "sha256": "7a2f921106a5e85034337306d793e7179ba7ec4aac66bda026e4ecccc4e537b4",
+      "source": "function buildSelectionQuotePhraseBlock({name:e,selectedText:t,llmText:n,uri:r,title:i,quoteRef:a,htmlSelection:o,screenshot:s,isMarquee:c}){let l=r?`selection://${r}`:`selection://document-selection`,u,d;if(s){let e=/^data:([^;]+);base64,(.*)$/s.exec(s);e?(d=e[1],u=e[2]):(u=s,d=`image/png`)}return{type:`resource_link`,name:e,uri:l,_meta:{displayAsPhrase:!0,displayAsContext:!1,displayText:e,selectionQuote:!0,mentionType:`selection`,selectedText:t,...n?{llmText:n}:{},title:safeDecodeUri$1(i)||e,quoteRef:a,...o?{htmlSelection:!0}:{},...u?{previewImageData:u,previewImageMime:d??`image/png`}:{},...c?{isMarquee:!0}:{}}}}"
+    },
+    {
+      "name": "createDocumentSelectionContextBlock",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSha256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "byteStart": 5970349,
+      "byteEnd": 5971792,
+      "utf16Start": 5970349,
+      "sha256": "de23d408c6595f7929fe4c6b7fb87441c86cf67810917b636359f2382c725464",
+      "source": "function createDocumentSelectionContextBlock(e){let t=getDocumentSelectionDisplayText(e.selection);if(!t)return null;let n=typeof e.selection.fileId==`string`?e.selection.fileId:extractOnlineDocumentFileId(e.documentResourceUri),r=typeof e.selection.sourceApi==`string`?e.selection.sourceApi:void 0,i=typeof e.selection.title==`string`&&e.selection.title.trim()?e.selection.title.trim():void 0,a=typeof e.canonicalSandboxPath==`string`&&e.canonicalSandboxPath.trim()?e.canonicalSandboxPath.trim():void 0,o=typeof e.selection.description==`string`?formatDocumentSelectionContextText(e.selection.description):void 0;return{type:`resource_link`,name:t,uri:`${Bln}${encodeURIComponent(e.selection.rangeId)}`,title:t,_meta:{displayAsContext:!1,displayAsPhrase:!0,displayText:t,icon:`file`,description:e.filePath,mentionType:Hln,type:`document-selection`,...e.sessionId?{sessionId:e.sessionId}:{},documentResourceUri:e.documentResourceUri,filePath:e.filePath,...a?{canonicalSandboxPath:a}:{},...e.fileType?{fileType:e.fileType}:{},...n?{fileId:n}:{},...i?{documentTitle:i}:{},rangeId:e.selection.rangeId,...r?{sourceApi:r}:{},selectionPayload:(({aiPrompt:e,text:n,description:r,sourceApi:i,...s})=>({...s,text:t,...o?{description:o}:{},...a?{canonicalSandboxPath:a}:{}}))(e.selection),sequence:e.sequence,sequenceEpoch:e.sequenceEpoch,...typeof e.selection.aiPrompt==`string`&&e.selection.aiPrompt.trim()?{aiPrompt:e.selection.aiPrompt.trim()}:{}}}}"
+    },
+    {
+      "name": "createNetDriveFileBlock",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSha256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "byteStart": 5839596,
+      "byteEnd": 5840161,
+      "utf16Start": 5839596,
+      "sha256": "2f98297cd9211e3baec9447279b2f1928fd3990eebfc62663abbfaa83807a240",
+      "source": "function createNetDriveFileBlock(e){let{fileName:t,filePath:n,fileId:r,fileSize:i=0,isFolder:a=!1,source:o=`personal`,description:s}=e,c=e.extension||getExtFromName(t),l=getFileType(c),u=`netdrive://${t}`,d=a?`folder`:`file`;return Zr(t,u,{title:t,icon:a?`folder`:`netdrive`,description:s||(a?`\\u6587\\u4EF6\\u5939`:n),meta:{displayAsContext:!1,displayAsPhrase:!0,displayText:t,extension:c,fileId:r,fileName:t,filePath:n,fileSize:i,fileType:l,icon:a?`folder`:`netdrive`,isFolder:a,itemType:d,mentionType:d,path:n,source:o,timestamp:Date.now(),title:t,type:d,url:u}})}"
+    },
+    {
+      "name": "createImageBlock",
+      "member": "renderer/assets/src-KMwVDrHT.js",
+      "memberSha256": "69562cb95e734656d6653e0433f747c3e83ae40e53f991013cd835afd72376fe",
+      "byteStart": 67076,
+      "byteEnd": 67378,
+      "utf16Start": 67076,
+      "sha256": "7e24e5978fcdfd4e1d45508f3be00484e25303094e6c8ef90965dd7a9545e94d",
+      "source": "function createImageBlock(t,s,u,p){return{type:`image`,data:t,mimeType:s,uri:u,_meta:{[ys.DISPLAY_AS_CONTEXT]:!1,[ys.DISPLAY_AS_PHRASE]:!0,[bs.ICON]:p?.icon,...p?.filename&&{filename:p.filename},...p?.blockStatus&&{[xs.BLOCK_STATUS]:p.blockStatus},...p?.blockId&&{[xs.BLOCK_ID]:p.blockId},...p?.meta}}}"
+    },
+    {
+      "name": "createFileBlock",
+      "member": "renderer/assets/src-KMwVDrHT.js",
+      "memberSha256": "69562cb95e734656d6653e0433f747c3e83ae40e53f991013cd835afd72376fe",
+      "byteStart": 67378,
+      "byteEnd": 67846,
+      "utf16Start": 67378,
+      "sha256": "ac3a1ff9c137c15a13cdf82e1b9d86422b3a18aaa4de7f0e429aa71b6d632a92",
+      "source": "function createFileBlock(t,s,u,p){return{type:`resource_link`,name:u,uri:p?.uri||p?.filePath||`file://${u}`,title:u,mimeType:s,_meta:{[ys.DISPLAY_AS_CONTEXT]:!1,[ys.DISPLAY_AS_PHRASE]:!0,[bs.ICON]:p?.icon||`file`,filename:u,...!p?.uri&&t?{data:t}:{},...p?.size!==void 0&&{size:p.size},...p?.filePath&&{filePath:p.filePath},...p?.cacheKey&&{cacheKey:p.cacheKey},...p?.blockStatus&&{[xs.BLOCK_STATUS]:p.blockStatus},...p?.blockId&&{[xs.BLOCK_ID]:p.blockId},...p?.meta}}}"
+    },
+    {
+      "name": "toLocalFileUri",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSha256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "byteStart": 313508,
+      "byteEnd": 313636,
+      "utf16Start": 313508,
+      "sha256": "ecf9679ecff4cf0d75db44d658980f1fe1be84fd41ec9d4fcd463221922ef30d",
+      "source": "function toLocalFileUri(e){let t=e.replace(/\\\\/g,`/`);return new URL(t.startsWith(`/`)?`file://${t}`:`file:///${t}`).toString()}"
+    }
+  ]
+}

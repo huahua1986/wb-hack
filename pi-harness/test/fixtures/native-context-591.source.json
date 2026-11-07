@@ -1,0 +1,103 @@
+{
+  "workbuddyVersion": "5.9.1",
+  "artifactSHA256": "1fc0a56ddec5437d4dc55a55ba1c028b291ab29cb17306500827015987424233",
+  "member": "renderer/assets/contexts-BqwNadeD.js",
+  "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+  "purpose": "Native Expert identity/detail and skill mention constructors, extracted for pure VM replay; no target execution.",
+  "functions": [
+    {
+      "name": "localized$4",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 401898,
+        "end": 402104
+      },
+      "sha256": "cc19f091407869f28d6c0e6ffde0f4470cac760b0ccfb9639e452078c6ed4793",
+      "source": "function localized$4(e,t){if(typeof e==`string`)return e||void 0;if(!e||typeof e!=`object`)return;let n=e,r=n[t];if(typeof r==`string`&&r)return r;let i=t===`en`?n.zh:n.en;if(typeof i==`string`&&i)return i}"
+    },
+    {
+      "name": "mapExpertInfo",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 404590,
+        "end": 405842
+      },
+      "sha256": "9ab8fa3736998c69233d2cde359e6e4b4435d9828cbcefc3c932b15f183d58d7",
+      "source": "function mapExpertInfo(e,t=resolveLocale(e.locale)){let n=localized$4(e.defaultInitPrompt,t)??localized$4(e.quickPrompts?.[0],t),r={id:e.id,name:localized$4(e.displayName,t)??localized$4(e.name,t)??e.id,profession:localized$4(e.profession,t),prompt:localized$4(e.prompt,t),avatarUrl:normalizeExpertAvatarUrl(e.avatarUrl)??normalizeExpertAvatarUrl(e.avatar),defaultInitPrompt:n,expertType:e.expertType,industryId:e.industryId,isCustomExpert:e.isCustomExpert,pluginName:e.pluginName??e.plugin,marketplace:e.marketplace,summonedAt:e.summonedAt,source:e.source,enterpriseId:e.enterpriseId,locale:t,runtimeIdentity:e.runtimeIdentity,updatedAt:e.updatedAt,version:e.version,agentName:e.agentName,localPath:e.localPath,pluginRegisteredName:e.pluginRegisteredName,marketExpertId:e.marketExpertId,teamMembers:e.teamMembers,assistantDisplayName:localized$4(e.assistantDisplayName,t),assistantProfession:localized$4(e.assistantProfession,t),assistantAvatarUrl:typeof e.assistantAvatarUrl==`string`?e.assistantAvatarUrl:void 0,...e.isCloud===!0?{isCloud:!0}:{},cloudSync:e.cloudSync,suppressDefaultInitPrompt:e.suppressDefaultInitPrompt,suppressAutoSummon:e.suppressAutoSummon,applicationId:e.applicationId},i=localized$4(e.description,t);return i&&zDe.set(r,i),r}"
+    },
+    {
+      "name": "resolveSelectedExpert",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 406147,
+        "end": 406773
+      },
+      "sha256": "e5756e1be47f0bb42c44149a030c422f7a3de22861ba99339afef963f3f72b12",
+      "source": "async function resolveSelectedExpert(e){let t=e.getOfficial({expertId:e.expertId,marketExpertId:e.marketExpertId,locale:e.locale}),n=e.marketExpertId||e.transport===`cloud`||!e.getLocal?Promise.resolve(void 0):e.getLocal({expertId:e.expertId}),[r,i]=await Promise.allSettled([t,n]);if(r.status===`fulfilled`&&r.value){let t=r.value;return e.marketExpertId&&!t.marketExpertId?{...t,marketExpertId:e.marketExpertId}:t}if(i.status===`fulfilled`&&i.value){let e=i.value;return{...e,localPath:e.expertRootDir,marketplace:e.marketplace??`my-experts`,runtimeIdentity:`expert:${e.id}:${e.marketplace??`my-experts`}`,source:`custom`}}}"
+    },
+    {
+      "name": "buildSkillBlock",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1018200,
+        "end": 1018495
+      },
+      "sha256": "483991d71ceb45b36b00b4bff62086592f10343c471cafc3c42296b469d32109",
+      "source": "function buildSkillBlock(e){let t=e.displayText??e.skillName,n=e.skillId??e.skillName;return Zr(t,`skill://${n}`,{title:`Use skill ${e.skillName}. `,description:``,meta:{type:`skill`,mentionType:`skill`,displayText:t,skillId:e.skillId,...e.autoAttached===!0?{autoAttached:!0}:{}},icon:`skill`})}"
+    },
+    {
+      "name": "readSkillNameFromUri",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5538611,
+        "end": 5538731
+      },
+      "sha256": "b8b7e13f29d43dcedf4645f05990a6fda7297a91cefe24b89e8a53e46c8613b8",
+      "source": "function readSkillNameFromUri(e){return typeof e!=`string`||!e.startsWith(Mnn)?``:safeDecodeUriValue(e.slice(8)).trim()}"
+    },
+    {
+      "name": "readSkillNameFromBlock",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5539435,
+        "end": 5539816
+      },
+      "sha256": "fb3708bfbda20403c881539341d27787997ccf5329cbea28d1757f642df1c9d7",
+      "source": "function readSkillNameFromBlock(e){if(e.type!==`resource_link`)return``;let t=typeof e.uri==`string`?e.uri:``;if(t.startsWith(`skill://`))return readSkillNameFromUri(t);let n=e._meta;return n?.type!==`skill`&&n?.mentionType!==`skill`?``:typeof n?.commandName==`string`&&n.commandName.trim()?n.commandName.trim():t.startsWith(`command://`)?safeDecodeUriValue(t.slice(10)).trim():``}"
+    },
+    {
+      "name": "createSkillBlock",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5539816,
+        "end": 5539966
+      },
+      "sha256": "985684affffc8e96639ea607aa40ddbca1ac46b09d9de61e57fb018d3735d23e",
+      "source": "function createSkillBlock(e){return Zr(e,`skill://${e}`,{title:`Use skill ${e}.`,meta:{type:`skill`,mentionType:`skill`,displayText:e},icon:`skill`})}"
+    },
+    {
+      "name": "mapSkillInfoToInputItem",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3906424,
+        "end": 3907154
+      },
+      "sha256": "6e504832edfd9905cffd24ffb910c718f71bfe88bfad7160a3340636a1ede0c0",
+      "source": "function mapSkillInfoToInputItem(e){let t=e.slug?.trim()||e.skillId?.trim()||e.cloudUid?.trim()||void 0;return{id:resolveSkillPreferenceId(e),name:e.name,displayName:e.displayName,description:e.description_zh??e.description??e.description_en,iconUrl:e.iconUrl,tags:e.tags,slug:t,source:normalizeSkillSource(e.source),installed:!0,disabled:e.disabled??e.disable??e.enabled===!1,disabledReason:e.disabledReason,metadata:{...e.metadata??{},...e.skillId?{skillId:e.skillId}:{},...e.cloudUid?{cloudUid:e.cloudUid}:{},...e.ref?{ref:e.ref}:{},...e.filePath?{filePath:e.filePath}:{},...e.source?{source:e.source}:{},...e.installedAt===void 0?{}:{installedAt:e.installedAt},...e.userInvocable===void 0?{}:{userInvocable:e.userInvocable}}}}"
+    }
+  ],
+  "additionalSources": [
+    {
+      "name": "getSkillContent",
+      "member": "main/auth-liveness.js",
+      "memberSHA256": "1ba865409fd2046898659e312f2d4eadb100019130405c52a64a086381693ad1",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 94498,
+        "end": 94711
+      },
+      "sha256": "7faea20584d8e3fce3a481d8d7ba14ac057117d767ace861ac45fba057c47fe9",
+      "source": "getSkillContent:async e=>{try{let t=await _.readFile(e.filePath,`utf-8`);return{content:r&&e.filePath.startsWith(r)?replaceBrandName(t):t}}catch(e){return{content:``,error:e instanceof Error?e.message:String(e)}}}"
+    }
+  ]
+}

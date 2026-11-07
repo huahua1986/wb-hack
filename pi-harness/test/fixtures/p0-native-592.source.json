@@ -1,0 +1,1029 @@
+{
+  "workbuddyVersion": "5.9.2",
+  "artifactSHA256": "0b79c0358c129749bc3355f52bbae13f115577ab37c082a76dfdc54f66fd3f79",
+  "purpose": "Bounded exact native consumers/producers for P0 settings, resources, diff and checkpoint compatibility. Raw fragments are inert evidence; only whole FunctionDeclaration slices are independently runnable with explicit globals.",
+  "slices": [
+    {
+      "name": "useConversationRewind",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5627509,
+        "end": 5630948
+      },
+      "bytes": 3439,
+      "sha256": "0a6992c87c53146a4dcc80f09bd1bec7c1cae0322d231bd3a5417e773892414e",
+      "source": "function useConversationRewind(){let e=useConversationApi(),t=useConversationRuntimeWb(),n=useConversationI18n(),r=useConversationSessionSelector(e=>e.transport),{artifacts:i,loaded:a,removeArtifacts:o}=useConversationResources(),s=(0,I$.useMemo)(()=>i.filter(uue),[i]),c=useConversationMessagesSelector(e=>e.messages),[l,u]=(0,I$.useState)({open:!1,kind:`rollback`,variant:`plain`,items:[],loading:!1,preparing:!1}),d=(0,I$.useRef)(null),f=(0,I$.useRef)(0),p=(0,I$.useRef)([]),m=(0,I$.useCallback)(()=>{u(e=>({...e,open:!1,loading:!1,preparing:!1}))},[]),h=(0,I$.useCallback)(e=>{let t=d.current;d.current=null,e===`cancel`?(f.current+=1,u(e=>({...e,open:!1,loading:!1,preparing:!1}))):u(e=>({...e,loading:!0,preparing:!1})),t?.(e)},[]),g=(0,I$.useCallback)(async(t,n)=>{if(shouldSkipCheckpointRead(t,a,s.length,r))return d.current?.(`cancel`),d.current=null,f.current+=1,console.warn(`[conversation] rewind confirm skipped ${JSON.stringify({kind:t,requestId:n,reason:t===`resend`&&r===`cloud`?`cloud-regenerate-without-file-preview`:`no-session-artifacts`,resourcesLoaded:a,artifactCount:s.length,storeArtifactCount:i.length})}`),`skip`;let o=f.current+1;f.current=o;let l=new Promise(e=>{d.current?.(`cancel`),d.current=e,p.current=[],u({open:!0,kind:t,variant:`plain`,items:[],loading:!1,preparing:!0})}),m;try{m=await e.input.checkpointRead(n,{allowColdStart:t===`rollback`})}catch{m={available:!1,reason:`unavailable`}}if(f.current!==o)return l;let h=m.available&&m.forkPoint?.found===!1?{available:!1,reason:`unavailable`}:m,g=h.available?h.diff.changes:[],v=h.available?h.unavailable:[],y=h.available?h.restoreInfo:[],b=h.available?n:void 0,x=mapPreviewToItems(g,s,c,v,y,b),S,C;if(t===`rollback`){let e=resolveRewindVariantDetailed(h,x);S=e.variant,C=e.degradedReason}else{let e=resolveEditVariantDetailed(h,x);S=e.variant,C=e.degradedReason}if(console.warn(`[conversation] rewind preview decision ${JSON.stringify({kind:t,requestId:n,variant:S,degradedReason:C??`none`,available:h.available,unavailableReason:h.available?void 0:h.reason,errorCode:h.available?void 0:h.errorCode,forkPointFound:m.available?m.forkPoint?.found:void 0,changeCount:g.length,unavailableCount:v.length,restoreInfoCount:y.length,artifactCount:s.length,storeArtifactCount:i.length,itemCount:x.length,changePaths:g.slice(0,5).map(e=>`${e.operation}:${e.path}`),artifactPaths:s.slice(0,5).map(e=>({filePath:e.filePath,uri:e.uri}))})}`),shouldSkipConfirmDialog(t,h.available,x.length)){let e=d.current;return d.current=null,u(e=>({...e,open:!1,loading:!1,preparing:!1})),console.warn(`[conversation] rewind confirm skipped ${JSON.stringify({kind:t,requestId:n,reason:`no-affected-artifacts`,variant:S,degradedReason:C??`none`,changeCount:g.length,artifactCount:s.length})}`),e?.(`skip`),`skip`}return p.current=x,u({open:!0,kind:t,variant:S,items:x,loading:!1,preparing:!1}),l},[e.input,s,i,c,a,r]),v=(0,I$.useCallback)(async r=>{let i=p.current;try{if(!(await e.input.rewind(r)).ok)return t.ui?.toast({message:n(`rewind.error.rollbackFailed`),type:`error`}),!1;let a=i.filter(e=>e.status===`delete`).map(e=>e.id);return a.length>0&&o(a),!0}catch{return t.ui?.toast({message:n(`rewind.error.rollbackFailed`),type:`error`}),!1}finally{m()}},[e.input,t.ui,n,m,o]),y={open:l.open,kind:l.kind,variant:l.variant,items:l.items,loading:l.loading,preparing:l.preparing,onChoose:h};return{confirm:g,finish:m,dialog:(0,Zin.jsx)(RewindConfirmDialog,{...y}),runRewind:v}}"
+    },
+    {
+      "name": "shouldSkipCheckpointRead",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5627381,
+        "end": 5627489
+      },
+      "bytes": 108,
+      "sha256": "97ee9b50c041bb2eb5027c564f242671805ebf610500d975a8235da545c2adbb",
+      "source": "function shouldSkipCheckpointRead(e,t,n,r){return e===`rollback`?!1:e===`resend`&&r===`cloud`?!0:t?n===0:!1}"
+    },
+    {
+      "name": "shouldSkipConfirmDialog",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5627306,
+        "end": 5627381
+      },
+      "bytes": 75,
+      "sha256": "36153c6bae80a8fd781f01f965b9feb427c1f25f471edb75c2484411c829e909",
+      "source": "function shouldSkipConfirmDialog(e,t,n){return e===`rollback`||!t?!1:n===0}"
+    },
+    {
+      "name": "shouldRollbackFilesOnResend",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5627195,
+        "end": 5627306
+      },
+      "bytes": 111,
+      "sha256": "7722efa0cc92082e55f022699e3ef5a279ad20959c0ba3271d1ebde4d03e6f50",
+      "source": "function shouldRollbackFilesOnResend(e){return!e.available||e.forkPoint?.found===!1?!1:e.diff.changes.length>0}"
+    },
+    {
+      "name": "resolveDialogInteractivity",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5621708,
+        "end": 5621937
+      },
+      "bytes": 229,
+      "sha256": "5317a909a97029f8b0f7fd953739aefb9aa1120059abb6e8679aa686f2302b42",
+      "source": "function resolveDialogInteractivity(e,t){return t?{okDisabled:!0,okLoading:!0,cancelDisabled:!0,closable:!1}:e?{okDisabled:!0,okLoading:!1,cancelDisabled:!1,closable:!0}:{okDisabled:!1,okLoading:!1,cancelDisabled:!1,closable:!0}}"
+    },
+    {
+      "name": "resolveRevertEntryVisible",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5621559,
+        "end": 5621688
+      },
+      "bytes": 129,
+      "sha256": "6c1c88717b2be8529c4013bb2368710f0403c6a4c6c3c2b598511a875240d949",
+      "source": "function resolveRevertEntryVisible(e){let{requestId:t,firstLoadedUserRequestId:n,hasMoreRequests:r}=e;return t?r||!n?!0:t!==n:!1}"
+    },
+    {
+      "name": "resolveEditVariantDetailed",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5621059,
+        "end": 5621539
+      },
+      "bytes": 480,
+      "sha256": "40cb62eef1a169cbc2209f69a5ca349f769d542bef8f38bcdfe43552624abcc9",
+      "source": "function resolveEditVariantDetailed(e,t){return e.available?t.some(e=>e.status===`no-earlier-version`)?{variant:`artifacts`}:e.diff.changes.length===0&&(e.unavailable?.length??0)===0?{variant:`no-history`,degradedReason:`no-files`}:e.diff.changes.length===0?{variant:`no-history`,degradedReason:`no-restorable-version`}:t.length===0?{variant:`no-history`,degradedReason:`restorable-but-unmatched`}:{variant:`artifacts`}:{variant:`no-history`,degradedReason:`preview-unavailable`}}"
+    },
+    {
+      "name": "resolveRewindVariantDetailed",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5620727,
+        "end": 5621039
+      },
+      "bytes": 312,
+      "sha256": "5d2d83171d8760a8627f67a5ab511b8755523adfde4820bfacce4d2b0bb931f6",
+      "source": "function resolveRewindVariantDetailed(e,t){return e.available?t.length>0?{variant:`artifacts`}:e.diff.changes.length===0&&(e.unavailable?.length??0)===0?{variant:`no-version`,degradedReason:`no-files`}:{variant:`plain`,degradedReason:`files-but-unmatched`}:{variant:`plain`,degradedReason:`preview-unavailable`}}"
+    },
+    {
+      "name": "formatVersionLabel",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5620458,
+        "end": 5620707
+      },
+      "bytes": 249,
+      "sha256": "8b3459540974015497a0d41b1d831984740c14685fe085222812d419eb9c9c76",
+      "source": "function formatVersionLabel(e){let t=new Date(e);return`${String(t.getFullYear())}-${String(t.getMonth()+1).padStart(2,`0`)}-${String(t.getDate()).padStart(2,`0`)} / ${String(t.getHours()).padStart(2,`0`)}:${String(t.getMinutes()).padStart(2,`0`)}`}"
+    },
+    {
+      "name": "lookupVersionTime",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5620314,
+        "end": 5620458
+      },
+      "bytes": 144,
+      "sha256": "52805b2683064e63dd1e39825a391c858f0d68554d67930bb8f2274c215cf063",
+      "source": "function lookupVersionTime(e,t){let n=t.findIndex(t=>t.requestId===e);if(n<=0)return;let r=t[n-1].finishTime;return typeof r==`number`?r:void 0}"
+    },
+    {
+      "name": "resolveVersionLabel",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5620152,
+        "end": 5620314
+      },
+      "bytes": 162,
+      "sha256": "040d0095eaede986b33b8efb2ecc4749ccd6a10192efc9168e09e6e558550628",
+      "source": "function resolveVersionLabel(e,t,n){if(e.operation===`delete`||!t)return;let r=lookupVersionTime(t.versionRequestId,n);if(r!==void 0)return formatVersionLabel(r)}"
+    },
+    {
+      "name": "resolveStatus$1",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5619950,
+        "end": 5620152
+      },
+      "bytes": 202,
+      "sha256": "3b8d35e533ed5f5a8367abdd7402a4213f901f35ede94ce80eaf0f435544ee90",
+      "source": "function resolveStatus$1(e,t,n){return e.operation===`delete`?`delete`:!t||lookupVersionTime(t.versionRequestId,n)===void 0?`restore-unknown`:t.restorePoint===`exact`?`restore-exact`:`restore-fallback`}"
+    },
+    {
+      "name": "normalizePath$1",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5619880,
+        "end": 5619950
+      },
+      "bytes": 70,
+      "sha256": "572a15ef9ccb6a37110e33a3542ab75075d452eba6b8cc8099c7bcecb1be7b20",
+      "source": "function normalizePath$1(e){return e.replace(/\\\\/g,`/`).toLowerCase()}"
+    },
+    {
+      "name": "buildAssistantRounds",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5619587,
+        "end": 5619880
+      },
+      "bytes": 293,
+      "sha256": "f127a5072c29250c7d3c3249b702573e3993a3a740b94130e5a8e4354f0c78c8",
+      "source": "function buildAssistantRounds(e){let t=[],n=new Map;for(let r of e){if(!r.requestId||r.messageType!==`assistant`)continue;let e=n.get(r.requestId);if(e===void 0){n.set(r.requestId,t.length),t.push({requestId:r.requestId,finishTime:r.finishTime});continue}t[e].finishTime=r.finishTime}return t}"
+    },
+    {
+      "name": "isLocalAbsolutePath",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5619466,
+        "end": 5619587
+      },
+      "bytes": 121,
+      "sha256": "a6a93856803863db64b626c1cf6d3467884aca2db380da188bb2fb3bd28a43ba",
+      "source": "function isLocalAbsolutePath(e){return/^[a-zA-Z][a-zA-Z0-9+\\-.]*:/.test(e)?!!/^[a-zA-Z]:[/\\\\]/.test(e):e.startsWith(`/`)}"
+    },
+    {
+      "name": "resolveMatchPath",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5619355,
+        "end": 5619466
+      },
+      "bytes": 111,
+      "sha256": "ef426343b9effb47e6e20640002cae80deb59305d53a7d6a4ad6262577d474d4",
+      "source": "function resolveMatchPath(e){if(e.filePath)return e.filePath;if(e.uri&&isLocalAbsolutePath(e.uri))return e.uri}"
+    },
+    {
+      "name": "buildArtifactPathIndex",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5619202,
+        "end": 5619355
+      },
+      "bytes": 153,
+      "sha256": "5c0082b8c6e0c24eb449e22250f234ac7955193c476149a10f0be74b51a7dbb7",
+      "source": "function buildArtifactPathIndex(e){let t=new Map;for(let n of e){let e=resolveMatchPath(n);if(e){let r=normalizePath$1(e);t.has(r)||t.set(r,n)}}return t}"
+    },
+    {
+      "name": "collectRewindScopeRequestIds",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5619026,
+        "end": 5619202
+      },
+      "bytes": 176,
+      "sha256": "c73cdb91d7a254b72515ab9c5ad93ee8f895b9b734b170a1d0e174b5e7186bc9",
+      "source": "function collectRewindScopeRequestIds(e,t){let n=e.findIndex(e=>e.requestId===t);if(n<0)return new Set;let r=new Set;for(let t=n;t<e.length;t+=1)r.add(e[t].requestId);return r}"
+    },
+    {
+      "name": "appendUnbackedRoundArtifacts",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5618611,
+        "end": 5619026
+      },
+      "bytes": 415,
+      "sha256": "6df01046d3f8e10d13666ebfda719c25cb3d5cf7c1aeef30fcad92b5d2e4f844",
+      "source": "function appendUnbackedRoundArtifacts(e,t,n,r){let i=collectRewindScopeRequestIds(n,r);if(i.size===0)return;let a=new Set(e.map(e=>e.id));for(let n of t){let t=n.requestId&&i.has(n.requestId),r=n.lastModifiedRequestId&&i.has(n.lastModifiedRequestId);!t&&!r||a.has(n.id)||(a.add(n.id),e.push({id:n.id,title:n.title,path:resolveMatchPath(n)??n.title,status:`no-earlier-version`,...n.type?{artifactType:n.type}:{}}))}}"
+    },
+    {
+      "name": "mapPreviewToItems",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5617978,
+        "end": 5618611
+      },
+      "bytes": 633,
+      "sha256": "96fce24ec6ff517b565a24536150bf23e6a7fc7b3c040ad9e5288ab61cbfffd1",
+      "source": "function mapPreviewToItems(e,t,n,r=[],i=[],a){let o=buildArtifactPathIndex(t),s=buildAssistantRounds(n),c=new Map;for(let e of i)c.set(normalizePath$1(e.path),e);let l=[];for(let t of e){let e=normalizePath$1(t.path),n=o.get(e);if(!n)continue;let r=c.get(e),i=resolveStatus$1(t,r,s),a=resolveVersionLabel(t,r,s);l.push({id:n.id,title:n.title,path:t.path,status:i,...a===void 0?{}:{versionLabel:a},...n.type?{artifactType:n.type}:{}})}for(let e of r){let t=o.get(normalizePath$1(e.path));t&&l.push({id:t.id,title:t.title,path:e.path,status:`keep`,...t.type?{artifactType:t.type}:{}})}return a&&appendUnbackedRoundArtifacts(l,t,s,a),l}"
+    },
+    {
+      "name": "toLegacyConversationFileTreeWithContext",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5361160,
+        "end": 5361972
+      },
+      "bytes": 812,
+      "sha256": "1d12b634213eacd3f12a780321a7da878b711217b7a9b2853708e85d576be465",
+      "source": "function toLegacyConversationFileTreeWithContext(e,t,n){let r=!1,i=e.map((e,i)=>{let a=normalizeFileTreePath$1(e.path),o=n?.[i]?.path===e.path?n[i]:t.lookupPrevious(a);if(e.type!==`directory`)return o&&o.type===`file`&&o.path===e.path&&o.name===e.name?o:(r=!0,{path:e.path,name:e.name,type:`file`});let s=t.expandedPaths.has(a),c=e.children,l=hasInlineChildren(c,t.maxInlineChildren),u=s&&c===void 0&&hasReusablePreviousChildren(o,t.maxInlineChildren),d=l?toLegacyConversationFileTreeWithContext(c,t,o?.children):u?o.children:void 0,f=s&&d!==void 0,p=f&&d.length===0?!0:void 0;return o&&o.type===`dir`&&o.path===e.path&&o.name===e.name&&o.isLoaded===f&&o.isEmptyLoaded===p&&o.children===d?o:(r=!0,{path:e.path,name:e.name,type:`dir`,children:d,isLoaded:f,isEmptyLoaded:p})});return!r&&n&&n.length===i.length?n:i}"
+    },
+    {
+      "name": "hasReusablePreviousChildren",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5361007,
+        "end": 5361160
+      },
+      "bytes": 153,
+      "sha256": "912920069f78ea5e7ffce8f649ef6dc2c244b1e09b83df77c0e167179f5377d5",
+      "source": "function hasReusablePreviousChildren(e,t){return e?.type===`dir`&&e.children!==void 0&&e.children.length<=t&&(e.children.length>0||e.isEmptyLoaded===!0)}"
+    },
+    {
+      "name": "hasInlineChildren",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5360944,
+        "end": 5361007
+      },
+      "bytes": 63,
+      "sha256": "16ad3d0f0251615a7b0e450341c97998b59dddef5d50f10fcb4fe5e20762d1cd",
+      "source": "function hasInlineChildren(e,t){return e!==void 0&&e.length<=t}"
+    },
+    {
+      "name": "normalizeFileTreePath$1",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5360291,
+        "end": 5360444
+      },
+      "bytes": 153,
+      "sha256": "c83af2cd93ff4ba9751ceb75cce4c4c7d1799c648a4910dd507bf5cee3f8fda0",
+      "source": "function normalizeFileTreePath$1(e){if(!e.includes(`\\\\`)&&!e.endsWith(`/`))return e;let t=e.replace(/\\\\/g,`/`);return t.length>1?t.replace(/\\/+$/g,``):t}"
+    },
+    {
+      "name": "toLegacyConversationChangeArtifacts",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5358999,
+        "end": 5360291
+      },
+      "bytes": 1292,
+      "sha256": "28a8c47134d72f333a9653e8622921596c647beae4a119d61c723899f8a9a2ca",
+      "source": "function toLegacyConversationChangeArtifacts(e,t){if(mZ.windowStartAt===0&&(mZ.windowStartAt=Date.now()),mZ.calls+=1,scheduleChangeArtifactsDiagFlush(),e.length===0)return mZ.hits+=1,il(`change-artifacts-cache.hit`),x9t;let n=b9t.get(e);if(n){let e=n.get(t);if(e)return mZ.hits+=1,il(`change-artifacts-cache.hit`),e}il(`change-artifacts-cache.miss`);let r=[...e].sort((e,t)=>e.createdAt-t.createdAt),i=new Map;for(let e of r)for(let n of e.files){let r=dl(n.filePath)??n.filePath;if(n.action===`delete`){i.delete(r);continue}let a={id:`${t}:${r}`,sessionId:t,title:n.filePath.split(/[\\\\/]/).pop()||n.filePath,type:`file-changes`,category:`file-changes`,contentType:`diff`,language:n.language,uri:n.filePath,createdAt:e.createdAt,fileChangeInfo:{uri:n.filePath,changeType:changeType(n.action),additions:n.additions,deletions:n.deletions,diff:hunkText(n.filePath,`hunks`in n?n.hunks:void 0),cachedContent:`content`in n?n.content??void 0:void 0,language:n.language,diffStatus:n.diffStatus},...`detailRef`in e?{changeDetailRef:e.detailRef,changeRequestId:e.requestId,changeDetailStatus:`detailStatus`in n?n.detailStatus:void 0}:{},__conversationResourceSource:pZ},o=i.get(r);i.set(r,o?preferConversationChangeArtifact(o,a):a)}let a=[...i.values()];return n||(n=new Map,b9t.set(e,n)),n.set(t,a),a}"
+    },
+    {
+      "name": "hunkText",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5357689,
+        "end": 5357898
+      },
+      "bytes": 209,
+      "sha256": "922fa6fd834c57bb31c4a4f78743afef71c382486549123992669ad420b5e60a",
+      "source": "function hunkText(e,t){if(t?.length)return`--- a/${e}\\n+++ b/${e}\\n${t.map(e=>[`@@ -${e.oldStart},${e.oldLines} +${e.newStart},${e.newLines} @@${e.header?` ${e.header}`:``}`,...e.lines].join(`\n`)).join(`\n`)}`}"
+    },
+    {
+      "name": "changeType",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5357602,
+        "end": 5357689
+      },
+      "bytes": 87,
+      "sha256": "4965a422e2a92ef04a0b74286443a8bc7ebcd673c08040bfe006bfc4dc7d7d4d",
+      "source": "function changeType(e){return e===`create`?`created`:e===`delete`?`deleted`:`modified`}"
+    },
+    {
+      "name": "applyServerThoughtLevelChoice",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3529989,
+        "end": 3530207
+      },
+      "bytes": 218,
+      "sha256": "f965629acf01567f7c7fa0f94ad6d99af7d6be210aa656139fe6c796e7a0151d",
+      "source": "function applyServerThoughtLevelChoice(e,t){return t===`disabled`?{...e,isThinking:!1,reasoningEffort:void 0}:t===`enabled`?{...e,isThinking:!0,reasoningEffort:e.reasoningEffort}:{...e,isThinking:!0,reasoningEffort:t}}"
+    },
+    {
+      "name": "toConversationArtifactItem",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5335525,
+        "end": 5337123
+      },
+      "bytes": 1598,
+      "sha256": "2ba37bd1d64f92c1e1e500bfee8434ca3d634346df6763d535a76583fbc99d3b",
+      "source": "function toConversationArtifactItem(e,t){if(isMcpAppOrArdotRawArtifact(e)&&_he(e._meta)||productKindOf(e)===`mcp_app`&&asRecord$6(e._meta)?.launchSurface===`inline`)return;if(productKindOf(e)===`plan`){let n=stringValue$1(e.uri,e.filePath),r=stringValue$1(e.sessionId,e.conversationId,t)??t,i=requestIdOf(e),a=numberValue(e.updatedAt,e.createdAt),o=numberValue(e.createdAt,e.updatedAt),s=stringValue$1(e.title,e.name,n?basename(n):void 0)??`Implementation Plan`;return{...e,id:stringValue$1(e.id,e.uri,e.filePath)??`${t}:plan`,sessionId:r,title:s,type:`implementation-plan`,category:`artifact`,contentType:`markdown`,content:stringValue$1(e.content)??``,...n?{uri:n}:{},...a===void 0?{}:{updatedAt:a},...o===void 0?{}:{createdAt:o},...i?{requestId:i}:{}}}if(isMcpAppOrArdotRawArtifact(e))return toMcpAppOrArdotArtifactItem(e,t);if(isWbAppGenieMarkerRecord(e))return toWbAppArtifactItem(e,t);let n=stringValue$1(e.uri,e.url,e.filePath),r=stringValue$1(e.url,e.uri,e.filePath),i=stringValue$1(e.id,e.uri,e.url,e.filePath)??`${t}:artifact`,a=decodeArtifactDisplayName(stringValue$1(e.title,e.name,n?basename(n):void 0)??`artifact`,n),o=classifyArtifact(e),s=o.category===`artifact`&&!r?`media`:o.category,c=requestIdOf(e),l=sourceToolOf$1(e),u=numberValue(e.updatedAt,e.createdAt),d=numberValue(e.createdAt,e.updatedAt);return{...e,id:i,sessionId:stringValue$1(e.sessionId,e.conversationId,t)??t,title:a,type:`media-artifact`,category:s,contentType:o.contentType,url:r??``,mimeType:o.mimeType,...u===void 0?{}:{updatedAt:u},...d===void 0?{}:{createdAt:d},...c?{requestId:c}:{},...l?{sourceTool:l}:{}}}"
+    },
+    {
+      "name": "productKindOf",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5332892,
+        "end": 5332969
+      },
+      "bytes": 77,
+      "sha256": "a3d8a92ab347043ef43a32b919f446be8701b2b64bb7e5aa1d56206d53008ec8",
+      "source": "function productKindOf(e){return stringValue$1(e.kind,e.type)?.toLowerCase()}"
+    },
+    {
+      "name": "sourceToolOf$1",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5332742,
+        "end": 5332892
+      },
+      "bytes": 150,
+      "sha256": "b338400efcb9c574d0d9c4cdf7df193d8a17b451f2933f69d005e83e185af374",
+      "source": "function sourceToolOf$1(e){let t=asRecord$6(e._meta),n=asRecord$6(t?.[`codebuddy.ai`]);return stringValue$1(e.sourceTool,t?.sourceTool,n?.sourceTool)}"
+    },
+    {
+      "name": "requestIdOf",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5332598,
+        "end": 5332742
+      },
+      "bytes": 144,
+      "sha256": "e222cc6a136e611b6638b3536f186ac7129cbde9514ca1ff302e3c4d8507024f",
+      "source": "function requestIdOf(e){let t=asRecord$6(e._meta),n=asRecord$6(t?.[`codebuddy.ai`]);return stringValue$1(e.requestId,t?.requestId,n?.requestId)}"
+    },
+    {
+      "name": "classifyArtifact",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5331220,
+        "end": 5332598
+      },
+      "bytes": 1378,
+      "sha256": "146c01eeda48975106488818661b67db3e2bdb5afb81db60d16d9c6bcaa7b0db",
+      "source": "function classifyArtifact(e){let t=extensionFor(e),n=artifactTypeOf(e),r=classificationFromLegacyMetadata(e);if(n===`preview`||B7t.has(t)||!t&&e.mimeType?.toLowerCase()===`text/html`)return{category:`artifact`,contentType:`code`,...B7t.has(t)||e.mimeType?.toLowerCase()===`text/html`?{mimeType:`text/html`}:{}};if(n===`code`)return{category:`media`,contentType:`code`};if(t===`ts`&&!n)return r??{category:`media`,contentType:`code`};if(V7t.has(t))return{category:`media`,contentType:`document`,mimeType:`text/markdown`};if(I7t.has(t))return{category:`media`,contentType:`snapshot`};if(L7t.has(t))return{category:`media`,contentType:`diagram`};if(t===`miora`)return{category:`media`,contentType:`miora`,mimeType:K7t};if(R7t.has(t))return{category:`media`,contentType:`video`};if(z7t.has(t))return{category:`media`,contentType:`audio`};if(H7t.has(t))return{category:`media`,contentType:`document`,mimeType:`application/pdf`};if(U7t.has(t))return{category:`media`,contentType:`spreadsheet`};if(W7t.has(t))return{category:`media`,contentType:`presentation`};if(G7t.has(t))return{category:`media`,contentType:`document`};if(r)return r;switch(n){case`image`:return{category:`media`,contentType:`snapshot`};case`data`:return{category:`media`,contentType:`spreadsheet`};case`document`:return{category:`media`,contentType:`document`};default:return{category:`media`,contentType:`code`}}}"
+    },
+    {
+      "name": "classificationFromLegacyMetadata",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5330182,
+        "end": 5331220
+      },
+      "bytes": 1038,
+      "sha256": "77bdcf27beac8b7d3570bcd9c50607b52aba42cf245c123b92dd3a052a2023f2",
+      "source": "function classificationFromLegacyMetadata(e){let t=e.contentType?.toLowerCase(),n=e.mimeType?.toLowerCase();if(t===`snapshot`||t===`image`)return{category:`media`,contentType:`snapshot`};if(t===`diagram`&&n===K7t)return{category:`media`,contentType:`miora`,mimeType:n};if(t===`diagram`)return{category:`media`,contentType:`diagram`};if(t===`video`||n?.startsWith(`video/`))return{category:`media`,contentType:`video`};if(t===`audio`||n?.startsWith(`audio/`))return{category:`media`,contentType:`audio`};if(t===`spreadsheet`)return{category:`media`,contentType:`spreadsheet`};if(t===`presentation`)return{category:`media`,contentType:`presentation`};if(n===`application/pdf`)return{category:`media`,contentType:`document`,mimeType:n};if(t===`document`||t===`markdown`||n===`text/markdown`)return{category:`media`,contentType:`document`,...t===`markdown`||n===`text/markdown`?{mimeType:`text/markdown`}:{}};if(t===`code`)return{category:`media`,contentType:`code`};if(n?.startsWith(`image/`))return{category:`media`,contentType:`snapshot`}}"
+    },
+    {
+      "name": "extensionFor",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5329963,
+        "end": 5330182
+      },
+      "bytes": 219,
+      "sha256": "cc422a9a46cc16a758aa43702fed495fa2bdc0afd1d920cb7535f3aa5aae3290",
+      "source": "function extensionFor(e){let t=stringValue$1(e.filePath);return t?extensionOf$2(t):artifactTypeOf(e)?extensionOf$2(stringValue$1(e.title,e.name)):extensionOf$2(stringValue$1(e.uri,e.url)||stringValue$1(e.title,e.name))}"
+    },
+    {
+      "name": "artifactTypeOf",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5329874,
+        "end": 5329963
+      },
+      "bytes": 89,
+      "sha256": "ff51ec8dc48f9b1cc453de20f6b4234ff7dc253b7af57171baf7e640b27f24f0",
+      "source": "function artifactTypeOf(e){return typeof e.type==`string`&&F7t.has(e.type)?e.type:void 0}"
+    },
+    {
+      "name": "extensionOf$2",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5329753,
+        "end": 5329874
+      },
+      "bytes": 121,
+      "sha256": "1e1166e47b8eaca531946969da2acbef6c980616125537363c34573b9df26b50",
+      "source": "function extensionOf$2(e){if(!e)return``;let t=basename(e),n=t.lastIndexOf(`.`);return n>0?t.slice(n+1).toLowerCase():``}"
+    },
+    {
+      "name": "basename",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5329399,
+        "end": 5329753
+      },
+      "bytes": 354,
+      "sha256": "a5c85b58fb346e818f18935633352b4912bc0d06aafd1bc69c3f4f8b73c634c9",
+      "source": "function basename(e){tZ.basenameCalls+=1,e.length>tZ.basenameMaxLen&&(tZ.basenameMaxLen=e.length);let t=e.startsWith(J7t)?7:0,n=e.length,r=e.indexOf(`?`,t);r>=0&&(n=r);let i=e.indexOf(`#`,t);for(i>=0&&i<n&&(n=i);n>t&&isPathSeparator(e.charCodeAt(n-1));)--n;if(n===t)return e;let a=n;for(;a>t&&!isPathSeparator(e.charCodeAt(a-1));)--a;return e.slice(a,n)}"
+    },
+    {
+      "name": "isPathSeparator",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5329349,
+        "end": 5329399
+      },
+      "bytes": 50,
+      "sha256": "0b7680379f72e85da21eb2252f50312dae70f12cc24c0293ddb676b0570147ec",
+      "source": "function isPathSeparator(e){return e===47||e===92}"
+    },
+    {
+      "name": "numberValue",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5328041,
+        "end": 5328134
+      },
+      "bytes": 93,
+      "sha256": "ea00c1846b59ed620c8a70290ccb7b6104046621eaa08dad527b8f8a43a0042f",
+      "source": "function numberValue(...e){for(let t of e)if(typeof t==`number`&&Number.isFinite(t))return t}"
+    },
+    {
+      "name": "stringValue$1",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5327956,
+        "end": 5328041
+      },
+      "bytes": 85,
+      "sha256": "6bd205d30bee9c55659708eed2c6d90cf0b8fdc6aead4a96b880f42f412b15b2",
+      "source": "function stringValue$1(...e){for(let t of e)if(typeof t==`string`&&t.trim())return t}"
+    },
+    {
+      "name": "asRecord$6",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5327895,
+        "end": 5327956
+      },
+      "bytes": 61,
+      "sha256": "046718dc8185af9702de0baf3aed4cfb2c5e2ac5e8b73dbb445aa4a2de77b744",
+      "source": "function asRecord$6(e){return typeof e==`object`&&e?e:void 0}"
+    },
+    {
+      "name": "decodeArtifactDisplayName",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5327728,
+        "end": 5327875
+      },
+      "bytes": 147,
+      "sha256": "9d86f00d79194978f2f720f485414b857a95dbc8c656c0d3a8bae7437b8352a8",
+      "source": "function decodeArtifactDisplayName(e,t){if(!t)return e;let n=getUriFileName(t);if(!n)return e;let r=safeDecode$1(e);return r===safeDecode$1(n)?r:e}"
+    },
+    {
+      "name": "getUriFileName",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5327561,
+        "end": 5327728
+      },
+      "bytes": 167,
+      "sha256": "c39c5658edd6fd23cd3b888b5b0d65744537309cbb53848383463324abfa9580",
+      "source": "function getUriFileName(e){let t=e.search(/[?#]/),n=(t>=0?e.slice(0,t):e).replace(/[\\\\/]+$/,``),r=Math.max(n.lastIndexOf(`/`),n.lastIndexOf(`\\\\`));return n.slice(r+1)}"
+    },
+    {
+      "name": "safeDecode$1",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5327487,
+        "end": 5327561
+      },
+      "bytes": 74,
+      "sha256": "2ac2f46ee1d807d5f0a6fb895d9a600f29126dfd11bc322ed7a185179004e49e",
+      "source": "function safeDecode$1(e){try{return decodeURIComponent(e)}catch{return e}}"
+    },
+    {
+      "name": "loadChangeDetail",
+      "kind": "ClassMethod",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5205485,
+        "end": 5205701
+      },
+      "bytes": 216,
+      "sha256": "b757550db3df001b9bb5add7b952423f14c3e7c3b9d72c514be5731f04a1ef78",
+      "source": "async loadChangeDetail(e,t){if(!e||!t)return!1;let n=await(await Promise.resolve(this.getConversation()))?.changeDetail({requestId:e,detailRef:t});return n?(this.resourcesStore.getState().setChangeDetail(t,n),!0):!1}"
+    },
+    {
+      "name": "loadConversationResources",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5198990,
+        "end": 5199500
+      },
+      "bytes": 510,
+      "sha256": "cfefb15ae7d0da0f745a5d61e889f3f030167aaa9f07beaf1e60e7e201dafc7c",
+      "source": "async function loadConversationResources(e,t){let n=await e();if(!n)return h8t;let r=n.changeManifests,i=typeof r==`function`?r.call(n).catch(()=>n.changes()):n.changes(),[a,o,s]=await Promise.allSettled([t?Promise.resolve(t):n.artifacts(),i,n.files()]);return{...a.status===`fulfilled`?{artifacts:visibleArtifacts(n,a.value)}:{},...o.status===`fulfilled`?{changes:o.value}:{},...s.status===`fulfilled`?{files:s.value}:{},errors:{artifacts:rejectedReason(a),changes:rejectedReason(o),files:rejectedReason(s)}}}"
+    },
+    {
+      "name": "visibleArtifacts",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5198356,
+        "end": 5198848
+      },
+      "bytes": 492,
+      "sha256": "6695a4d7de9c8e59e2834c94408cd3a33cd1e4c3c1a692378cee8205bb6c142d",
+      "source": "function visibleArtifacts(e,t){return e.info?.transport===`cloud`?t.filter(e=>{let t=e.url?.trim()||e.uri?.trim()||e.filePath?.trim();if(!t)return!0;try{let n=new URL(t),r=(n.protocol===`http:`||n.protocol===`https:`)&&n.hostname===`127.0.0.1`,i=[e.filePath,n.pathname,e.uri,e.title].find(e=>{let t=e?.split(/[?#]/)[0].split(/[\\\\/]/).pop();return t&&t.lastIndexOf(`.`)>0}),a=i?isHtmlFileTarget(i):e.mimeType?.split(`;`)[0].trim().toLowerCase()===`text/html`;return!(r&&a)}catch{return!0}}):t}"
+    },
+    {
+      "name": "changeDetail",
+      "kind": "ClassMethod",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 417918,
+        "end": 418977
+      },
+      "bytes": 1059,
+      "sha256": "a041f554781756b70a0ca286afd6076148c7a0aaa40f388de60e7cf66c9d8526",
+      "source": "async changeDetail(e){if(!e.requestId||!e.detailRef)return null;if(this.init.currentCheckpoint?.hasSnapshot){let t=this.init.currentCheckpoint.manifests().find(t=>t.detailRef===e.detailRef);if(!t)return null;let[n]=this.canonicalizeRequestIds([t]);if(n?.requestId!==e.requestId)return null;let r=this.init.currentCheckpoint.detail(t.requestId,e.detailRef);return r?this.canonicalizeRequestIds([r])[0]??null:null}if(!this.init.resourceQueries?.changeDetail)return null;let t=await this.init.resourceQueries.changeManifests?.(this.init.getInfo().id)??[],n=!1,r=t.find(t=>{if(t.detailRef!==e.detailRef)return!1;let r=t.requestId?this.init.assembler.resolveProtocolRequestId(t.requestId)??t.requestId:t.requestId;return n=!r&&e.requestId===this.init.lastMaterializedRequestId(),r===e.requestId||n});if(!r)return null;let i=await this.init.resourceQueries.changeDetail(this.init.getInfo().id,r.requestId,r.detailRef);if(!i)return null;let[a]=this.canonicalizeRequestIds([i]);return n&&a&&!a.requestId?{...a,requestId:e.requestId}:a?.requestId===e.requestId?a:null}"
+    },
+    {
+      "name": "changeManifests",
+      "kind": "ClassMethod",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 417526,
+        "end": 417918
+      },
+      "bytes": 392,
+      "sha256": "90f3c9fc9c67e956aafde1332946788ff0c5c453e0f4f9ac36fd2ef081dabcd7",
+      "source": "async changeManifests(){if(this.init.currentCheckpoint?.hasSnapshot)return this.canonicalizeRequestIds(this.init.currentCheckpoint.manifests());if(!this.init.resourceQueries?.changeManifests)return[];let e=await this.init.resourceQueries.changeManifests(this.init.getInfo().id),t=this.assignLegacyChangeOwner(this.canonicalizeRequestIds(e));return this.filterToMaterializedRequests(t,void 0)}"
+    },
+    {
+      "name": "changes",
+      "kind": "ClassMethod",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 417302,
+        "end": 417526
+      },
+      "bytes": 224,
+      "sha256": "baced9eef140cf9f2bdd8fcd47f1560cb36468f77464f88480e91906cb961f7a",
+      "source": "async changes(e){let t=e?.requestId,n=await(this.init.resourceQueries?.changes(this.init.getInfo().id,void 0)??[]),r=this.assignLegacyChangeOwner(this.canonicalizeRequestIds(n));return this.filterToMaterializedRequests(r,t)}"
+    },
+    {
+      "name": "files",
+      "kind": "ClassMethod",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 416790,
+        "end": 417083
+      },
+      "bytes": 293,
+      "sha256": "13a8dbda8419df117d9fb4c0ebf7d7136b04f6ab2bd90200c097d28671b0e8cb",
+      "source": "async files(e){let t=this.init.getInfo();if(t.transport!==`cloud`)return this.init.resourceQueries?.workspaceTree(t.id,e?.requestId)??[];try{await this.init.ensureRuntimeSession()}catch{return[]}try{return await(this.init.resourceQueries?.workspaceTree(t.id,e?.requestId)??[])}catch{return[]}}"
+    },
+    {
+      "name": "artifacts",
+      "kind": "ClassMethod",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 416423,
+        "end": 416790
+      },
+      "bytes": 367,
+      "sha256": "383cf2dd8b54dc079d287756d60255c17e8d8994bc9372131b2a7571a5e6b2b4",
+      "source": "async artifacts(e){let t=e?.requestId,n=this.init.getInfo(),r=await queryArtifactsWithDiagnostic({conversationId:n.id,instanceId:this.init.instanceId,requestId:t,portRequestId:void 0,resourceQueries:this.init.resourceQueries,log:this.init.log}),i=this.filterArtifactsOwnedByConversation(r,n);return this.filterToMaterializedRequests(this.canonicalizeRequestIds(i),t)}"
+    },
+    {
+      "name": "checkpointRead",
+      "kind": "ClassMethod",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 359745,
+        "end": 360782
+      },
+      "bytes": 1037,
+      "sha256": "07eece0c66fbf0f2a24f8310c0d4e5d728e437dbb0a330ec9ae350aa59ce718c",
+      "source": "async checkpointRead(e,t){let r=this.host.getRequestIdentity(e),i=r?.forkMessageId,a=r?.forkRequestId;if(!i&&!a)return{available:!1,reason:`no-fork-locator`};if(!t?.allowColdStart&&this.host.isRuntimeColdStartRequired())return this.host.log?.(`checkpoint:read-skipped-cold-runtime`,{requestId:e}),{available:!1,reason:`runtime-not-ready`};await this.host.waitForReclaim();let o=this.host.ensureConnection();o||n.j(`conversation.checkpointRead`);try{await this.host.ensureSessionAttached();let e=await o.send(I.CheckpointRead,{sessionId:this.host.getRuntimeSessionId(),...i?{messageId:i}:{},...a?{requestId:a}:{}});return{available:!0,diff:e.diff??{changes:[]},unavailable:e.unavailable??[],restoreInfo:e.restoreInfo??[],...e.forkPoint?{forkPoint:e.forkPoint}:{},...e.createdAt?{createdAt:e.createdAt}:{},...e.label?{label:e.label}:{}}}catch(t){let n=extractFileRollbackErrorCode(t);return this.host.log?.(`checkpoint:read-unavailable`,{requestId:e,errorCode:n,error:String(t)}),{available:!1,reason:`unavailable`,...n?{errorCode:n}:{}}}}"
+    },
+    {
+      "name": "artifact-update-consumer",
+      "kind": "inert-fragment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5163504,
+        "end": 5163684
+      },
+      "bytes": 180,
+      "sha256": "55aa6939057851a59b36d85dcc22d5cdf79a0a8ebfb2b7e5b0a8bf946e65e7d2",
+      "source": ".on(Zo.ArtifactUpdate,()=>{shouldSkip()||z.runNow()}),n.on(Zo.ExtensionMethod,(e,t)=>{if(!shouldSkip()){if(e===`checkpoint`&&t&&typeof t==`object`){let e=t.checkpoint;if(e&&typeof "
+    },
+    {
+      "name": "runtime-option-proxy",
+      "kind": "inert-fragment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3869365,
+        "end": 3870095
+      },
+      "bytes": 730,
+      "sha256": "c5c91b157183b4f4e3566d439a83e6ec319afc70c4e32f0e8e7f30dd5ba84e9d",
+      "source": "if(t===`setSessionConfigOption`)return async(r,i,a)=>{if(i===`thought_level`&&W.current){let e=String(a),t=de.current;if(t!==void 0){t===e&&(de.current=void 0),await W.current(e);return}if(v)return;await W.current(e);return}if(i===`preMessageCompactPct`&&oe.current){await oe.current(String(a));return}if(i===`context_window`&&se.current){await se.current(String(a));return}let o=Reflect.get(e,t,n);if(typeof o==`function`)return o.call(e,r,i,a)};let r=Reflect.get(e,t,n);return typeof r==`function`?r.bind(e):r}}):void 0,[V,t,x.adapter,o,c]),v,k,r,c===`cloud`?V:void 0,y,x.accountInfo?.userId,L,{persistNewTaskModel:b,enableAutoModelTiers:R,enableIoaGrouping:isIOAUser(x.accountInfo?.enterpriseId??``),isEnterpriseAccount:!!x.acc"
+    },
+    {
+      "name": "max-mode-compaction",
+      "kind": "inert-fragment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3541137,
+        "end": 3541457
+      },
+      "bytes": 320,
+      "sha256": "f2a3ed84a90d41c581cb17981e563b5f011d4615a34de86a5a12824f0ae4722f",
+      "source": "let Qe=(0,Cz.useCallback)(e=>{try{localStorage.setItem(YEt,String(e))}catch{}t?.setSessionConfigOption&&n&&t.setSessionConfigOption(n,`preMessageCompactPct`,e?`0`:``).catch(()=>{})},[t,n]);(0,Cz.useEffect)(()=>{let handleEconomyModeChange=e=>{let t=e.detail?.enabled;typeof t==`boolean`&&Qe(!t)};return window.addEventLi"
+    },
+    {
+      "name": "native-thought-levels",
+      "kind": "inert-fragment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3545579,
+        "end": 3545679
+      },
+      "bytes": 100,
+      "sha256": "0a17b21e11e4cb4730ee77e008a15fd834452ace97ac3c33f133b683a2509540",
+      "source": "wz=[`minimal`,`low`,`medium`,`high`,`xhigh`,`max`],HEt=[],UEt={\"deepseek-reasoner\":`deepseek-r1`,\"de"
+    },
+    {
+      "name": "cli-pre-message-threshold",
+      "kind": "inert-fragment",
+      "member": "cli/dist/codebuddy-lite-wb.mjs",
+      "memberSHA256": "29a2e96949fd85143f85c9fa31ae036657a15c351e847c7944b53a218c850a4d",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 7894828,
+        "end": 7895628
+      },
+      "bytes": 800,
+      "sha256": "3a160a1fe4b3f00220d718d000e4a31c542464041dfc301599fb25d89dfc4644",
+      "source": "c=i.meta?.preMessageCompactPct,p=0===c,S=await this.productManager.waitConfiguration(),E=resolvePreMessageCompactEnabled(S?.productFeatures),A=\"number\"==typeof c&&c>0?c/100:getPreMessageCompactThresholdOverride()??S?.tokenUsageThresholds?.inputTokens?.preMessage??.8,R=resolveEffectiveContextBudget({overrideContextWindow:this.sessionManager?.getOverrideContextWindow(i.id),contextWindow:s.contextWindow,maxInputTokens:s.maxInputTokens}),I=await this.settingsManager?.get(\"autoCompactWindow\"),P=resolveCompactTriggerAt(R,A,I),O=UsageUtils.getLatestUsageSnapshot(i),M=O?.usage.inputTokens??0,L=\"api-usage\";if(0===M&&i.history&&i.history.length>0&&(M=this.estimateHistoryTokens(i.history),L=\"local-estimate\",this.logger.info(`[PreMessageCompact] No API usage available, fallback to local estimate: ${M}"
+    },
+    {
+      "name": "F7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338321,
+        "end": 5338385
+      },
+      "bytes": 64,
+      "sha256": "95714c062b02bfcd7e4397466e369d5a77201c40133c69360f3cf795f78f2600",
+      "source": "F7t=new Set([`code`,`document`,`image`,`preview`,`data`,`file`])"
+    },
+    {
+      "name": "I7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338386,
+        "end": 5338450
+      },
+      "bytes": 64,
+      "sha256": "30f0b57996cabda6ce93430e58c92d1d66ba58736142a35d8b12f14d51b06e20",
+      "source": "I7t=new Set([`jpg`,`jpeg`,`png`,`gif`,`webp`,`svg`,`bmp`,`ico`])"
+    },
+    {
+      "name": "L7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338451,
+        "end": 5338493
+      },
+      "bytes": 42,
+      "sha256": "5609c5a4e49220ffbd9a210e26cf1d2b2b054769f130737f4059992845ce7799",
+      "source": "L7t=new Set([`excalidraw`,`drawio`,`dio`])"
+    },
+    {
+      "name": "R7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338494,
+        "end": 5338657
+      },
+      "bytes": 163,
+      "sha256": "fdcddbe2bb0d99fffe1d3281c991972dbe0f46616830cd113ba6717e44e4d9f4",
+      "source": "R7t=new Set([`mp4`,`mov`,`mkv`,`avi`,`webm`,`wmv`,`3gp`,`3g2`,`flv`,`f4v`,`ts`,`mts`,`m2ts`,`mxf`,`prores`,`nev`,`mpg`,`mpeg`,`m4v`,`ogv`,`vob`,`asf`,`rm`,`rmvb`])"
+    },
+    {
+      "name": "z7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338658,
+        "end": 5338722
+      },
+      "bytes": 64,
+      "sha256": "665ded6e171c470ff65d7e6881b8e1b740ca1f0224baa88666b426f5ab21cab5",
+      "source": "z7t=new Set([`mp3`,`wav`,`ogg`,`aac`,`flac`,`m4a`,`wma`,`opus`])"
+    },
+    {
+      "name": "B7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338723,
+        "end": 5338750
+      },
+      "bytes": 27,
+      "sha256": "8437a13340ca9383fc6607c6730b008bb7450fd92fad5a2a2f2f73c1072af3b2",
+      "source": "B7t=new Set([`html`,`htm`])"
+    },
+    {
+      "name": "V7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338751,
+        "end": 5338787
+      },
+      "bytes": 36,
+      "sha256": "37021a5f9368a0b5dd6608f76e3565548d476e9f9ecc41ff98be949724393aec",
+      "source": "V7t=new Set([`md`,`markdown`,`mdx`])"
+    },
+    {
+      "name": "H7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338788,
+        "end": 5338808
+      },
+      "bytes": 20,
+      "sha256": "81df8ab7e9f5b37406b06fc940cdf191c95d7d7b49efd1c6f88e5c31b80e6781",
+      "source": "H7t=new Set([`pdf`])"
+    },
+    {
+      "name": "U7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338809,
+        "end": 5338858
+      },
+      "bytes": 49,
+      "sha256": "0f4bf19dcde65169a6fcdacc8aa0ee8f6f1b4d46500c19df894c94c2e8d51b41",
+      "source": "U7t=new Set([`csv`,`tsv`,`xlsx`,`xls`,`parquet`])"
+    },
+    {
+      "name": "W7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338859,
+        "end": 5338886
+      },
+      "bytes": 27,
+      "sha256": "9fa576597bb085fc8518ff3f281ad690eaacc0222c02c0fae3a0d5e48767e523",
+      "source": "W7t=new Set([`ppt`,`pptx`])"
+    },
+    {
+      "name": "G7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338887,
+        "end": 5338926
+      },
+      "bytes": 39,
+      "sha256": "9086b497045b3f879199817e965e39cd0be10dba417fd62cd923a6e618d78e7d",
+      "source": "G7t=new Set([`doc`,`docx`,`rtf`,`odt`])"
+    },
+    {
+      "name": "K7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338927,
+        "end": 5338961
+      },
+      "bytes": 34,
+      "sha256": "f992c49d2874409f80b63ddddb9862e1e0369b5bd28f8e72bc7753d3ca8839fb",
+      "source": "K7t=`application/vnd.miora.canvas`"
+    },
+    {
+      "name": "tZ",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5338969,
+        "end": 5339123
+      },
+      "bytes": 154,
+      "sha256": "942eac8f575446e77324b012c1b4d176f378d81d1414a149780ae61330450eb4",
+      "source": "tZ={windowStartAt:0,calls:0,empty:0,listHit:0,listMiss:0,itemHit:0,itemMiss:0,missMs:0,maxLocationLen:0,basenameCalls:0,basenameMaxLen:0,bySource:new Map}"
+    },
+    {
+      "name": "J7t",
+      "kind": "constant-assignment",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5339132,
+        "end": 5339145
+      },
+      "bytes": 13,
+      "sha256": "acaec4eee41ac65f0ea6143e02ba76f475530a4f2dd2c4c1f81300dd13869240",
+      "source": "J7t=`file://`"
+    }
+  ]
+}

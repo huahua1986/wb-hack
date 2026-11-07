@@ -1,0 +1,57 @@
+{
+  "version": "5.9.1",
+  "artifactSHA256": "1fc0a56ddec5437d4dc55a55ba1c028b291ab29cb17306500827015987424233",
+  "member": "main/server.js",
+  "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+  "boundary": "Exact raw functions/methods. VM supplies z.yt canonical-name adapter and empty vd exclusions for controlled fixture; no app/service execution.",
+  "slices": {
+    "isBlocked": {
+      "code": "function isBlocked(e){return!e.enabled||!e.trusted}",
+      "utf16Start": 864561,
+      "utf16End": 864612,
+      "byteStart": 864561,
+      "byteEnd": 864612,
+      "sha256": "92efe1aac615d48bdf237ba08fdacc873f7e028fb65d592722207a778f702a1b"
+    },
+    "isConnectorEnabledForContext": {
+      "code": "function isConnectorEnabledForContext(e,t){if(e.origin.kind!==`connector`||e.visibility?.sessionScopeExempt)return!0;let n=z.yt(e.id);return t.has(e.origin.connectorId)||t.has(e.id)||t.has(n)||t.has(`connector:${n}`)}",
+      "utf16Start": 864708,
+      "utf16End": 864925,
+      "byteStart": 864708,
+      "byteEnd": 864925,
+      "sha256": "ddf391f617b9625c6d073da7a397a6f0306592b2c0b44f9a7ab18e5d67b1666c"
+    },
+    "isFirstPartyEnabledForContext": {
+      "code": "function isFirstPartyEnabledForContext(e,t){return e.origin.kind===`first-party`&&e.origin.key===`browser-use`?t.isBrowserEnabled===!0:!0}",
+      "utf16Start": 864925,
+      "utf16End": 865063,
+      "byteStart": 864925,
+      "byteEnd": 865063,
+      "sha256": "bbad4c49a4ea8aa47743b687484e16e80e1df001e7f57ddef5060bc7ba2b471c"
+    },
+    "isMcpItemVisibleInSession": {
+      "code": "function isMcpItemVisibleInSession(e,t){if(e.origin.kind===`connector`&&vd.has(e.origin.connectorId))return!1;let n=e.visibility;return n?.requiresProjectId&&!t.projectId||n?.welcomeModes&&n.welcomeModes.length>0&&(!t.welcomeMode||!n.welcomeModes.includes(t.welcomeMode))?!1:e.origin.kind===`buddy`?e.origin.applicationId===t.buddy?.applicationId:e.origin.kind!==`plugin`||t.enabledPlugins?.[e.origin.pluginId]!==!1}",
+      "utf16Start": 837542,
+      "utf16End": 837958,
+      "byteStart": 837542,
+      "byteEnd": 837958,
+      "sha256": "30d91a84912d682927ffd2fa476bea50573048aae173b7dd2b0606e5c2c53771"
+    },
+    "computeContext": {
+      "code": "computeContext(e){return[...this.resolveProviders(e,`context`).values()].filter(t=>!isBlocked(t)&&isMcpItemVisibleInSession(t,{sessionId:e.sessionId,cwd:e.cwd,...e.welcomeMode?{welcomeMode:e.welcomeMode}:{},...e.projectId?{projectId:e.projectId}:{},...e.enabledPlugins?{enabledPlugins:e.enabledPlugins}:{},...e.buddyApplicationId?.trim()?{buddy:{applicationId:e.buddyApplicationId.trim()}}:{}})&&isFirstPartyEnabledForContext(t,e)&&isConnectorEnabledForContext(t,e.enabledConnectors)&&!this.isProbedUnauthorized(t.id))}",
+      "utf16Start": 889326,
+      "utf16End": 889845,
+      "byteStart": 889326,
+      "byteEnd": 889845,
+      "sha256": "62796bcce71c14917df166d6954e737e7be752a4615a1e06cde97262ec94e4da"
+    },
+    "toRowTools": {
+      "code": "toRowTools(e,t){let n=new Set(this.toolPolicy.getDisabledTools(serverNameOf(e)));return(t?.state===`ready`?t.listTools():this.toolListCache.get(itemConnectionFingerprint(e))??[]).map(e=>({name:e.name,...e.description?{description:e.description}:{},enabled:!n.has(e.name)}))}",
+      "utf16Start": 871896,
+      "utf16End": 872170,
+      "byteStart": 871896,
+      "byteEnd": 872170,
+      "sha256": "56d6e4e396dd345772bd491c2b44077c3d515663dad9f391af4a0804ec11775e"
+    }
+  }
+}

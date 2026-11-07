@@ -1,0 +1,133 @@
+{
+  "workbuddyVersion": "5.9.2",
+  "artifactSHA256": "0b79c0358c129749bc3355f52bbae13f115577ab37c082a76dfdc54f66fd3f79",
+  "purpose": "Exact native InputCapability lifecycle slash-command intercept and facade contract. VM tests execute only matched compact/clear branches with explicit callback stubs; no target app/model is run.",
+  "slices": [
+    {
+      "name": "isRecord$10",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5081744,
+        "end": 5081799
+      },
+      "bytes": 55,
+      "sha256": "c9066929cb2c9a5edb3c356f12c7b56a77d117d54dc2edc79101c46b8824a098",
+      "source": "function isRecord$10(e){return typeof e==`object`&&!!e}"
+    },
+    {
+      "name": "matchLifecycleSlashText",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5081799,
+        "end": 5081899
+      },
+      "bytes": 100,
+      "sha256": "2df67c215bceda0200937460e14f5b8a0cac7b7438e6db2422dff1b5ef09e94e",
+      "source": "function matchLifecycleSlashText(e){let t=e.trim();if(t.startsWith(`/`))return A6t[t.toLowerCase()]}"
+    },
+    {
+      "name": "matchLifecycleSlashBlock",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5081899,
+        "end": 5082191
+      },
+      "bytes": 292,
+      "sha256": "7dd773654beb01defa48c828efedddb97350d9becc8565805a12e14370ecf388",
+      "source": "function matchLifecycleSlashBlock(e){if(isRecord$10(e)){if(e.type===`resource_link`){let t=typeof e.uri==`string`?e.uri.trim():``;return t===`command://clear`?`clear`:t===`command://compact`?`compact`:void 0}if(e.type===`text`&&typeof e.text==`string`)return matchLifecycleSlashText(e.text)}}"
+    },
+    {
+      "name": "matchLifecycleSlashCommand",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5082191,
+        "end": 5082383
+      },
+      "bytes": 192,
+      "sha256": "baf3bdb59de0971a7c261812acb586c768dac60cda4b954c749048fcb0fc26d6",
+      "source": "function matchLifecycleSlashCommand(e){if(Array.isArray(e)&&e.length!==0)return e.some(e=>matchLifecycleSlashBlock(e)===`compact`)?`compact`:e.length===1?matchLifecycleSlashBlock(e[0]):void 0}"
+    },
+    {
+      "name": "readResendResult",
+      "kind": "FunctionDeclaration",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5082477,
+        "end": 5082684
+      },
+      "bytes": 207,
+      "sha256": "56473c04c82923114c75fa682a9451d51d041c394d4e20bba2e01f76884b2bfa",
+      "source": "function readResendResult(e){if(isRecord$10(e)&&e.branchChanged===!0&&typeof e.truncatedFromRequestId==`string`&&Array.isArray(e.removedRequestIds)&&e.removedRequestIds.every(e=>typeof e==`string`))return e}"
+    },
+    {
+      "name": "A6t",
+      "kind": "AssignmentExpression",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5085609,
+        "end": 5085702
+      },
+      "bytes": 93,
+      "sha256": "e86d91056df36400d61bbd0349e84d202369576a08b66b197872325f806fbaba",
+      "source": "A6t={\"/clear\":`clear`,\"/compact\":`compact`,\"/\\u6E05\\u7A7A\":`clear`,\"/\\u603B\\u7ED3\":`compact`}"
+    },
+    {
+      "name": "runSendPrompt",
+      "kind": "ClassMethod",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5093602,
+        "end": 5102248
+      },
+      "bytes": 8646,
+      "sha256": "ff4206cbc4fea3f794aec2f2c0726584294eb0ebd181000c82a6c5225c153bb0",
+      "source": "async runSendPrompt(e,t){let n=splitInternalSendOptions(t);if(n.isCurrent?.()===!1)return{ok:!1};let r=normalizeUserPromptBlocks(e.blocks),i=matchLifecycleSlashCommand(e.blocks)??matchLifecycleSlashCommand(r);if(i===`clear`&&this.runLifecycleClear)try{return await this.runLifecycleClear(),{ok:!0}}catch(e){return{ok:!1,error:{code:`conversation-clear-error`,message:e instanceof Error?e.message:String(e)}}}if(i===`compact`&&this.runLifecycleCompact)try{return await this.runLifecycleCompact(),{ok:!0}}catch(e){return{ok:!1,error:{code:`conversation-compact-error`,message:e instanceof Error?e.message:String(e)}}}let a=this.getConversation();if(!a)return this.handlePreflightFailure({ok:!1,error:{code:`no-conversation`,message:`\\u4F1A\\u8BDD\\u5C1A\\u672A\\u5C31\\u7EEA`}},n.optimisticRequestId,n._startIntent);let o=await materializeWechatChatHistoryContext(r),{sendable:s,dropped:c}=partitionSendablePromptBlocks(o);if(c.length>0&&s.length===0)return this.handlePreflightFailure({ok:!1,error:{code:`invalid-params`,message:`\\u9644\\u4EF6\\u5931\\u8D25\\uFF0C\\u8BF7\\u68C0\\u67E5\\u56FE\\u7247\\u540E\\u91CD\\u8BD5`}},n.optimisticRequestId,n._startIntent);let l={...e,blocks:c.length>0?s:o},u=this.checkBaseSendGate(l,n._startIntent);if(u)return this.handlePreflightFailure(u,n.optimisticRequestId,n._startIntent);this.sessionStore.getState().setSending(!0);let d=Date.now();console.info(`[QueueDiag] engine.input.preflight.start ${JSON.stringify({conversationId:this.conversationId,isStartIntent:n._startIntent===!0,blockCount:l.blocks.length})}`);let f=this.messageStore.getState().getAssistantDisplaySnapshotForSend(this.sessionStore.getState().expert?.expertId)?.name,p=Date.now();console.info(`[QueueDiag] engine.input.sendBeforeHooks.start ${JSON.stringify({conversationId:this.conversationId})}`);let m=await runSendBeforeHooks$1({contentBlocks:l.blocks,conversationId:this.conversationId,scenarioId:this.scenarioId,confirmedConnectorIds:n.confirmedConnectorIds,...f?{assistantDisplayName:f}:{}});if(console.info(`[QueueDiag] engine.input.sendBeforeHooks.done ${JSON.stringify({conversationId:this.conversationId,allowed:m.allowed,elapsedMs:Date.now()-p})}`),n.isCurrent?.()===!1)return{ok:!1};if(!m.allowed){let e=n.displayBlocks??r,t=this.settlePreflightBlock(n.optimisticRequestId,n._startIntent,{userBlocks:e});if(!m.silent&&t&&holdPreflightPrompt(this.conversationId,e),m.silent)return{ok:!1,error:{code:$Y,message:`\\u53D1\\u9001\\u88AB\\u4E1A\\u52A1 hook \\u62E6\\u622A`,...t?{silentBlockKeptMessage:!0}:{}},...t?{retainedAsNotSent:!0}:{}};let i=createPreflightBlockedError(m);return completeHomeCloudTaskSession(this.conversationId,{status:`error`,errorCode:i.code,errorMessage:i.message}),reportPreflightBlocked(this.conversationId,i,n.optimisticRequestId,m.scene),this.reportError({...i,...n.optimisticRequestId?{requestId:n.optimisticRequestId,retryRequestId:n.optimisticRequestId}:{}}),{ok:!1,error:i,...t?{retainedAsNotSent:!0}:{}}}let h=this.checkBaseSendGate(l,n._startIntent);if(h)return this.handlePreflightFailure(h,n.optimisticRequestId,n._startIntent);let g=Date.now();console.info(`[QueueDiag] engine.input.configSettle.start ${JSON.stringify({conversationId:this.conversationId})}`);try{await this.waitForConfigSettled(),await this.prepareSendConfiguration()}catch(e){return n.isCurrent?.()===!1?{ok:!1}:this.handlePreflightFailure({ok:!1,error:{code:`send-configuration-error`,message:e instanceof Error?e.message:String(e)}},n.optimisticRequestId,n._startIntent)}if(console.info(`[QueueDiag] engine.input.configSettle.done ${JSON.stringify({conversationId:this.conversationId,elapsedMs:Date.now()-g})}`),n.isCurrent?.()===!1)return{ok:!1};let v=this.checkBaseSendGate(l,n._startIntent);if(v)return this.handlePreflightFailure(v,n.optimisticRequestId,n._startIntent);this.acceptPendingHistoryUpdate();let y=isRecord$10(n.coreOptions)?n.coreOptions:{},b=isRecord$10(y.configOptions)?y.configOptions:{},x=resolveRequestScopedModelId(y,this.sessionStore.getState().model),S=a.info,C=S?.transport===`cloud`&&typeof b.language!=`string`?detectPromptLanguage(l.blocks):void 0,w=this.sessionStore.getState().state,T=!n._startIntent&&this.wouldQueue(),D=T&&S?.transport!==`cloud`&&getQueueSendMode()===`immediate`&&!n.forceQueue?`steer`:void 0,O=Date.now(),k=n.optimisticRequestId??Ko(),A=typeof y.clientRequestId!=`string`&&(T||!n.skipOptimistic||typeof n.optimisticRequestId==`string`),j={...y,...x?{modelId:x}:{},...A?{clientRequestId:k}:{},clientTimestamp:resolveSendClientTimestamp(y,n,this.messageStore,O),...T?{emitUserMessage:!0,_expectQueueReceipt:!0,...D?{queueDelivery:D}:{}}:{},...C?{configOptions:{...b,language:C}}:{}},M=withWechatForwardRecordMentionContext(Object.keys(j).length>0?j:n.coreOptions,l.blocks);this.messageStore.getState().clearRetryContext(),n._startIntent&&this.sessionStore.getState().bootstrapPhase===`failed`&&this.sessionStore.getState().setBootstrapPhase(void 0),this.clearError(),console.info(`[QueueDiag] engine.input.sendPrompt.decision ${JSON.stringify({conversationId:this.conversationId,state:w,isBusyState:T,activeSendPrompt:this.activeSendPrompt,cancelBarrier:this.cancelBarrier,transport:S?.transport,space:S?.space,blockCount:l.blocks.length,decision:T?`sendPrompt(queue)`:`sendPrompt+optimistic`,queueDelivery:D,forceQueue:n.forceQueue,preflightElapsedMs:Date.now()-d})}`),S?.transport===`cloud`&&ensureDesktopHomeCloudSession(this.conversationId);let{traceCtx:N,effectiveOptions:P}=this.createPromptTraceAndInjectMeta(M,k,l.blocks,n.telemetryFeatureModule),F,I,ensureOptimisticRequest=()=>{if(n.skipOptimistic)return;let e=this.messageStore.getState();if(e.messages.some(e=>e.requestId===k))return;F??=Go(),I??=n.optimisticAssistantMessageId??Go();let t=isRecord$10(n.coreOptions)&&typeof n.coreOptions.expertId==`string`?n.coreOptions.expertId:this.sessionStore.getState().expert?.expertId;e.addOptimisticRequest({requestId:k,userMessageId:F,assistantMessageId:I,userBlocks:n.displayBlocks??r,assistantDisplay:e.getAssistantDisplaySnapshotForSend(t),traceId:N.traceId})};T||(this.activeSendPrompt=!0,this.sessionStore.getState().setSending(!0),n._startIntent&&this.sessionStore.getState().setBootstrapPhase(`initializing`),ensureOptimisticRequest());try{S?.transport===`local`&&Hl(`renderer.send_prompt.start`,{clientEpochMs:Date.now()},k),Wl(`renderer.prompt.send_message`,N.traceId,{\"conversation.request.id\":N.traceId,\"workbuddy.prompt_request_id\":N.traceId,\"workbuddy.conversation_id\":this.conversationId});let e=Rl(`renderer.prompt.acp_send`,N.traceId,{\"workbuddy.prompt_request_id\":N.traceId,\"workbuddy.conversation_id\":this.conversationId});try{let t=a.sendPrompt(l.blocks,P),r=t.then(()=>void 0,()=>void 0);this.activeSendAcceptance=r,r.then(()=>{this.activeSendAcceptance===r&&(this.activeSendAcceptance=void 0)});let i=await t;S?.transport===`local`&&Hl(`renderer.send_prompt.end`,{ok:!readConversationUiError(i)},k);let o=readConversationUiError(i);return o?(completeHomeCloudTaskSession(this.conversationId,{status:`error`,errorCode:o.code,errorMessage:o.message}),e.end(`error`),this.reportSendFailedPrompt(N,o,`send-error`),n._startIntent&&this.sessionStore.getState().setBootstrapPhase(`failed`),T?Lu(o,x)?this.clearError():o.code===`CONVERSATION_PROMPT_QUEUE_FULL`&&this.reportError({...o,...x?{requestModelId:x}:{}}):this.handleDeferredSendApiError(o,k,n._startIntent,x),{ok:!1,error:o}):(await this.resumeQueueAfterCancel().catch(()=>void 0),e.end(`ok`),n._startIntent&&this.sessionStore.getState().setBootstrapPhase(`awaiting-response`),runSendAfterHooks$1({promptToSend:l.blocks,conversationId:this.conversationId,scenarioId:this.scenarioId,requestId:k,modelId:x,requestMeta:isRecord$10(P)&&isRecord$10(P._meta)?P._meta:void 0}),{ok:!0})}catch(t){S?.transport===`local`&&Hl(`renderer.send_prompt.end`,{ok:!1},k);let n=readConversationUiError(t);throw completeHomeCloudTaskSession(this.conversationId,{status:`error`,errorCode:n?.code??`send-error`,errorMessage:n?.message??(t instanceof Error?t.message:String(t))}),e.end(`error`,t instanceof Error?t.message:String(t)),t}}catch(e){this.reportSendFailedPrompt(N,readConversationUiError(e),n._startIntent?`cloud-bootstrap-failed`:`send-error`,e instanceof Error?e.message:String(e)),n._startIntent&&this.sessionStore.getState().setBootstrapPhase(`failed`),T||this.handleDeferredSendException(e,k,n._startIntent,x);let t=readConversationUiError(e);if(t)return{ok:!1,error:t};let r=e instanceof Error?e.message:String(e);return{ok:!1,error:{code:n._startIntent?`cloud-bootstrap-failed`:`send-error`,message:n._startIntent?`\\u5DE5\\u4F5C\\u73AF\\u5883\\u521D\\u59CB\\u5316\\u5931\\u8D25\\uFF1A${r}`:r}}}finally{this.activeSendPrompt=!1}}"
+    },
+    {
+      "name": "getUiApi",
+      "kind": "ClassMethod",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5228818,
+        "end": 5230673
+      },
+      "bytes": 1855,
+      "sha256": "ebcd2c17eafc7d9a7809e64fa9e12dfece4b7c95b14021246f85f48a08ac53e9",
+      "source": "getUiApi(){return{input:{canSubmit:()=>this.input.canSubmit(),wouldQueue:()=>this.input.wouldQueue(),canRegenerate:e=>this.input.canRegenerate(e),sendPrompt:(e,t)=>this.sendPrompt(e,t),cancel:e=>this.cancel(e),resend:(e,t,n)=>this.resend(e,t,n),rewind:e=>this.rewind(e),checkpointRead:(e,t)=>this.checkpointRead(e,t),resumeFromMessage:e=>this.resumeFromMessage(e),previewPrompt:e=>this.previewPrompt(e)},interaction:{resolve:(e,t)=>this.resolve(e,t),reject:e=>this.reject(e),approvePlan:(e,t)=>this.approvePlan(e,t),adjustPlan:(e,t,n)=>this.adjustPlan(e,t,n),retryPlanAdjustment:()=>this.taskPlan.retryAdjustment()},lifecycle:{clear:()=>this.clearConversation(),rename:e=>this.rename(e),listUserPrompts:()=>this.lifecycle.listUserPrompts(),ensureRequestLoaded:e=>this.lifecycle.ensureRequestLoaded(e),listInputHistory:()=>this.lifecycle.listInputHistory()},config:{setMode:e=>this.setMode(e),setModeLocal:e=>this.config.setModeLocal(e),setModel:(e,t)=>this.setModel(e,t),setConnectors:e=>this.setConnectors(e),setExpertId:(e,t)=>this.setExpertId(e,t),setExpertLocal:(e,t)=>this.config.setExpertLocal(e,t),setPermissionMode:e=>this.setPermissionMode(e),setThoughtLevel:e=>this.setThoughtLevel(e),setPreMessageCompactPct:e=>this.setPreMessageCompactPct(e),setContextWindow:e=>this.setContextWindow(e)},assistant:{setDisplaySource:e=>this.setAssistantDisplaySource(e),getDisplaySnapshot:e=>this.messageStore.getState().getAssistantDisplaySnapshotForSend(e||`live`)},error:{clear:()=>this.clearError(),retryLast:()=>this.retryLastError(),canRetryLast:()=>this.error.canRetryLast(),canRetryFallback:()=>this.error.canRetryFallback()},promptQueue:{sendNow:e=>this.sendPromptQueueItemNow(e),delete:e=>this.deletePromptQueueItem(e),move:(e,t)=>this.movePromptQueueItem(e,t)},task:{open:e=>this.openTask(e)},capacityQueue:{cancel:e=>this.capacityQueue.cancel(e)}}}"
+    },
+    {
+      "name": "compactConversation",
+      "kind": "ClassMethod",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5233121,
+        "end": 5233257
+      },
+      "bytes": 136,
+      "sha256": "4930bf2ec290e53492dc350447a33f62807a002c8373be7bf7d38bf9054eef3f",
+      "source": "async compactConversation(){try{await this.lifecycle.compact()}catch(e){throw this.reportActionError(`conversation-compact-error`,e),e}}"
+    }
+  ]
+}

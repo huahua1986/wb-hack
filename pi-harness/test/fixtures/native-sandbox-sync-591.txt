@@ -1,0 +1,1 @@
+async syncSandboxModeBeforeStart(e){if(e.info.transport!==`local`||!this.resolveSandboxMode)return;let t=this.resolveSandboxMode();if(e.configManager.useSandboxCLI===t)return;let n=await e.configManager.setSandboxMode(t);if(n)throw Error(n.message)}

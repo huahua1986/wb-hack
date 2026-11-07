@@ -1,0 +1,256 @@
+{
+  "workbuddyVersion": "5.9.1",
+  "candidateVersion": "0.3.0",
+  "artifactSHA256": "30a2cf892ac73edebc1eea291f8c5f11354724269c13d08274b9115fc143d536",
+  "original591ArtifactSHA256": "1fc0a56ddec5437d4dc55a55ba1c028b291ab29cb17306500827015987424233",
+  "purpose": "Exact WorkBuddy 5.9.1 context-usage consumers, extracted from the verified financial Pi 0.3.0 artifact; pure VM replay only. Tests do not require an installed application or evidence directory.",
+  "slices": [
+    {
+      "name": "format-tokens",
+      "member": "renderer/assets/src-C-yvPLiT.js",
+      "memberSHA256": "7e4438995d9f67ac10a67b964bfdad2a543def60a7df06f708df2ed41454a1f8",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1990881,
+        "end": 1990960
+      },
+      "sha256": "6061e703c5e5c7e716383edaf2d74fac27c2c3bb2c0bda279d9c3fa5bc493d69",
+      "bytes": 79,
+      "source": "function formatTokenCount(n){return n>=1e3?(n/1e3).toFixed(1)+`K`:n.toString()}"
+    },
+    {
+      "name": "display-data",
+      "member": "renderer/assets/src-C-yvPLiT.js",
+      "memberSHA256": "7e4438995d9f67ac10a67b964bfdad2a543def60a7df06f708df2ed41454a1f8",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1990960,
+        "end": 1991236
+      },
+      "sha256": "2b7ae8465bdd318aa4614ec493d1fd91462dac99aeddcb9c0a5355774a825035",
+      "bytes": 276,
+      "source": "function getDisplayData(n){let{lastTokens:a,maxInputTokens:c,maxAllowedSize:u,isRequesting:d}=n,f=d?c:u;if(f==null||f<=0||a==null||a<0)return null;let p=a/f*100;return{percentage:p.toFixed(1),percentValue:p,usedK:formatTokenCount(a),totalK:formatTokenCount(f),used:a,total:f}}"
+    },
+    {
+      "name": "category-rows",
+      "member": "renderer/assets/src-C-yvPLiT.js",
+      "memberSHA256": "7e4438995d9f67ac10a67b964bfdad2a543def60a7df06f708df2ed41454a1f8",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1986793,
+        "end": 1987414
+      },
+      "sha256": "01b6a0c198cec173490f6254f96e64e449473bbd6760335b088a98a26b4f513d",
+      "bytes": 621,
+      "source": "function buildRows(n){return[{key:`sp`,suffix:`sp`,i18nKey:`chatInput.contextUsage.category.systemPrompt`,fallbackLabel:`System Prompt`,value:n.systemPrompt},{key:`tool`,suffix:`tool`,i18nKey:`chatInput.contextUsage.category.tools`,fallbackLabel:`Tools`,value:n.tools},{key:`conv`,suffix:`conv`,i18nKey:`chatInput.contextUsage.category.conversation`,fallbackLabel:`Conversation`,value:n.conversation},{key:`mcp`,suffix:`mcp`,i18nKey:`chatInput.contextUsage.category.mcp`,fallbackLabel:`MCP`,value:n.mcp},{key:`skill`,suffix:`skill`,i18nKey:`chatInput.contextUsage.category.skills`,fallbackLabel:`Skills`,value:n.skills}]}"
+    },
+    {
+      "name": "requesting-tip",
+      "member": "renderer/assets/src-C-yvPLiT.js",
+      "memberSHA256": "7e4438995d9f67ac10a67b964bfdad2a543def60a7df06f708df2ed41454a1f8",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1992338,
+        "end": 1993311
+      },
+      "sha256": "4483a3c563688781a6c4dad06f04724c6b970e2389086c04c548513cf8ee62f1",
+      "bytes": 973,
+      "source": "RequestingTip=({onClose:n,isLoading:a,isUnavailable:c,isUnsupported:u})=>{let d=(0,HK.useRef)(null),{t:f}=useI18n(),p=usePrefixCls();(0,HK.useEffect)(()=>{let handler=a=>{let c=d.current;if(!c)return;let u=c.parentElement,f=a.target;f instanceof Node&&u&&u.contains(f)||n()};return document.addEventListener(`mousedown`,handler),()=>document.removeEventListener(`mousedown`,handler)},[n]);let m=a?f(`chatInput.contextUsage.loading`)||`Loading usage details...`:u?f(`chatInput.contextUsage.needMessage`)||`No usage details for this conversation yet; send a message to view them`:c?f(`chatInput.contextUsage.unavailable`)||`Usage details unavailable, try again later`:f(`chatInput.contextUsage.requesting`)||`Conversation in progress, usage details unavailable`;return(0,UK.jsx)(`div`,{ref:d,className:p(`context-usage-requesting-tip`),role:`tooltip`,onClick:n=>n.stopPropagation(),children:(0,UK.jsx)(`span`,{className:p(`context-usage-requesting-tip__text`),children:m})})}"
+    },
+    {
+      "name": "context-usage-component",
+      "member": "renderer/assets/src-C-yvPLiT.js",
+      "memberSHA256": "7e4438995d9f67ac10a67b964bfdad2a543def60a7df06f708df2ed41454a1f8",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1993312,
+        "end": 1995648
+      },
+      "sha256": "025cc25e2f1661bb314190922ba215dbc5d08889fe376a40746483adb484fdaa",
+      "bytes": 2336,
+      "source": "ContextUsageDisplayInner=()=>{let n=useInputProvider(`contextUsage`),{t:a}=useI18n(),c=usePrefixCls();useRenderDiag(`ContextUsageDisplay`,{provider:n,lastTokens:n?.lastTokens,maxInputTokens:n?.maxInputTokens,maxAllowedSize:n?.maxAllowedSize,isRequesting:n?.isRequesting,sessionKey:n?.sessionKey,usageByCategoryVersion:n?.usageByCategory?.version});let u=(0,HK.useMemo)(()=>n?getDisplayData(n):null,[n?.lastTokens,n?.maxInputTokens,n?.maxAllowedSize,n?.isRequesting]),[d,f]=(0,HK.useState)(!1),[p,m]=(0,HK.useState)(!1),[h,g]=(0,HK.useState)(!1),[_,v]=(0,HK.useState)(!1),y=(0,HK.useRef)(null),b=(0,HK.useRef)(!1),x=n?.sessionKey,S=n?.usageByCategory,C=n?.isRequesting,w=n?.onRequestUsage,T=n?.isPreparingUsage,E=n?.isUsageDetailsPending;(0,HK.useEffect)(()=>{f(!1),m(!1),g(!1),v(!1),b.current=!1},[x]);let D=!!S&&S.version===1,O=!D&&!h;(0,HK.useEffect)(()=>{D&&(m(!1),g(!1),b.current&&(b.current=!1,f(!0)))},[D]),(0,HK.useEffect)(()=>{!D&&d&&f(!1)},[D,d]),(0,HK.useEffect)(()=>{!T&&!D&&h&&(g(!1),b.current=!1)},[T,D,h]);let k=(0,HK.useCallback)(()=>{if(v(!1),D){f(n=>!n),m(!1);return}if(p){m(!1),g(!1),b.current=!1;return}m(!0),E&&(b.current=!0),(T||w)&&(g(!0),b.current=!0,w?.().catch(()=>{g(!1),b.current=!1}))},[D,p,T,E,w]),A=(0,HK.useCallback)(()=>{f(!1),m(!1),v(!1),b.current=!1},[]);if(!n||!u)return null;let{percentage:j,percentValue:M,usedK:N,totalK:P,used:F,total:I}=u,L=D||O||p,R=a(`chatInput.contextUsage.tooltip`,{percentage:j,used:N,total:P})||`${j}% \\u00B7 ${N} / ${P} context used`,z=d||p;return(0,UK.jsx)(Tooltip$1,{content:R,open:_&&!z,onOpenChange:v,disableInteractions:z,as:`span`,wrapperClassName:c(`context-usage-tooltip-trigger`),children:(0,UK.jsxs)(`div`,{ref:y,className:`${c(`context-usage`)}${L?` ${c(`context-usage--clickable`)}`:``}${z?` ${c(`context-usage--open`)}`:``}`,onClick:L?k:void 0,role:L?`button`:void 0,tabIndex:L?0:void 0,\"aria-expanded\":L?z:void 0,onKeyDown:L?n=>{n.key===`Enter`||n.key===` `?(n.preventDefault(),k()):n.key===`Escape`&&z&&(n.preventDefault(),A())}:void 0,children:[(0,UK.jsx)(RingProgress,{percent:M}),D&&d&&S?(0,UK.jsx)(UsageByCategoryPopover,{anchorRef:y,usageByCategory:S,used:F,total:I,percentage:j,onClose:A,contextWindowControl:n.contextWindowControl}):null,p?(0,UK.jsx)(RequestingTip,{onClose:A,isLoading:h,isUnavailable:!h&&!C&&!!w,isUnsupported:!h&&!C&&!w}):null]})})}"
+    },
+    {
+      "name": "message-usage-provider",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5543783,
+        "end": 5544122
+      },
+      "sha256": "2454e0ff25f158e7d69e1f55c4c05ce7a92ea46bea91043fc785709cc20505da",
+      "bytes": 339,
+      "source": "function mapMessageUsageToProvider(e,t,n,r,i,a,o,s,c){let l=s&&s>0?s:e?.maxAllowedSize??r;if(!(!e||l===void 0||l<=0))return{lastTokens:e.lastTokens,maxInputTokens:l,maxAllowedSize:l,isRequesting:n,usageByCategory:e.usageByCategory,sessionKey:t,onRequestUsage:a,isUsageDetailsPending:o,contextWindowControl:c,...i?{isPreparingUsage:!0}:{}}}"
+    },
+    {
+      "name": "provider-hook",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5544122,
+        "end": 5546017
+      },
+      "sha256": "b1df33fe8d68025581399a95350782d20831bfd5decb592f2d08464eb9c6c417",
+      "bytes": 1895,
+      "source": "function useWbContextUsageProvider(e,t,n,r){let i=r&&r>0?r:void 0,a=useConversationController(),o=useConversationSessionSelector(selectContextUsageSession,shallow$1),s=(0,c$.useStore)(a.getMessageStore(),selectLatestContextUsage),c=(0,c$.useStore)(a.getMessageStore(),selectHasAssistantChunk),l=(0,c$.useStore)(a.getMessageStore(),selectConversationContextUsage),u=(s?.lastTokens??0)>0||(l?.totalTokens??0)>0,d=l?.hasCompletedLlmCall===!0||c&&u||o.isBusy&&u,f=i??t,p=d&&(l?.totalTokens??0)>0,m=(0,s$.useMemo)(()=>{if(p&&l?.byCategory)return{inputTokens:0,outputTokens:0,lastTokens:l.totalTokens,maxAllowedSize:l.contextWindow,usageByCategory:l.byCategory};let e=s?.usageByCategory;return s?e===s.usageByCategory?s:{...s,usageByCategory:e}:!l||!p?void 0:{inputTokens:0,outputTokens:0,lastTokens:l.totalTokens,maxAllowedSize:l.contextWindow,...e?{usageByCategory:e}:{}}},[p,s,l]),h=Si(m?.usageByCategory),g=(0,s$.useMemo)(()=>{if(!m)return;let e=i??m.maxAllowedSize;return h===m.usageByCategory&&e===m.maxAllowedSize?m:{...m,maxAllowedSize:e,usageByCategory:h}},[m,i,h]),v=g?.usageByCategory!==void 0,[y,b]=(0,s$.useState)(void 0);(0,s$.useEffect)(()=>{v&&b(void 0)},[v]),(0,s$.useEffect)(()=>{b(void 0)},[o.conversationId]);let x=!v&&y===o.conversationId,S=(0,s$.useCallback)(async()=>{let e=o.conversationId;b(e);try{if(await a.restoreContextUsageFromCache())return;let t=a.getConversation();if(!t?.refreshContextUsage){throwConversationApiError({errorCode:Vnn,message:Vnn});return}let n=t.refreshContextUsage();a.acknowledgeRuntimeActivatedByCore(`context_usage`),throwConversationApiError(await n),window.setTimeout(()=>{b(t=>t===e?void 0:t)},Bnn)}catch(t){throw b(t=>t===e?void 0:t),t}},[a,o.conversationId]);return(0,s$.useMemo)(()=>{if(e&&d)return mapMessageUsageToProvider(g,o.conversationId,o.isBusy,f,x,o.isBusy?void 0:S,o.isBusy&&!v,i,n)},[e,d,o.conversationId,o.isBusy,i,g,f,x,S,v,n])}"
+    },
+    {
+      "name": "usage-normalize",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 4922061,
+        "end": 4923206
+      },
+      "sha256": "e567ab63d4414421ed3c6f7f8a888a002516fd877dfcfbc0ddbe5abc67646824",
+      "bytes": 1145,
+      "source": "function normalizeUsage(e){let t=asRecord$12(e);if(!t)return;let n=readNumber$2(t.inputTokens)??readNumber$2(t.input_tokens),r=readNumber$2(t.outputTokens)??readNumber$2(t.output_tokens),i=readNumber$2(t.lastTokens)??readNumber$2(t.totalTokens),a=readNumber$2(t.contextWindow)??readNumber$2(t.maxAllowedSize),o=asRecord$12(t.byCategory)??asRecord$12(t.usageByCategory),s=readNumber$2(o?.version)??(o?1:void 0),c=o&&s!==void 0?{systemPrompt:readNumber$2(o.systemPrompt)??0,conversation:readNumber$2(o.conversation)??0,tools:readNumber$2(o.tools)??0,mcp:readNumber$2(o.mcp)??0,skills:readNumber$2(o.skills)??0,version:s}:void 0,l=asRecord$12(t.cost),u=l?.amount===void 0?readNumber$2(t.credit):readNumber$2(l.amount),d=u!==void 0&&u>=0?u:void 0,f=asRecord$12(t.estimatedCost),p=readNumber$2(f?.min),m=readNumber$2(f?.max),h=p!==void 0&&p>=0&&m!==void 0&&m>=p?{min:p,max:m}:void 0;if(n!==void 0||r!==void 0||i!==void 0||a!==void 0||d!==void 0||h!==void 0)return{inputTokens:n??0,outputTokens:r??0,...i===void 0?{}:{lastTokens:i},...a===void 0?{}:{maxAllowedSize:a},...c?{usageByCategory:c}:{},...d===void 0?{}:{credit:d},...h?{estimatedCost:h}:{}}}"
+    },
+    {
+      "name": "record-helper",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 4915495,
+        "end": 4915576
+      },
+      "sha256": "e43075564fc638ff93b49aa266250dc8d648d3f507e6ea055dee54a6909b90ab",
+      "bytes": 81,
+      "source": "function asRecord$12(e){return typeof e==`object`&&e&&!Array.isArray(e)?e:void 0}"
+    },
+    {
+      "name": "number-helper",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 4915648,
+        "end": 4915728
+      },
+      "sha256": "bc05dcb930ca17c79d396069dddd014a8577a233fbd722a5c66486042b7d085f",
+      "bytes": 80,
+      "source": "function readNumber$2(e){return typeof e==`number`&&Number.isFinite(e)?e:void 0}"
+    },
+    {
+      "name": "category-normalize",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1961851,
+        "end": 1962317
+      },
+      "sha256": "734dbb289385f4d53642e0f2b3999c9cd9b5e1835f24083b7c41956f2e606552",
+      "bytes": 466,
+      "source": "function isNonNegativeInteger(e){return Number.isSafeInteger(e)&&Number(e)>=0}function normalizeCategory(e){if(!e||typeof e!=`object`||Array.isArray(e))return;let t=e;if(t.version===1&&isNonNegativeInteger(t.systemPrompt)&&isNonNegativeInteger(t.conversation)&&isNonNegativeInteger(t.tools)&&isNonNegativeInteger(t.mcp)&&isNonNegativeInteger(t.skills))return{systemPrompt:t.systemPrompt,conversation:t.conversation,tools:t.tools,mcp:t.mcp,skills:t.skills,version:1}}"
+    },
+    {
+      "name": "cache-normalize",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1962317,
+        "end": 1962927
+      },
+      "sha256": "8c24488d7a4602088efe2b1085fee47807c53f1956163dbd512e74a8645415b9",
+      "bytes": 610,
+      "source": "function normalizeSnapshot$1(e){if(!e||typeof e!=`object`||Array.isArray(e))return;let t=e,n=normalizeCategory(t.usageByCategory),r=t.size,i=n?n.systemPrompt+n.conversation+n.tools+n.mcp+n.skills:void 0,a=t.version===lO?t.hasCompletedLlmCall===!0:t.version===1&&isNonNegativeInteger(t.used)&&t.used>0;if(!(!isNonNegativeInteger(t.used)||!isNonNegativeInteger(r)||r<=0||!isNonNegativeInteger(t.updatedAt)||!n||i!==t.used||!a||t.modelId!==void 0&&typeof t.modelId!=`string`))return{version:lO,used:t.used,size:r,usageByCategory:n,hasCompletedLlmCall:!0,...t.modelId?{modelId:t.modelId}:{},updatedAt:t.updatedAt}}"
+    },
+    {
+      "name": "latest-message-usage",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5543179,
+        "end": 5543616
+      },
+      "sha256": "6ea757d27a915f92996d7b759f214856a8d028aadcceded75961d616c580ca99",
+      "bytes": 437,
+      "source": "function selectLatestContextUsage(e){for(let t=e.messages.length-1;t>=0;--t){let n=e.messages[t]?.usage;if(n?.lastTokens!==void 0&&n.maxAllowedSize!==void 0)return toContextDisplayUsage(n)}for(let t=e.messages.length-1;t>=0;--t){let n=e.messages[t]?.usage;if(n?.lastTokens!==void 0)return toContextDisplayUsage(n)}}function toContextDisplayUsage(e){return e.inputTokens<=0||e.inputTokens===e.lastTokens?e:{...e,lastTokens:e.inputTokens}}"
+    },
+    {
+      "name": "assistant-presence",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5157130,
+        "end": 5157282
+      },
+      "sha256": "90e85f37ede77f4b948fefb57a59ccb2afdcb600188f3c3c3348f4df63fcf0a4",
+      "bytes": 152,
+      "source": "function hasAssistantChunk(e){return e.some(e=>e.messageType===`assistant`&&(typeof e.content==`string`||Array.isArray(e.content))&&e.content.length>0)}"
+    },
+    {
+      "name": "context-usage-event",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5162919,
+        "end": 5163494
+      },
+      "sha256": "bf8fd836b858131fad86d4e4c8f10e475582eb249737ac5573c3575b3f08963c",
+      "bytes": 575,
+      "source": "n.on(Jo.ContextUsageChanged,e=>{if(shouldSkip())return;let t=normalizeUsage({totalTokens:e.totalTokens,contextWindow:e.contextWindow,...e.byCategory?{byCategory:e.byCategory}:{}}),n=e.totalTokens>0&&(V||hasAssistantChunk(r.getState().messages));r.getState().applyConversationContextUsage({totalTokens:e.totalTokens,contextWindow:e.contextWindow,...t?.usageByCategory?{byCategory:t.usageByCategory}:{},...n?{hasCompletedLlmCall:!0}:{}}),t?.usageByCategory&&n&&w?.({totalTokens:e.totalTokens,contextWindow:e.contextWindow,byCategory:t.usageByCategory,hasCompletedLlmCall:!0})})"
+    },
+    {
+      "name": "store-usage-apply",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5009844,
+        "end": 5010305
+      },
+      "sha256": "db7e4341e3ed77267372bde0e58fca3739f7d8722082c66c9825bcd45a0498bf",
+      "bytes": 461,
+      "source": "applyConversationContextUsage(e){if(!e.contextWindow||e.contextWindow<=0)return;let r=t().conversationContextUsage,i=e.byCategory??r?.byCategory,a=e.hasCompletedLlmCall===!0||r?.hasCompletedLlmCall===!0;(r?.totalTokens!==e.totalTokens||r.contextWindow!==e.contextWindow||r.byCategory!==i||r.hasCompletedLlmCall!==a)&&n({conversationContextUsage:{totalTokens:e.totalTokens,contextWindow:e.contextWindow,...i?{byCategory:i}:{},...a?{hasCompletedLlmCall:!0}:{}}})}"
+    },
+    {
+      "name": "api-error-read",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 4304284,
+        "end": 4304488
+      },
+      "sha256": "68f26a06c288be989d067e0e5d481ed7917696f69021a286657d1ae6c23f0f3b",
+      "bytes": 204,
+      "source": "function readConversationApiError(e){if(typeof e!=`object`||!e)return;let t=e;if(typeof t.errorCode==`string`)return{code:t.errorCode,message:typeof t.message==`string`?t.message:t.errorCode,data:t.data}}"
+    },
+    {
+      "name": "api-error-throw",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 4305017,
+        "end": 4305138
+      },
+      "sha256": "28f48a98409e54707b39bd7ce69d7c9696247b8147ff6685baacd26aedbe9e98",
+      "bytes": 121,
+      "source": "function throwConversationApiError(e){let t=readConversationApiError(e);if(t)throw new ConversationControllerApiError(t)}"
+    },
+    {
+      "name": "assistant-selector",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5543616,
+        "end": 5543783
+      },
+      "sha256": "401ebcf7e47ee138d5ae352b673712522ab069fc5b1f6a2458b43c143ef01115",
+      "bytes": 167,
+      "source": "function selectHasAssistantChunk(e){return e.messages.some(e=>e.messageType===`assistant`&&(typeof e.content==`string`||Array.isArray(e.content))&&e.content.length>0)}"
+    }
+  ]
+}

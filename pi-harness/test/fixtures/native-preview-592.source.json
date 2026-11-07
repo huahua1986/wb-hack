@@ -1,0 +1,63 @@
+{
+  "workbuddyVersion": "5.9.2",
+  "artifactSHA256": "0b79c0358c129749bc3355f52bbae13f115577ab37c082a76dfdc54f66fd3f79",
+  "member": "renderer/assets/src-C0qgplVo.js",
+  "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+  "memberBytes": 495741,
+  "function": {
+    "output": "useLoadFileContent.js",
+    "member": "renderer/assets/src-C0qgplVo.js",
+    "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+    "range": {
+      "encoding": "UTF-8",
+      "start": 340720,
+      "end": 342260
+    },
+    "sha256": "26a9ac4cc99314f07e3568d87d39a46bedb56758a606387c7c0e29fa6fefc6e2",
+    "kind": "FunctionDeclaration",
+    "source": "function useLoadFileContent(i){let{onReadFile:o,readFileWithFormat:s,sessionId:h,directLocalMediaUrl:_,probeLocalFileSize:j}=i,{setTabLoading:$,updateTabContent:_e,updateTabFile:ve,setTabOversized:ye}=It(),Ee=(0,_s.useRef)(null),De=(0,_s.useRef)(0);return(0,_s.useEffect)(()=>{De.current+=1,Ee.current=null},[h]),{loadFileContent:(0,_s.useCallback)(async i=>{Ee.current=i,$(i);let h=De.current,isStale=()=>De.current!==h||Ee.current!==i,{contentType:Fe,extension:Ie,mimeContentType:Le}=wn(i),ze=yn(Fe,Ie);try{let h=await resolveLocalPreviewOversize({filePath:i,extension:Ie,contentType:Fe,probe:j});if(isStale())return;if(h){ye(i,h);return}if(_&&(Fe===`video`||Fe===`audio`)&&Cn(i)){isStale()||_e(i,Tn(i),`loaded`);return}if(ze===`text`){let h;if(s)h=await s(i,`text`);else if(o)h=await o(i);else return;isStale()||_e(i,h,`loaded`);return}if(!s){if(o){let s=await o(i);isStale()||_e(i,s,`loaded`)}return}let $=await s(i,`blob`);if(isStale())return;let Ee=$,De=null;if(Ee instanceof Blob?De=Ee:Ee instanceof Uint8Array?De=new Blob([Ee],{type:Le}):Ee instanceof ArrayBuffer&&(De=new Blob([new Uint8Array(Ee)],{type:Le})),!De){ve(i,null,`error`);return}let He=mn(i,`file`),Ge=new File([De],He,{type:Le}),Ke=await En(Ge,Fe);if(isStale())return;if(Ke?.actualType===`code`&&Ke.actualExtension){let o=await Ge.text();isStale()||_e(i,o,`loaded`,Ke.actualExtension)}else ve(i,Ge,`loaded`)}catch(o){console.error(`[useLoadFileContent] Failed to read file:`,i,o),isStale()||(ze===`text`?_e(i,null,`error`):ve(i,null,`error`))}},[_,o,s,j,$,ye,_e,ve])}}"
+  },
+  "readonly": {
+    "member": "renderer/assets/media-preview-DTw4G-mR.js",
+    "memberSHA256": "e68e4d809470ca40b82e3088677937286f59e12eb7f7cb78f8d3c853c5fe64e6",
+    "function": {
+      "output": "FileViewerMarkdownPreview.js",
+      "member": "renderer/assets/media-preview-DTw4G-mR.js",
+      "memberSHA256": "e68e4d809470ca40b82e3088677937286f59e12eb7f7cb78f8d3c853c5fe64e6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 193636,
+        "end": 195077
+      },
+      "sha256": "5d029ae91ecdf8268ed14cf2ba975983b8e93011b8f0ed8d1e8123269e868598",
+      "kind": "FunctionDeclaration",
+      "source": "function FileViewerMarkdownPreview({content:e,filePath:t,cwd:n,onZoomStateChange:r,onOpenFileLink:i,onOpenExternal:a,resolveMarkdownGuestUrl:o,resolveMarkdownAssetBaseUrl:s}){let c=(0,ld.useMemo)(()=>{if(n)return e=>{let r=e.replace(/\\\\/g,`/`);if(/^(https?:\\/\\/|data:|file:\\/\\/)/i.test(r)||/^local-file:\\/\\//i.test(r))return e;let i;if(/^\\/|^[a-zA-Z]:/.test(r))i=r;else{let e=t.replace(/\\\\/g,`/`),a=e.substring(0,e.lastIndexOf(`/`))||``,o=n.replace(/\\\\/g,`/`).replace(/\\/$/,``),s=a.startsWith(`/`)?a:`${o}/${a}`;i=resolveRelativePath(s,r)}return`local-file://${i}`}},[n,t]),l=(0,ld.useCallback)(e=>{if(e.startsWith(`#`))return;let n=H(e,t);if(n&&i){i(n);return}if(a){a(e);return}window.open(e,`_blank`,`noopener,noreferrer`)},[t,i,a]),u=(0,ud.jsx)(Xt,{content:e,readOnly:!0,zoomDocumentKey:t,onZoomStateChange:r,imageUrlResolver:c,onOpenExternal:l}),d=!!o&&Qt(t),f=en(s,t),p=(0,ld.useRef)(null),m=(0,ld.useCallback)(e=>{r?.({...e,zoomIn:()=>{p.current?.zoomIn?.()},zoomOut:()=>{p.current?.zoomOut?.()},resetZoom:()=>{p.current?.resetZoom?.()}})},[r]);return d?(0,ud.jsx)(`div`,{className:`file-viewer__markdown file-viewer__markdown--editor-sdk`,children:(0,ud.jsx)(nn,{ref:p,resolveGuestUrl:o,fallback:u,readOnly:!0,content:f.settled?e:void 0,assetBaseUrl:f.baseUrl,assetDir:f.dir,onZoomStateChange:m,onOpenExternal:l,imageUrlResolver:c})}):(0,ud.jsx)(`div`,{className:`file-viewer__markdown file-viewer__markdown--editor-sdk`,children:u})}"
+    }
+  },
+  "helpers": [
+    {
+      "name": "filePathFromMaybeFileUrl",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 455074,
+        "end": 455498
+      },
+      "sha256": "da5f5df91c8590eea93fb0f709f5df2b2e32f8646baf0e08972b2e2613afa9d2",
+      "source": "function filePathFromMaybeFileUrl(i){if(i&&typeof i==`string`&&!/^(https?:|data:|blob:|local-file:|mcp-app:|ardot:)/i.test(i)){if(/^agent:/i.test(i)){let o=Sn(i);return o.startsWith(`/`)?o:void 0}if(/^file:\\/\\//i.test(i))try{let o=new URL(i).pathname;return/^\\/[a-zA-Z]:/.test(o)?decodeURIComponent(o.slice(1).replace(/\\//g,`\\\\`)):decodeURIComponent(o)}catch{return}if(i.startsWith(`/`)||/^[a-zA-Z]:[\\\\/]/.test(i))return i}}"
+    },
+    {
+      "name": "resolveLocalPreviewOversize",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 340157,
+        "end": 340412
+      },
+      "sha256": "695b763b09079fa4a15ed0b9a70df49021e67eaebedc0041add6abd2b861b771",
+      "source": "async function resolveLocalPreviewOversize(i){let{filePath:o,extension:s,contentType:h,probe:_}=i,j=await probeLocalFileSize(o,_);if(j===void 0)return null;let{isOversized:$,limit:_e}=ir({contentType:h,extension:s,size:j});return $?{limit:_e,size:j}:null}"
+    }
+  ]
+}

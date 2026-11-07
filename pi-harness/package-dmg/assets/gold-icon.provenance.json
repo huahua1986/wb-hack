@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-26",
+  "purpose": "Gold macOS application icon; retain the white mascot and transparent padding",
+  "editTool": "built-in image_gen",
+  "transparentBackground": true,
+  "sourceArtifact": "WorkBuddy 5.9.2 application icon",
+  "sourceIconSHA256": "222fd607a9dadd54252724c44123acca508a5da9d419b7d6cc19dc539c0fe134",
+  "prompts": [
+    "Edit the provided application icon. This is a precise color-only edit, not a redesign. Change only all teal/green colored regions (including the green rounded-square background and green face area) to an elegant warm metallic gold palette, using gold tones around #D4AF37 with subtle amber #B88413 and pale-gold highlights. Preserve the exact existing mascot silhouette, position, rotation, cropping, rounded-square shape, empty transparent padding, white eyes, white head outline, antialiasing and smooth gradients. Do not add text, symbols, objects, bevels or new decoration. Keep the same 1024x1024 canvas and original transparent background outside the rounded app icon; no black or white matte. The result should look identical to the input except that green/teal is now gold. Preserve every white element as white.",
+    "Clean up the GOLD application icon in image 1. Preserve its exact gold color scheme, white robot mascot, composition and rounded-square shape. Remove ALL stray red, yellow, white and gray pixels, speckles, rough distressed edges and artifacts outside or along the icon boundary. The complete outside area must be fully transparent alpha=0. The rounded-square perimeter must be an immaculate smooth continuous anti-aliased vector-style edge, with no outline or halo. Keep the original icon silhouette and margins from image 2 as the shape reference. Keep the elegant smooth gold gradients and clean white eyes/head. Color-only flat vector-style app icon, no added texture, no text, no new features. Centered on a square canvas with transparent padding like the original."
+  ],
+  "formatting": "Generated RGBA raster resized to 1024 PNG and standard macOS iconset dimensions; Apple iconutil encoded ICNS and decoded it for validation; original icon alpha contour restored during icon packaging to preserve the original macOS silhouette and remove contour-external artifacts",
+  "assets": {
+    "financialbuddy-gold.png": "e37c43d76a2f9afa59ebfd287ff8a35f75731ca9d12172899e07e23f8f2489cb",
+    "financialbuddy-gold.icns": "1c9aea2dce843e2786207bed374c9f96cd7b75218008cbeb41984dd83c849b97"
+  }
+}

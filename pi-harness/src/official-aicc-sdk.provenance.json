@@ -1,0 +1,23 @@
+{
+  "name": "@tencent/tcaicc",
+  "sdkVersion": "1.4.0",
+  "sourceArtifact": "WorkBuddy 5.11.1 app.asar",
+  "sourceArtifactSHA256": "f0414d122ead12f3e997bb2e3d7811f35213fbd5b92063fab7361691b82253d6",
+  "sourceMember": "cli/dist/lazy-lite-wb/6951.67f39af7.mjs",
+  "sourceSHA256": "c62e93beba2a2fc16aadfd8120d920883ec79bdd54f72a715c5bdfd1bf959dee",
+  "bytes": 114429,
+  "adaptation": "Unmodified protocol/cryptography SDK chunk only. No CodeBuddy CLI, agent loop, model runner or CLI configuration is included.",
+  "runtimeDependencies": [
+    "node:crypto",
+    "node:util",
+    "node:http",
+    "node:https"
+  ],
+  "licenseStatus": "No standalone @tencent/tcaicc license included in source artifact. Redistribution terms require separate confirmation; no license is inferred.",
+  "buildModule": "official-aicc-sdk.mjs",
+  "previousVerifiedArtifact": {
+    "version": "5.9.2",
+    "sourceArtifactSHA256": "0b79c0358c129749bc3355f52bbae13f115577ab37c082a76dfdc54f66fd3f79",
+    "chunkUnchanged": true
+  }
+}

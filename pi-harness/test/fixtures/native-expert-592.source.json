@@ -1,0 +1,787 @@
+{
+  "artifactSHA256": "0b79c0358c129749bc3355f52bbae13f115577ab37c082a76dfdc54f66fd3f79",
+  "slices": [
+    {
+      "name": "mapExpertInfo",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 404443,
+        "end": 405695,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function mapExpertInfo(e,t=resolveLocale(e.locale)){let n=localized$4(e.defaultInitPrompt,t)??localized$4(e.quickPrompts?.[0],t),r={id:e.id,name:localized$4(e.displayName,t)??localized$4(e.name,t)??e.id,profession:localized$4(e.profession,t),prompt:localized$4(e.prompt,t),avatarUrl:normalizeExpertAvatarUrl(e.avatarUrl)??normalizeExpertAvatarUrl(e.avatar),defaultInitPrompt:n,expertType:e.expertType,industryId:e.industryId,isCustomExpert:e.isCustomExpert,pluginName:e.pluginName??e.plugin,marketplace:e.marketplace,summonedAt:e.summonedAt,source:e.source,enterpriseId:e.enterpriseId,locale:t,runtimeIdentity:e.runtimeIdentity,updatedAt:e.updatedAt,version:e.version,agentName:e.agentName,localPath:e.localPath,pluginRegisteredName:e.pluginRegisteredName,marketExpertId:e.marketExpertId,teamMembers:e.teamMembers,assistantDisplayName:localized$4(e.assistantDisplayName,t),assistantProfession:localized$4(e.assistantProfession,t),assistantAvatarUrl:typeof e.assistantAvatarUrl==`string`?e.assistantAvatarUrl:void 0,...e.isCloud===!0?{isCloud:!0}:{},cloudSync:e.cloudSync,suppressDefaultInitPrompt:e.suppressDefaultInitPrompt,suppressAutoSummon:e.suppressAutoSummon,applicationId:e.applicationId},i=localized$4(e.description,t);return i&&jDe.set(r,i),r}",
+      "sha256": "e04d8410fd2d45cc1c73b00ef0a3bf4765a2d4d2a82b782859f79c6f2d86fd70"
+    },
+    {
+      "name": "getExpertIdentityKey",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 402671,
+        "end": 402734,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function getExpertIdentityKey(e){return e.marketExpertId||e.id}",
+      "sha256": "e3d14690052fda4aea2e650222913d9ba298ffa58efce3090003a8438a4adbda"
+    },
+    {
+      "name": "getExpertIdentityAliases",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 406626,
+        "end": 406772,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function getExpertIdentityAliases(e){return[getExpertIdentityKey(e),e.id,e.marketExpertId,e.pluginName,e.plugin,e.runtimeIdentity].filter(e=>!!e)}",
+      "sha256": "02ce4de62f35dfb87c53f4e2bc0ecbd92ba0503025cf525e884e51aa7bc388ce"
+    },
+    {
+      "name": "resolveSelectedExpert",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 406000,
+        "end": 406626,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "async function resolveSelectedExpert(e){let t=e.getOfficial({expertId:e.expertId,marketExpertId:e.marketExpertId,locale:e.locale}),n=e.marketExpertId||e.transport===`cloud`||!e.getLocal?Promise.resolve(void 0):e.getLocal({expertId:e.expertId}),[r,i]=await Promise.allSettled([t,n]);if(r.status===`fulfilled`&&r.value){let t=r.value;return e.marketExpertId&&!t.marketExpertId?{...t,marketExpertId:e.marketExpertId}:t}if(i.status===`fulfilled`&&i.value){let e=i.value;return{...e,localPath:e.expertRootDir,marketplace:e.marketplace??`my-experts`,runtimeIdentity:`expert:${e.id}:${e.marketplace??`my-experts`}`,source:`custom`}}}",
+      "sha256": "e5756e1be47f0bb42c44149a030c422f7a3de22861ba99339afef963f3f72b12"
+    },
+    {
+      "name": "bindExpertToConversation",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 3331997,
+        "end": 3332713,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "async function bindExpertToConversation(e,t,n,r){let i=await e.get(t);if(!i)throw Error(`Conversation not found: ${t}`);let a=i.configManager,o=a.mode,s=r?.commandSurface===`core`?void 0:i.ui?.config,c=yc(n.source)?n.source:void 0,l={locale:n.locale,marketplace:n.marketplace,marketExpertId:n.marketExpertId,expertType:n.expertType,source:n.source,runtimeIdentity:dc(n.runtimeIdentity,c,{expertId:n.expertId,marketExpertId:n.marketExpertId,pluginRegisteredName:n.pluginRegisteredName,agentName:n.agentName}),assistantDisplay:n.assistantDisplay};s?await s.setExpertId(n.expertId,l):throwIfApiError(await a.setExpertId(n.expertId,l)),o!==`craft`&&(s?await s.setMode(`craft`):throwIfApiError(await a.setMode(`craft`)))}",
+      "sha256": "83f3fdf4f540224d0fc302104c8483d6366e2fb4bcdb2d1b9843b44459eb3007"
+    },
+    {
+      "name": "expertLookupKeys",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 3333985,
+        "end": 3334127,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function expertLookupKeys(e){return[e?.id,e?.marketExpertId,e?.sourceId,e?.agentName,e?.pluginName].filter(e=>typeof e==`string`&&e.length>0)}",
+      "sha256": "0a313a7aab2e2a6351973b0d20eab9b0a29492c943c9821f2fe770cba9992775"
+    },
+    {
+      "name": "detailKey",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 6668098,
+        "end": 6668225,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function detailKey(e){return[e.expertId,e.marketExpertId??``,e.locale??``,e.source??``,e.isIncludeInvisible?`1`:``].join(`\\0`)}",
+      "sha256": "a6db0483725e916ae23ed9b2217ffa77a20d558c2273b5a77136cf9b85dd3f26"
+    },
+    {
+      "name": "loadExpertDetailCached",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 6668571,
+        "end": 6668978,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function loadExpertDetailCached(e,t,n=ASn){if(!e)return Promise.resolve(void 0);let r=getBucket(e),i=detailKey(t),a=r.missingDetailUntil.get(i);return a&&a>Date.now()?Promise.resolve(void 0):(a&&r.missingDetailUntil.delete(i),loadThroughCache(r.detail,i,n,()=>e.get(t)).catch(e=>{if(e instanceof Error&&e.message.startsWith(`Expert not found:`)){r.missingDetailUntil.set(i,Date.now()+jSn);return}throw e}))}",
+      "sha256": "802f948a619bb6c7dc74fe7385325050353f10d8926a5fc7d5c31932c84d2b0e"
+    },
+    {
+      "name": "looksLikeOfficialMarketExpertId",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 131058,
+        "end": 131137,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function looksLikeOfficialMarketExpertId(e){return/^ex_[A-Za-z0-9-]+$/.test(e)}",
+      "sha256": "672994273352c4f1bbcac63631e698927c19d68f807984b2748d8ed87b9626ed"
+    },
+    {
+      "name": "canonicalizeMarketExpertId",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 131641,
+        "end": 131750,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function canonicalizeMarketExpertId(e){let t=e?.trim();return t&&looksLikeOfficialMarketExpertId(t)?t:void 0}",
+      "sha256": "bae3d8a907c699fc671f6325a572681c2f3e592961d4a331252985184cc1eff9"
+    },
+    {
+      "name": "isPersistedExpertSource",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 131425,
+        "end": 131514,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function isPersistedExpertSource(e){return e===`builtin`||e===`enterprise`||e===`custom`}",
+      "sha256": "f33295b8079b82f8c79b90b02eb0b304cdb474b64f2c2f7b527d1218b99de8a9"
+    },
+    {
+      "name": "createExpertRuntimeIdentity",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 131750,
+        "end": 132194,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function createExpertRuntimeIdentity(e){let t=e.expertId.trim();if(!t)return;let n=canonicalizeMarketExpertId(e.marketExpertId),r=e.pluginRegisteredName?.trim()||void 0,i=e.agentName?.trim()||void 0,a=isPersistedExpertSource(e.source)?e.source:void 0;if(n||r||i||a===`enterprise`)return`${gt}${JSON.stringify({v:2,kind:`expert`,expertId:t,...n?{marketExpertId:n}:{},...r?{pluginRegisteredName:r}:{},...i?{agentName:i}:{},...a?{source:a}:{}})}`}",
+      "sha256": "0eccc748a2cdf23d7fde98b6b4305b0fdb04e979bded5d7b10630966be82391a"
+    },
+    {
+      "name": "attachExpertSourceToRuntimeIdentity",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 132194,
+        "end": 133108,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function attachExpertSourceToRuntimeIdentity(e,t,n){let r=e?.trim()||void 0,i=n?.expertId?.trim()||void 0,a=n?.pluginRegisteredName?.trim()||void 0,o=canonicalizeMarketExpertId(n?.marketExpertId),s=n?.agentName?.trim()||void 0;if(r?.startsWith(gt))try{let e=JSON.parse(r.slice(10)),n=!1;return t&&e.source!==t&&(e.source=t,n=!0),a&&(typeof e.pluginRegisteredName!=`string`||e.pluginRegisteredName.trim()===``)&&(e.pluginRegisteredName=a,n=!0),typeof e.marketExpertId==`string`&&!looksLikeOfficialMarketExpertId(e.marketExpertId)&&(delete e.marketExpertId,n=!0),o&&(typeof e.marketExpertId!=`string`||e.marketExpertId.trim()===``)&&(e.marketExpertId=o,n=!0),s&&(typeof e.agentName!=`string`||e.agentName.trim()===``)&&(e.agentName=s,n=!0),n?`${gt}${JSON.stringify(e)}`:r}catch{return r}if(r)return r;if(i)return createExpertRuntimeIdentity({expertId:i,marketExpertId:o,pluginRegisteredName:a,agentName:s,source:t})}",
+      "sha256": "7fc93f25db9aed218b023abd720fb88c963d36605eb5669d6fb025404e22dba4"
+    },
+    {
+      "name": "readExpertV2Field",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 131157,
+        "end": 131318,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function readExpertV2Field(e,t){if(e?.startsWith(gt))try{let n=JSON.parse(e.slice(10))[t];return typeof n==`string`&&n.trim()!==``?n.trim():void 0}catch{return}}",
+      "sha256": "92977b9e948492e3a1335699a292d888f1328faa8c5c52be2fb9bf74631fe117"
+    },
+    {
+      "name": "readMarketExpertIdFromRuntimeIdentity",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 133108,
+        "end": 133256,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function readMarketExpertIdFromRuntimeIdentity(e){let t=readExpertV2Field(e,`marketExpertId`);return t&&looksLikeOfficialMarketExpertId(t)?t:void 0}",
+      "sha256": "38b8a125ac764b7ec6f92e0b9e969a761374da4e8510b5771b15c9a711149cec"
+    },
+    {
+      "name": "readExpertSourceFromRuntimeIdentity",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 131514,
+        "end": 131641,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function readExpertSourceFromRuntimeIdentity(e){let t=readExpertV2Field(e,`source`);return isPersistedExpertSource(t)?t:void 0}",
+      "sha256": "ba1b7fa25883332bc78fd6306fafa771e47b5ecbec108143f75be6564a0153ea"
+    },
+    {
+      "name": "pickOperationPlatformExpertByPreferredId",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 133481,
+        "end": 133611,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function pickOperationPlatformExpertByPreferredId(e,t){if(e.length!==0)return t.length>1?e.find(e=>e.expert_id===t[0])??e[0]:e[0]}",
+      "sha256": "81d6f9570b067527a70220c2d76ad3ab6317c225a3d4a4af3bf9aaf762ee94e7"
+    },
+    {
+      "name": "toBackendMarketSource",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 145052,
+        "end": 145158,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function toBackendMarketSource(e){if(!e||e===`builtin`)return`builtin`;if(e===`enterprise`)return`custom`}",
+      "sha256": "745cafc9c1a51a440e3f4dcea29bddf3448287285682a6c5395fdb3afa84ae02"
+    },
+    {
+      "name": "baseExpertFacadeGet",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 138306,
+        "end": 138539,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "async get(e){return(await this.loadExpert({expertId:e.expertId,marketExpertId:e.marketExpertId,locale:e.locale,source:e.source,isIncludeInvisible:e.isIncludeInvisible,allowStaleManifestFallback:e.allowStaleManifestFallback})).expert}",
+      "sha256": "9583da66cd0f9a452f037e8c9ad868a10bcfe79852f7acc55b21c79db9742081"
+    },
+    {
+      "name": "cloudLoadExpert",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 147303,
+        "end": 148004,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "async loadExpert(e){let t=this.resolveEnterpriseId();if(!t)return this._fetchPublicExpert(e);let n=[e.marketExpertId,e.expertId].filter(Boolean),r=new Set([`builtin`,`enterprise`]);e.source&&e.source!==`all`&&r.add(e.source);let i=n.flatMap(e=>[...r].map(t=>({id:e,source:toBackendMarketSource(t)})).filter(e=>!!e.source));if(i.length===0)throw Error(`Expert not found: ${e.expertId}`);let a=await this._http.post(`${this._routePrefix}/enterprises/${t}/expert-market/get-by-ids`,{experts:i}),o=pickOperationPlatformExpertByPreferredId(a?.code===0?a.data?.items??a.data?.experts??[]:[],n);if(!o)throw Error(`Expert not found: ${e.expertId}`);return{expert:await this.mapMarketItemToExpert(o,e.locale)}}",
+      "sha256": "95f9859eec03d22a82b01b30cf5a2859149bd8331262e05cdf25973c37dc3a45"
+    },
+    {
+      "name": "cloudFetchPublicExpert",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 148004,
+        "end": 148672,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "async _fetchPublicExpert(e){try{let t=[e.marketExpertId,e.expertId].filter(Boolean),n=pickOperationPlatformExpertByPreferredId(await fetchOperationPlatformExpertsByIds(this._http,{routePrefix:this._routePrefix,ids:t,includeInvisible:e.isIncludeInvisible}),t);if(!n)throw Error(`Expert not found: ${e.expertId}`);let r=this.mapMarketItem(n),i={...r,prompt:{},avatarUrl:r.avatar||void 0},a=e.locale??`zh`,o=await this._promptFetcher.fetch(r,a);return o&&(i.prompt={[a]:o}),{expert:i}}catch(t){throw t instanceof Error&&t.message.startsWith(`Expert not found`)?t:(console.error(`[CloudExpertRepo] _fetchPublicExpert failed:`,t),Error(`Expert not found: ${e.expertId}`))}}",
+      "sha256": "1211351fac83850d3f98d77c8deeb5de2465597b9caac184a311d7626e6a1e82"
+    },
+    {
+      "name": "legacyAdapterGetExpert",
+      "member": "renderer/assets/workbuddy-provider-CUUuYpM9.js",
+      "memberSHA256": "01f28a18dc654de61eafe64d08dd64a2b952808193eb6b12d38f7e067df73b32",
+      "range": {
+        "start": 608953,
+        "end": 610262,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "async getExpert(e,t=`zh`,n){try{this.updateExpertLoadState({status:`downloading_prompt`,error:void 0});let r=await this.getDaemonClientFeature(`expertGetExpert`)({expertId:e,locale:t,...n?.marketExpertId?{marketExpertId:n.marketExpertId}:{},...n?.source?{source:n.source}:{},...n?.enterpriseId?{enterpriseId:n.enterpriseId}:{}});if(!r?.expert)throw Error(`Expert not found: ${e}`);this.updateExpertLoadState(r.loadState??{status:`downloading_prompt_done`});let i=r.expert;if(it(t)===`en`?i.prompt?.en??i.prompt?.zh:i.prompt?.zh??i.prompt?.en)this.markExpertLoaded(e);else try{let t=i.plugin,n=i.updatedAt,r=await this.activateExpertPlugin(e,t,n);console.log(`[WorkbuddyAdapter] getExpert: auto-activated plugin for prompt-empty expert:`,{expertId:e,success:r.success,expertType:r.expertType,hasLocalPath:!!r.localPath}),r.success&&(i.expertType=r.expertType,i.agentName=r.agentName,i.localPath=r.localPath,i.pluginRegisteredName=r.pluginRegisteredName,this.markExpertLoaded(e))}catch(e){console.warn(`[WorkbuddyAdapter] getExpert: auto plugin activation failed (non-blocking):`,e)}return i}catch(t){let n=t instanceof Error?t.message:`Unknown error`;throw this.updateExpertLoadState({status:`error`,error:n}),console.error(`[WorkbuddyAdapter] getExpert failed:`,t),Error(`Failed to get expert \"${e}\": ${n}`)}}",
+      "sha256": "85b71b658f0cea5bd3696ed6db801693261c1c565202ecef355b0e543cdd7f27"
+    },
+    {
+      "name": "lookupCatalogExpertEntry",
+      "member": "main/module.app-server.js",
+      "memberSHA256": "60fbf6fd53b74d53760a0b5d41ed1d17d3622ed92c2df7f184dab847ae8e139c",
+      "range": {
+        "start": 406053,
+        "end": 406312,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "async lookupCatalogExpertEntry(e){try{let t=A.join(this.getConfigDir(),`app`,`cache`,`experts`,`manifest.json`),n=await z.readFile(t,`utf-8`);return JSON.parse(n).experts?.find(t=>t.id===e||t.marketExpertId===e||t.sourceId===e||t.source_id===e)}catch{return}}",
+      "sha256": "5dea81b993c71b7b815de6089039583c658dc46ccd03ed8dfe0b494c3eb29e17"
+    },
+    {
+      "name": "readCustomExpertFromDir",
+      "member": "main/module.app-server.js",
+      "memberSHA256": "60fbf6fd53b74d53760a0b5d41ed1d17d3622ed92c2df7f184dab847ae8e139c",
+      "range": {
+        "start": 384835,
+        "end": 385785,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "async readCustomExpertFromDir(e,t){let n=await this.readPluginManifestAsync(e);if(!n)return null;let r={...n};for(let e of[`tags`,`quickPrompts`,`triggerPrompts`]){let t=normalizeLocalizedManifestItems(r[e]);t!==void 0&&(r[e]=t)}for(let e of[`members`,`connectorIds`,`bin`,`references`]){let t=normalizeManifestItems(r[e]);t!==void 0&&(r[e]=t)}if(r.version||=`1.0.0`,r.avatar&&=await this.resolveAvatarUrl(r.avatar,e),Array.isArray(r.members))for(let t of r.members)typeof t==`object`&&t&&((!t.id||typeof t.id!=`string`)&&typeof t.agent==`string`&&t.agent.trim()&&(t.id=t.agent.trim()),t.avatar&&=await this.resolveAvatarUrl(t.avatar,e));r.expertRootDir=e,r.id=r.id||r.name||t,r.isCustomExpert=!0,r.marketplace=x.M;try{let t=A.join(e,`.created-by-session`),n=A.join(e,`.pending-preview-session`),i=await pathExists$2(t)?t:await pathExists$2(n)?n:void 0;if(i){let e=await z.readFile(i,`utf-8`);e.trim()&&(r.createdBySession=e.trim())}}catch{}return r}",
+      "sha256": "504b3adeb10799e8c9b9ecac71d80e3891d74b9b914fbff8084b3e572d900c24"
+    },
+    {
+      "name": "lookupPluginNameFromCosManifest",
+      "member": "main/daemon-app-server-main.js",
+      "memberSHA256": "c18d6e1dd7b1138ad77f38fa11d747b642d722fe7ef64177bd1a550222f25e3e",
+      "range": {
+        "start": 12108,
+        "end": 12323,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "async function lookupPluginNameFromCosManifest(e,t){let n=((await t.getManifest())?.experts??[]).find(t=>t.id===e||t.sourceId===e||t.marketExpertId===e);return(typeof n?.plugin==`string`?n.plugin.trim():``)||void 0}",
+      "sha256": "87d39d07b2f41fddd6ceafc121cb7b59474c99ab48a4ed4eecde3e21bc96327e"
+    },
+    {
+      "name": "adapterReadFile",
+      "member": "renderer/assets/workbuddy-provider-CUUuYpM9.js",
+      "memberSHA256": "01f28a18dc654de61eafe64d08dd64a2b952808193eb6b12d38f7e067df73b32",
+      "range": {
+        "start": 440789,
+        "end": 441377,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "async readFile(e,t,n,r){try{let i=Array.isArray(r?.allowedDirs)?r.allowedDirs:void 0,a=e||i?{...e?{sessionId:e}:{},...i&&i.length?{allowedDirs:i}:{}}:void 0,o=n??`text`;if(o===`text`)return{success:!0,content:await this.requireDaemonClient().fileRead(t,void 0,a)};let s=await this.requireDaemonClient().fileRead(t,`base64`,a),c=atob(s),l=new Uint8Array(c.length);for(let e=0;e<c.length;e++)l[e]=c.charCodeAt(e);let u;return u=o===`bytes`?l:o===`blob`?new Blob([l]):new ReadableStream({start(e){e.enqueue(l),e.close()}}),{success:!0,content:u}}catch(e){return{success:!1,error:String(e)}}}",
+      "sha256": "c518a2961bd5a6387b52e55ad63b4ac29db12f585085d4bd52503361db8aec4f"
+    },
+    {
+      "name": "getCustomExpert",
+      "member": "main/module.app-server.js",
+      "memberSHA256": "60fbf6fd53b74d53760a0b5d41ed1d17d3622ed92c2df7f184dab847ae8e139c",
+      "range": {
+        "start": 380879,
+        "end": 381212,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "async getCustomExpert(e){if(!e||this.isUnsafePath(e))return null;try{let t=this.getConfigDir(),n=A.join(t,`plugins`,`marketplaces`,x.M,`plugins`),r=A.join(n,e);return!r.startsWith(n)||!await pathExists$2(r)?null:await this.readCustomExpertFromDir(r,e)}catch(e){return Q.error(`[ExpertPluginService] getCustomExpert failed:`,e),null}}",
+      "sha256": "ef21cfc4ced275c79088296a8699c3163e8356b6c54a87412224a76dce8047cc"
+    },
+    {
+      "name": "sendCachedOrLocalExpertGate",
+      "member": "renderer/assets/main-content-core-DTLKIWNQ.js",
+      "memberSHA256": "60f3cc133bc6267cabd45c9f8f1f3fb30346d71c4d316f670910715f8e9a1755",
+      "range": {
+        "start": 233459,
+        "end": 235273,
+        "encoding": "UTF-8"
+      },
+      "kind": "StatementSequence",
+      "source": "let Re;if(D?.id){let e=D.defaultInitPrompt?.trim(),isDefaultInitPromptValue=t=>{let n=t?.trim();return!!n&&!!e&&n===e},isValidExpertPrompt=e=>{let t=e?.trim();return t?!isDefaultInitPromptValue(t):!1},t=D.prompt?.trim();isValidExpertPrompt(t)&&(Re={id:D.id,name:D.name,profession:D.profession,prompt:t},console.log(`[EXPERT_PROMPT_TRACE][prompt-fetch-success]`,{source:`send:cachedPrompt`,expertId:D.id,promptSize:t.length}))}if(D?.id){let e=Re?.prompt?.trim(),t=!!D.localPath||!!D.pluginRegisteredName||!!D.agentName;if(!e&&!t&&R.activateExpertPlugin){console.log(`[MainContentCore][Expert] retrying plugin activation before send`,{conversationId:x.id,selectedExpertId:D.id});try{let e=await R.activateExpertPlugin(D.id,D.pluginName,D.updatedAt);e.success?(D.localPath=e.localPath,D.pluginRegisteredName=e.pluginRegisteredName,D.expertType=e.expertType,D.agentName=e.agentName,R.setSelectedExpertForSession&&Promise.resolve(R.setSelectedExpertForSession(x.id,D)).catch(()=>{}),console.log(`[MainContentCore][Expert] retry activation succeeded`,{selectedExpertId:D.id,localPath:e.localPath})):console.warn(`[MainContentCore][Expert] retry activation failed, proceeding without expert instructions`,{selectedExpertId:D.id,error:e.error})}catch(e){console.warn(`[MainContentCore][Expert] retry activation threw, proceeding without expert instructions`,{selectedExpertId:D.id,error:e instanceof Error?e.message:String(e)})}}let n=!!D?.isProjectExpert;!Re?.prompt?.trim()&&!D.localPath&&!D.pluginRegisteredName&&!D.agentName&&!n&&(console.warn(`[MainContentCore][Expert] expert still unavailable after retry; clear invalid expert binding for degraded send`,{conversationId:x.id,selectedExpertId:D.id}),R.clearSelectedExpertForSession&&await Promise.resolve(R.clearSelectedExpertForSession(x.id)).catch(()=>{}),D=null)}",
+      "sha256": "1bdd8cbfd6c018d3c13e06e6687c77e4988dc84c7c6a08ea144d99b237aec3f0"
+    },
+    {
+      "name": "runtimeIdentityPrefix",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 131141,
+        "end": 131156,
+        "encoding": "UTF-8"
+      },
+      "kind": "AssignmentExpression",
+      "source": "gt=`expert-v2:`",
+      "sha256": "964230346753de2d694c62e585bae64f5cd9cc83fb9a00d37b11620317424cb6"
+    },
+    {
+      "name": "missingExpertNegativeCacheTTL",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 6669163,
+        "end": 6669170,
+        "encoding": "UTF-8"
+      },
+      "kind": "AssignmentExpression",
+      "source": "jSn=3e4",
+      "sha256": "9572384fc7bd883a3e9c6f96e8096cf086bce25614994fa08adb9efa44a347db"
+    },
+    {
+      "name": "mapInputExpertSelection",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 6715288,
+        "end": 6715849,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function mapInputExpertSelection(e){let t=e.marketplace??(e.source===`custom`?`my-experts`:e.source===`builtin`||e.source===`enterprise`?`experts`:void 0),n=e.source??(t===`my-experts`?`custom`:void 0),r=(e.pluginRegisteredName??e.pluginName)?.trim(),i=e.marketExpertId?.trim(),a=yc(n)?n:void 0,o={expertId:e.id,pluginRegisteredName:r,marketExpertId:i,agentName:e.agentName?.trim()},s=dc(e.runtimeIdentity,a,o);return{id:e.id,...e.marketExpertId?{marketExpertId:e.marketExpertId}:{},marketplace:t,...s?{runtimeIdentity:s}:{},locale:e.locale,...n?{source:n}:{}}}",
+      "sha256": "7d1159a25beceaf08fa97c20dd73bcc42750fe25b09093b357ef5839991cac73"
+    },
+    {
+      "name": "localized$4",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 401751,
+        "end": 401957,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function localized$4(e,t){if(typeof e==`string`)return e||void 0;if(!e||typeof e!=`object`)return;let n=e,r=n[t];if(typeof r==`string`&&r)return r;let i=t===`en`?n.zh:n.en;if(typeof i==`string`&&i)return i}",
+      "sha256": "cc19f091407869f28d6c0e6ffde0f4470cac760b0ccfb9639e452078c6ed4793"
+    },
+    {
+      "name": "normalizeExpertAvatarUrl",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 402883,
+        "end": 403066,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function normalizeExpertAvatarUrl(e){if(typeof e!=`string`)return;let t=e.trim();if(!t)return;let n=t.indexOf(MDe);if(n<=0)return t;let r=t.slice(0,n);return NDe.test(r)?t.slice(n):t}",
+      "sha256": "99e99113a0dae8c1b25867afdab6e82ffcb7d8d19e945816f4e37a2685a3a44f"
+    },
+    {
+      "name": "mapHomeExpertSelection",
+      "member": "renderer/assets/home-BPWB0jVF.js",
+      "memberSHA256": "bb156840b3edfa26640b8d4eae544d0f7eeef23f42e72eb3b5d6e35de19180cb",
+      "range": {
+        "start": 72500,
+        "end": 72548,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function mapHomeExpertSelection(e){return or(e)}",
+      "sha256": "452d52d115f312843c4c432de684a2dd82b77c6342bbf77b5484e6ae80859b55"
+    },
+    {
+      "name": "homeCreateParamsObject",
+      "member": "renderer/assets/home-BPWB0jVF.js",
+      "memberSHA256": "bb156840b3edfa26640b8d4eae544d0f7eeef23f42e72eb3b5d6e35de19180cb",
+      "range": {
+        "start": 76862,
+        "end": 77607,
+        "encoding": "UTF-8"
+      },
+      "kind": "ObjectExpression",
+      "source": "{title:b,cwd:l,welcomeMode:w,mode:c.interactionMode,model:c.modelId,expert:C,expertId:c.expert?.id,locale:c.expert?.locale,permissionMode:t?void 0:c.permissionMode,useSandboxCLI:c.useSandboxCLI,isPlayground:x,tags:Object.keys(y).length?y:void 0,promptContentBlocks:c.blocks,sessionSettings:T,...!t&&v.industryMode?{industryMode:v.industryMode}:{},...!t&&v.buddyAppSnapshot?{buddyAppSnapshot:v.buddyAppSnapshot}:{},...!t&&v.buddySessionBinding?{buddySessionBinding:v.buddySessionBinding}:{},addonSelection:t?void 0:{version:1,welcomeMode:w,interactionMode:c.interactionMode,permissionMode:c.permissionMode,connectorIds:c.connectors?.map(e=>e.id),sceneId:S,microSceneIds:S?[S]:void 0},...t?{transport:`cloud`}:{},...a?{extra:{traceId:a.trace}}:{}}",
+      "sha256": "1ffb5b28406748073bd7060ddaf6b17d7968a3a108693d4dbabff305695c16d8"
+    },
+    {
+      "name": "embedCreateParamsObject",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 6760759,
+        "end": 6761119,
+        "encoding": "UTF-8"
+      },
+      "kind": "ObjectExpression",
+      "source": "{conversationId:e,cwd:S,title:h,transport:`local`,isPlayground:n,conversationOrigin:`local`,welcomeMode:d,...mergeEmbedBuddyCreate(f),...r?{sessionSettings:{...f?.sessionSettings,...r}}:{},mode:s,model:a.selections.model?.id,expert:m,expertId:p?.id,locale:p?.locale,addonSelection:{version:1,interactionMode:s,permissionMode:u,...v.length?{connectorIds:v}:{}}}",
+      "sha256": "d17eddab181c37bbc2c7cf520d4588e1e82e0ec916d567607790416614d48f60"
+    },
+    {
+      "name": "getSelectedExpertForSession",
+      "member": "renderer/assets/workbuddy-provider-CUUuYpM9.js",
+      "memberSHA256": "01f28a18dc654de61eafe64d08dd64a2b952808193eb6b12d38f7e067df73b32",
+      "range": {
+        "start": 614777,
+        "end": 614857,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "getSelectedExpertForSession(e){return this.selectedExpertBySession.get(e)??null}",
+      "sha256": "629aad0cb4256d493439c79ba76950914a90d3d551574c9e99639bbf7b51ce36"
+    },
+    {
+      "name": "getPendingExpert",
+      "member": "renderer/assets/workbuddy-provider-CUUuYpM9.js",
+      "memberSHA256": "01f28a18dc654de61eafe64d08dd64a2b952808193eb6b12d38f7e067df73b32",
+      "range": {
+        "start": 611651,
+        "end": 611770,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "getPendingExpert(){return this.selectedExpertBySession.get(WorkbuddyAgentAdapterNext.PENDING_EXPERT_SESSION_KEY)??null}",
+      "sha256": "a355a96dc9378eaabf38edbe39c09c6e8ef8bdb31b85078210cffe142f5a977d"
+    },
+    {
+      "name": "readExpertRuntimeIdentityField",
+      "member": "renderer/assets/workbuddy-provider-CUUuYpM9.js",
+      "memberSHA256": "01f28a18dc654de61eafe64d08dd64a2b952808193eb6b12d38f7e067df73b32",
+      "range": {
+        "start": 427687,
+        "end": 427841,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "readExpertRuntimeIdentityField(e){if(typeof e==`string`){let t=e.trim();return t===``?void 0:t}if(typeof e==`number`&&Number.isFinite(e))return String(e)}",
+      "sha256": "441cb591df9099a032a55f6700d0be8d3f108f087eeafa8e21372b55d149ed54"
+    },
+    {
+      "name": "buildExpertRuntimeIdentity",
+      "member": "renderer/assets/workbuddy-provider-CUUuYpM9.js",
+      "memberSHA256": "01f28a18dc654de61eafe64d08dd64a2b952808193eb6b12d38f7e067df73b32",
+      "range": {
+        "start": 426175,
+        "end": 426958,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "buildExpertRuntimeIdentity(e){if(!e?.id)return;let t=e,n=this.readExpertRuntimeIdentityField(t.pluginRegisteredName)??this.readExpertRuntimeIdentityField(t.pluginName),r=this.readExpertRuntimeIdentityField(t.agentName),i=this.readExpertRuntimeIdentityField(t.updatedAt),a=t.summonTimestampReliable!==!1&&typeof e.summonTimestamp==`number`&&Number.isFinite(e.summonTimestamp)?e.summonTimestamp:void 0,o=this.readExpertRuntimeIdentityField(t.marketExpertId),s=t.source===`builtin`||t.source===`enterprise`||t.source===`custom`?t.source:void 0,c={v:2,kind:`expert`,expertId:e.id,...o&&st(o)?{marketExpertId:o}:{},...n?{pluginRegisteredName:n}:{},...r?{agentName:r}:{},...i?{updatedAt:i}:{},...a===void 0?{}:{summonTimestamp:a},...s?{source:s}:{}};return`expert-v2:${JSON.stringify(c)}`}",
+      "sha256": "330a3e19516b52b9b54534d7b3e958a20bbbf71d8d7868b156e88aabe05fa85e"
+    },
+    {
+      "name": "buildDesiredConfigPatchFromLaunchConfig",
+      "member": "renderer/assets/workbuddy-provider-CUUuYpM9.js",
+      "memberSHA256": "01f28a18dc654de61eafe64d08dd64a2b952808193eb6b12d38f7e067df73b32",
+      "range": {
+        "start": 419579,
+        "end": 420079,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "buildDesiredConfigPatchFromLaunchConfig(e){let t=e.mode;return{mode:t,permissionMode:t===`plan`?`plan`:this.normalizeNonPlanPermissionMode(e.permissionMode)??`bypassPermissions`,...e.permissionModeBeforePlan?{permissionModeBeforePlan:e.permissionModeBeforePlan}:{},...typeof e.useSandboxCLI==`boolean`?{useSandboxCLI:e.useSandboxCLI}:{},expertId:e.expertId,expertMarketplace:e.expertId?e.expertMarketplace:void 0,locale:e.expertId?e.locale:void 0,runtimeIdentity:e.expertId?e.runtimeIdentity:void 0}}",
+      "sha256": "cb4607a0bcdfcf34867558ad2e93092d17a991a420ba90cdcdf3702356d7f706"
+    },
+    {
+      "name": "resolveLaunchConfig",
+      "member": "renderer/assets/workbuddy-provider-CUUuYpM9.js",
+      "memberSHA256": "01f28a18dc654de61eafe64d08dd64a2b952808193eb6b12d38f7e067df73b32",
+      "range": {
+        "start": 418279,
+        "end": 419579,
+        "encoding": "UTF-8"
+      },
+      "kind": "ClassMethod",
+      "source": "resolveLaunchConfig(e){let t=this.normalizeSceneMode(e.requestedMode),n=e.sessionId?this.sessionLaunchConfig.get(e.sessionId):void 0,r=e.sessionId?this.getSelectedExpertForSession(e.sessionId):null,i=e.sessionId?null:this.getPendingExpert(),a=typeof e.expertId==`string`&&e.expertId.trim()!==``?e.expertId:void 0,o=t===`expert`,s=t===`ask`||t===`plan`,c=!!e.sessionId&&this.selectedExpertBySession.has(e.sessionId),l=!e.sessionId&&!!i,u=!s&&(o||c||l||!!n?.expertId),d=r?.id??(u?i?.id:void 0)??(u?n?.expertId:void 0)??void 0,f=s?void 0:a??d,p=f&&r?.id===f?r:f&&i?.id===f?i:void 0,m=typeof e.locale==`string`&&e.locale.trim()!==``?e.locale:f?n?.locale:void 0,h=f?this.buildExpertRuntimeIdentity(p)??n?.runtimeIdentity??`expert:${f}`:void 0,g=t??n?.mode??`craft`,_=this.normalizeNonPlanPermissionMode(e.requestedPermissionMode)??this.normalizeNonPlanPermissionMode(n?.permissionMode)??`bypassPermissions`,v=g===`plan`?`plan`:_,y=g===`plan`?`bypassPermissions`:n?.permissionModeBeforePlan,b=f?e.expertMarketplace??p?.marketplace??n?.expertMarketplace:void 0;return{mode:g,permissionMode:v,...y?{permissionModeBeforePlan:y}:{},...typeof n?.useSandboxCLI==`boolean`?{useSandboxCLI:n.useSandboxCLI}:{},...f?{expertId:f}:{},...f&&b?{expertMarketplace:b}:{},...f&&m?{locale:m}:{},...h?{runtimeIdentity:h}:{}}}",
+      "sha256": "5162c5739f36ede9fc109d8c7f9cdd43dac8a06e8bd1544aee519f41b464145b"
+    },
+    {
+      "name": "expertSelectionFromDetail",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 156401,
+        "end": 156774,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function expertSelectionFromDetail(e){if(!e.expertId)return;let t=e.marketExpertId??readMarketExpertIdFromRuntimeIdentity(e.expertRuntimeIdentity);return{id:e.expertId,...t?{marketExpertId:t}:{},...e.expertMarketplace?{marketplace:e.expertMarketplace}:{},...e.expertRuntimeIdentity?{runtimeIdentity:e.expertRuntimeIdentity}:{},...e.expertLocale?{locale:e.expertLocale}:{}}}",
+      "sha256": "d22a10229520d713313d7f6fa25296ebf72e0613293f47421af5258356be6a6d"
+    },
+    {
+      "name": "expertPatchFromPersistOptions",
+      "member": "main/conversations.js",
+      "memberSHA256": "ccdf4ac294ccdb60ff79bdf44056227ad60b2c6f0fe8e8a51a3d03cee9142726",
+      "range": {
+        "start": 156774,
+        "end": 157047,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function expertPatchFromPersistOptions(e,t){let n=e?attachExpertSourceToRuntimeIdentity(t?.runtimeIdentity,void 0,{expertId:e,marketExpertId:t?.marketExpertId}):void 0;return{expertId:e,locale:t?.locale??``,expertMarketplace:t?.marketplace??``,expertRuntimeIdentity:n??``}}",
+      "sha256": "291391538ad5238f1e0f59d2ac70f2d04450014f84539fd93e123b0d7a23b724"
+    },
+    {
+      "name": "homeCreateTagsInit",
+      "member": "renderer/assets/home-BPWB0jVF.js",
+      "memberSHA256": "bb156840b3edfa26640b8d4eae544d0f7eeef23f42e72eb3b5d6e35de19180cb",
+      "range": {
+        "start": 76520,
+        "end": 76537,
+        "encoding": "UTF-8"
+      },
+      "kind": "AssignmentExpression",
+      "source": "y={...v.tags??{}}",
+      "sha256": "a54721fc19ec63fd6a068af927cb5b8d2710d61e52fa39696233f5971526bf7d"
+    },
+    {
+      "name": "homeCreateExpertTags",
+      "member": "renderer/assets/home-BPWB0jVF.js",
+      "memberSHA256": "bb156840b3edfa26640b8d4eae544d0f7eeef23f42e72eb3b5d6e35de19180cb",
+      "range": {
+        "start": 76538,
+        "end": 76632,
+        "encoding": "UTF-8"
+      },
+      "kind": "ExpressionStatement",
+      "source": "c.template&&y.scene===void 0&&(y.scene=String(c.template.id)),c.expert&&(y.expert=c.expert.id)",
+      "sha256": "d78ac3aba69c5a4ea80d4176fa9c07f781dd63923d85fdeb8c90af536e0e228c"
+    },
+    {
+      "name": "client_looksLikeOfficialMarketExpertId",
+      "member": "renderer/assets/avatar-url-DeSvUQWB.js",
+      "memberSHA256": "3c710e963a4e294eca2130988dae2c082cc51a41cfa486581f2c9a4646482e6f",
+      "range": {
+        "start": 523360,
+        "end": 523439,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function looksLikeOfficialMarketExpertId(e){return/^ex_[A-Za-z0-9-]+$/.test(e)}",
+      "sha256": "672994273352c4f1bbcac63631e698927c19d68f807984b2748d8ed87b9626ed"
+    },
+    {
+      "name": "client_readExpertV2Field",
+      "member": "renderer/assets/avatar-url-DeSvUQWB.js",
+      "memberSHA256": "3c710e963a4e294eca2130988dae2c082cc51a41cfa486581f2c9a4646482e6f",
+      "range": {
+        "start": 523439,
+        "end": 523600,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function readExpertV2Field(e,t){if(e?.startsWith(Lf))try{let n=JSON.parse(e.slice(10))[t];return typeof n==`string`&&n.trim()!==``?n.trim():void 0}catch{return}}",
+      "sha256": "ec2e94c5bbbff9c156da110d4107d030405f19bcd5e1a63e89800aac294cb0e7"
+    },
+    {
+      "name": "client_isPersistedExpertSource",
+      "member": "renderer/assets/avatar-url-DeSvUQWB.js",
+      "memberSHA256": "3c710e963a4e294eca2130988dae2c082cc51a41cfa486581f2c9a4646482e6f",
+      "range": {
+        "start": 523600,
+        "end": 523689,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function isPersistedExpertSource(e){return e===`builtin`||e===`enterprise`||e===`custom`}",
+      "sha256": "f33295b8079b82f8c79b90b02eb0b304cdb474b64f2c2f7b527d1218b99de8a9"
+    },
+    {
+      "name": "client_readExpertSourceFromRuntimeIdentity",
+      "member": "renderer/assets/avatar-url-DeSvUQWB.js",
+      "memberSHA256": "3c710e963a4e294eca2130988dae2c082cc51a41cfa486581f2c9a4646482e6f",
+      "range": {
+        "start": 523689,
+        "end": 523816,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function readExpertSourceFromRuntimeIdentity(e){let t=readExpertV2Field(e,`source`);return isPersistedExpertSource(t)?t:void 0}",
+      "sha256": "ba1b7fa25883332bc78fd6306fafa771e47b5ecbec108143f75be6564a0153ea"
+    },
+    {
+      "name": "client_canonicalizeMarketExpertId",
+      "member": "renderer/assets/avatar-url-DeSvUQWB.js",
+      "memberSHA256": "3c710e963a4e294eca2130988dae2c082cc51a41cfa486581f2c9a4646482e6f",
+      "range": {
+        "start": 523816,
+        "end": 523925,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function canonicalizeMarketExpertId(e){let t=e?.trim();return t&&looksLikeOfficialMarketExpertId(t)?t:void 0}",
+      "sha256": "bae3d8a907c699fc671f6325a572681c2f3e592961d4a331252985184cc1eff9"
+    },
+    {
+      "name": "client_createExpertRuntimeIdentity",
+      "member": "renderer/assets/avatar-url-DeSvUQWB.js",
+      "memberSHA256": "3c710e963a4e294eca2130988dae2c082cc51a41cfa486581f2c9a4646482e6f",
+      "range": {
+        "start": 523925,
+        "end": 524369,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function createExpertRuntimeIdentity(e){let t=e.expertId.trim();if(!t)return;let n=canonicalizeMarketExpertId(e.marketExpertId),r=e.pluginRegisteredName?.trim()||void 0,i=e.agentName?.trim()||void 0,a=isPersistedExpertSource(e.source)?e.source:void 0;if(n||r||i||a===`enterprise`)return`${Lf}${JSON.stringify({v:2,kind:`expert`,expertId:t,...n?{marketExpertId:n}:{},...r?{pluginRegisteredName:r}:{},...i?{agentName:i}:{},...a?{source:a}:{}})}`}",
+      "sha256": "748407be9da9485ea0415291b57698da2b45f8ddb4e96fbc59d4aa8301435b9c"
+    },
+    {
+      "name": "client_attachExpertSourceToRuntimeIdentity",
+      "member": "renderer/assets/avatar-url-DeSvUQWB.js",
+      "memberSHA256": "3c710e963a4e294eca2130988dae2c082cc51a41cfa486581f2c9a4646482e6f",
+      "range": {
+        "start": 524369,
+        "end": 525283,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function attachExpertSourceToRuntimeIdentity(e,t,n){let r=e?.trim()||void 0,i=n?.expertId?.trim()||void 0,a=n?.pluginRegisteredName?.trim()||void 0,o=canonicalizeMarketExpertId(n?.marketExpertId),s=n?.agentName?.trim()||void 0;if(r?.startsWith(Lf))try{let e=JSON.parse(r.slice(10)),n=!1;return t&&e.source!==t&&(e.source=t,n=!0),a&&(typeof e.pluginRegisteredName!=`string`||e.pluginRegisteredName.trim()===``)&&(e.pluginRegisteredName=a,n=!0),typeof e.marketExpertId==`string`&&!looksLikeOfficialMarketExpertId(e.marketExpertId)&&(delete e.marketExpertId,n=!0),o&&(typeof e.marketExpertId!=`string`||e.marketExpertId.trim()===``)&&(e.marketExpertId=o,n=!0),s&&(typeof e.agentName!=`string`||e.agentName.trim()===``)&&(e.agentName=s,n=!0),n?`${Lf}${JSON.stringify(e)}`:r}catch{return r}if(r)return r;if(i)return createExpertRuntimeIdentity({expertId:i,marketExpertId:o,pluginRegisteredName:a,agentName:s,source:t})}",
+      "sha256": "2517e77f139d5236cdaf10950441d773620bdbb3fbafe72773137aea66f7b7a8"
+    },
+    {
+      "name": "client_readMarketExpertIdFromRuntimeIdentity",
+      "member": "renderer/assets/avatar-url-DeSvUQWB.js",
+      "memberSHA256": "3c710e963a4e294eca2130988dae2c082cc51a41cfa486581f2c9a4646482e6f",
+      "range": {
+        "start": 525283,
+        "end": 525431,
+        "encoding": "UTF-8"
+      },
+      "kind": "FunctionDeclaration",
+      "source": "function readMarketExpertIdFromRuntimeIdentity(e){let t=readExpertV2Field(e,`marketExpertId`);return t&&looksLikeOfficialMarketExpertId(t)?t:void 0}",
+      "sha256": "38b8a125ac764b7ec6f92e0b9e969a761374da4e8510b5771b15c9a711149cec"
+    },
+    {
+      "name": "clientRuntimeIdentityPrefix",
+      "member": "renderer/assets/avatar-url-DeSvUQWB.js",
+      "memberSHA256": "3c710e963a4e294eca2130988dae2c082cc51a41cfa486581f2c9a4646482e6f",
+      "range": {
+        "start": 525449,
+        "end": 525464,
+        "encoding": "UTF-8"
+      },
+      "kind": "AssignmentExpression",
+      "source": "Lf=`expert-v2:`",
+      "sha256": "eb60e912c0a338c5a0d856228835b278b6a09b7ebe3bbd5f6755160130702b64"
+    },
+    {
+      "name": "pendingExpertKeyAssignment",
+      "member": "renderer/assets/workbuddy-provider-CUUuYpM9.js",
+      "memberSHA256": "01f28a18dc654de61eafe64d08dd64a2b952808193eb6b12d38f7e067df73b32",
+      "range": {
+        "start": 199991,
+        "end": 200043,
+        "encoding": "UTF-8"
+      },
+      "kind": "AssignmentExpression",
+      "source": "this.PENDING_EXPERT_SESSION_KEY=`__pending_expert__`",
+      "sha256": "210a8684c29e251bcce7411651fb4565777cfa7e1afa088d80c350a7840d76ce"
+    },
+    {
+      "name": "homeMapperImportSpecifier",
+      "member": "renderer/assets/home-BPWB0jVF.js",
+      "memberSHA256": "bb156840b3edfa26640b8d4eae544d0f7eeef23f42e72eb3b5d6e35de19180cb",
+      "range": {
+        "start": 2040,
+        "end": 2048,
+        "encoding": "UTF-8"
+      },
+      "kind": "ImportSpecifier",
+      "source": "ea as or",
+      "sha256": "208f93d1c1d90a344be92c13da3e702080139c4c377259a54fd163eb96a07abd"
+    },
+    {
+      "name": "homeMapperExportSpecifier",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 7236368,
+        "end": 7236397,
+        "encoding": "UTF-8"
+      },
+      "kind": "ExportSpecifier",
+      "source": "mapInputExpertSelection as ea",
+      "sha256": "636229edb20fde19c0723e18b3828ea199902a0ae2c42c3e567d035af3dc9676"
+    }
+  ],
+  "curatedSeniorDeveloper": {
+    "member": "resources/builtin-expert-recommendations/curated-experts.json",
+    "memberSHA256": "d7f223995e2e32e9b04d81a64abb93db87fafa99cda594c2ba86b0cea7f3dc5f",
+    "candidate": {
+      "id": "SeniorDeveloper",
+      "type": "expert",
+      "scenarios": [
+        "高级开发",
+        "架构设计",
+        "代码质量"
+      ],
+      "description": "10年以上全栈经验，精通多种语言和框架，是团队的技术中坚",
+      "priority": 300
+    },
+    "claims": "Shipped recommendation identity only; not proof of current server availability or local installation"
+  },
+  "workbuddyVersion": "5.9.2",
+  "framing": "Unchanged bounded native consumer/producer slices; replay uses inert UI/cache/transport stand-ins; no real expert/model/application runtime",
+  "aliases": {
+    "homeMapExpertSelectionDelegate": "mapInputExpertSelection",
+    "yc": "isPersistedExpertSource",
+    "dc": "attachExpertSourceToRuntimeIdentity",
+    "st": "looksLikeOfficialMarketExpertId"
+  },
+  "constants": {
+    "pendingExpertKey": "__pending_expert__",
+    "runtimeIdentityPrefix": "expert-v2:"
+  }
+}

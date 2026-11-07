@@ -1,0 +1,14 @@
+{
+  "workbuddyVersion": "5.9.1",
+  "artifactSHA256": "1fc0a56ddec5437d4dc55a55ba1c028b291ab29cb17306500827015987424233",
+  "member": "renderer/assets/contexts-BqwNadeD.js",
+  "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+  "range": {
+    "encoding": "UTF-8",
+    "start": 5175346,
+    "end": 5175595
+  },
+  "bytes": 249,
+  "sha256": "545c1fcab20cdc90cf1d2315396a435292dd1f0d4bc69b93fe195a001f551a26",
+  "purpose": "Exact native lifecycle consumer used to validate Pi facade compatibility; no target execution."
+}

@@ -1,0 +1,179 @@
+{
+  "workbuddyVersion": "5.9.2",
+  "artifactSHA256": "0b79c0358c129749bc3355f52bbae13f115577ab37c082a76dfdc54f66fd3f79",
+  "purpose": "Exact original WorkBuddy 5.9.2 context-window source slices; bounded VM replay only. Home replay covers its local configuration block, not conversation creation or message sending. No application launch or user profile is required.",
+  "members": [
+    {
+      "member": "renderer/assets/src-C-yvPLiT.js",
+      "sha256": "7e4438995d9f67ac10a67b964bfdad2a543def60a7df06f708df2ed41454a1f8"
+    },
+    {
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "sha256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac"
+    },
+    {
+      "member": "renderer/assets/wb-DkFLYXY0.js",
+      "sha256": "1f0175d71409396bb408f72450f9ca09c8d9fcdc66ed58d3a0dc618e8e3f0c5c"
+    },
+    {
+      "member": "renderer/assets/home-BPWB0jVF.js",
+      "sha256": "bb156840b3edfa26640b8d4eae544d0f7eeef23f42e72eb3b5d6e35de19180cb"
+    }
+  ],
+  "slices": [
+    {
+      "name": "supported-windows",
+      "kind": "function",
+      "member": "renderer/assets/src-C-yvPLiT.js",
+      "memberSHA256": "7e4438995d9f67ac10a67b964bfdad2a543def60a7df06f708df2ed41454a1f8",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 2041186,
+        "end": 2041391
+      },
+      "sha256": "56ccbb8260339f5a03ea5436b19e4dda468f7120bfcba3cd9287824c63b7173d",
+      "bytes": 205,
+      "source": "function getSupportedContextWindows(n){let a=n.maxInputTokens;return Array.from(new Set(n.supportedContextWindows??[])).filter(n=>Number.isSafeInteger(n)&&n>0&&(typeof a!=`number`||n<=a)).sort((n,a)=>n-a)}"
+    },
+    {
+      "name": "default-window",
+      "kind": "expression",
+      "member": "renderer/assets/src-C-yvPLiT.js",
+      "memberSHA256": "7e4438995d9f67ac10a67b964bfdad2a543def60a7df06f708df2ed41454a1f8",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 2043995,
+        "end": 2044200
+      },
+      "sha256": "53349f39371d8b6dea531b18695a2dc34dcceca10ab0c7fba4f61274dce91004",
+      "bytes": 205,
+      "source": "typeof n.selectedContextWindow==`number`&&D.includes(n.selectedContextWindow)?n.selectedContextWindow:typeof n.defaultContextWindow==`number`&&D.includes(n.defaultContextWindow)?n.defaultContextWindow:D[0]"
+    },
+    {
+      "name": "window-change",
+      "kind": "function",
+      "member": "renderer/assets/src-C-yvPLiT.js",
+      "memberSHA256": "7e4438995d9f67ac10a67b964bfdad2a543def60a7df06f708df2ed41454a1f8",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 2065490,
+        "end": 2065668
+      },
+      "sha256": "a7d348a051dba6a126d0abb83cf303c99051f37049fa567123e08923bb2ceb29",
+      "bytes": 178,
+      "source": "(a,c)=>{let u=n.options.find(n=>n.id===a);if(u&&m?.id!==a){let a=createModelSelection(u,getDefaultIsThinking(u));p.api.setModel(a),n.onChange?.(a)}n.onContextWindowChange?.(a,c)}"
+    },
+    {
+      "name": "read-window",
+      "kind": "function",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5157291,
+        "end": 5157496
+      },
+      "sha256": "09cb7c33eebddcec431181d47b1562271b52883266efca3ee7a4c40500586ab4",
+      "bytes": 205,
+      "source": "function readContextWindow(e){let t=e.options?.find(e=>e.key===`context_window`);if(typeof t?.value!=`string`||t.value.trim()===``)return;let n=Number(t.value);return Number.isSafeInteger(n)&&n>0?n:void 0}"
+    },
+    {
+      "name": "config-update",
+      "kind": "statement",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5164507,
+        "end": 5165073
+      },
+      "sha256": "0c2c66b7657fe6d16d43c25c8c9b5883ac76b1c42fdd1a576c05cb076a182a72",
+      "bytes": 566,
+      "source": "n.on(Zo.ConfigUpdate,e=>{if(shouldSkip())return;let t=readThoughtLevel(e);t!==void 0&&a.getState().setThoughtLevel(t);let n=readContextWindow(e);n!==void 0&&a.getState().setContextWindow(n);let r=readExpertId(e);if(r!==void 0){let e=a.getState().expert,t=r?e?.expertId===r?e:{expertId:r}:void 0;a.getState().setExpert(t),v?.(t)}let i=readSceneMode(e);i!==void 0&&a.getState().setMode(i);let o=readAcpPermissionMode(e);o!==void 0&&a.getState().setPermissionMode(o);let c=readConnectors(e);c!==void 0&&a.getState().setConnectors(c),s.emit(`configUpdate`,{payload:e})})"
+    },
+    {
+      "name": "capability-setter",
+      "kind": "method",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 5058756,
+        "end": 5059235
+      },
+      "sha256": "d823bc6a8347f5b6a16d45259267263f3a22aabfec3382c7bc33ae0521c5208c",
+      "bytes": 479,
+      "source": "async setContextWindow(e){let t=this.getConversation();if(!t)return;let n=++this.revisions.contextWindow,r=e===``?void 0:Number(e),i=this.sessionStore.getState().contextWindow;this.sessionStore.getState().setContextWindow(r!==void 0&&Number.isFinite(r)?r:void 0);try{await this.enqueueCoreMutation(async()=>{throwConversationApiError(await t.configManager.setContextWindow(e))})}catch(e){throw this.isStale(`contextWindow`,n)||this.sessionStore.getState().setContextWindow(i),e}}"
+    },
+    {
+      "name": "clamp-window",
+      "kind": "function",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3450107,
+        "end": 3450345
+      },
+      "sha256": "113fb70012203df505a28ac354cd14a665417b937cbb00a6ccf796c2bc3e74df",
+      "bytes": 238,
+      "source": "function clampContextWindowToSupported(e,t){if(typeof e!=`number`||!Number.isSafeInteger(e)||e<=0)return;let n=Array.from(new Set(t??[])).filter(e=>Number.isSafeInteger(e)&&e>0).sort((e,t)=>e-t);return n.length>=2&&n.includes(e)?e:void 0}"
+    },
+    {
+      "name": "sdk-setter",
+      "kind": "method",
+      "member": "renderer/assets/wb-DkFLYXY0.js",
+      "memberSHA256": "1f0175d71409396bb408f72450f9ca09c8d9fcdc66ed58d3a0dc618e8e3f0c5c",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 61934,
+        "end": 62050
+      },
+      "sha256": "2c1fd1b34294235aec740635b160dce22f63c5df7398bd4c0e2ae294f306cc54",
+      "bytes": 116,
+      "source": "async setContextWindow(n){let r=await e.configSetContextWindow(t,n);return(!r||!(`errorCode`in r))&&(d=n||void 0),r}"
+    },
+    {
+      "name": "home-local-window",
+      "kind": "statement",
+      "member": "renderer/assets/home-BPWB0jVF.js",
+      "memberSHA256": "bb156840b3edfa26640b8d4eae544d0f7eeef23f42e72eb3b5d6e35de19180cb",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 78180,
+        "end": 78791
+      },
+      "sha256": "d0eff486dc78b7ea39a2292a930a653caf5ea4bbab7655de1c91fdc20fe226d4",
+      "bytes": 611,
+      "source": "if(!t){let e=Fa(n.accountInfo?.userId,sa().buddyAppScopeKey),t=c.modelId??e?.id,r=tn(n.accountInfo?.userId,t),i=c.selectedContextWindow??li.getSnapshot()??r??e?.contextWindow;if(i!==void 0){let e=await D.configManager.setContextWindow(String(i));isApiError(e)&&console.warn(`[Home] Failed to apply new-task context window:`,e.message)}li.clear();let a=e&&e.id===t&&e?e.isThinking===!1?c.modelCanDisableThinking===!1?void 0:`disabled`:e.reasoningEffort:void 0;if(a){let e=await D.configManager.setThoughtLevel(a);isApiError(e)&&console.warn(`[Home] Failed to apply new-task thought level:`,e.message)}li.clear()}"
+    },
+    {
+      "name": "adapt-model",
+      "kind": "function",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3521883,
+        "end": 3522552
+      },
+      "sha256": "37b6a5b9a36ef2e79493c63d875f4d1ce3f39062082ee6f728aed7e69c7c7877",
+      "bytes": 669,
+      "source": "function adaptModelInfoToInternal(e){return{id:e.id,name:e.name,description:e.description,descriptionEn:e.descriptionEn,descriptionZh:e.descriptionZh,vendor:e.vendor,iconUrl:e.iconUrl,configurable:e.configurable,configured:e.configured,credits:e.credits,isDefault:e.isDefault,disabled:e.disabled,disabledReason:e.disabledReason,disabledAction:e.disabledAction,tags:e.tags,modelType:e.modelType,supportsToolCall:e.supportsToolCall,supportsImages:e.supportsImages,supportsReasoning:e.supportsReasoning,onlyReasoning:e.onlyReasoning,maxInputTokens:e.maxInputTokens,reasoning:e.reasoning,contextWindow:e.contextWindow,promotions:e.promotions,tier:e.tier,aliases:e.aliases}}"
+    },
+    {
+      "name": "model-options",
+      "kind": "function",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3525753,
+        "end": 3527038
+      },
+      "sha256": "f0a04cec9cee660e032d2392ef01f51d044fcb9003915018906eb9f8a14174e9",
+      "bytes": 1285,
+      "source": "function convertInternalModelToOptions(e,t){let n=getModelDisplayName(e,t.translate),r=getModelIconValue(e,n,t.customModelSettingsConfig),i=getModelGroupId(e,t.enableIoaGrouping),a=getModelDescription(e,t.isZhLocale),o=isCustomModel(e)?[{id:`edit`,label:t.editLabel,icon:(0,Cz.createElement)(Or)}]:void 0,s=resolveModelReasoning(e,t.customModelSettingsConfig),c=s?.defaultEffort??s?.effort,l=s?.canDisableThinking!==!1,u={id:e.id,label:n,description:a,icon:r,actions:o,credits:e.credits,configurable:e.configurable,configured:e.configured,isDefault:e.isDefault,supportsImages:e.supportsImages,supportsReasoning:e.supportsReasoning,onlyReasoning:e.onlyReasoning,maxInputTokens:e.maxInputTokens,canDisableThinking:l,defaultEffort:c,supportedEfforts:s?.supportedEfforts,supportedContextWindows:e.contextWindow?.supportedLengths,defaultContextWindow:e.contextWindow?.defaultLength,isThinking:!1,groupId:i,disabled:e.disabled||e.configurable&&!e.configured,disabledReason:e.disabledReason,disabledAction:e.disabledAction,isExternal:isExternalModelForIoa(e,t.enableIoaGrouping),badges:resolveModelBadges(e.tags,i,t.enableIoaGrouping),promotions:e.promotions,tier:e.tier,aliases:e.aliases},d={...u,isThinking:!0,reasoningEffort:c};return e.supportsReasoning?e.onlyReasoning||!l?[d]:[u,d]:[u]}"
+    }
+  ]
+}

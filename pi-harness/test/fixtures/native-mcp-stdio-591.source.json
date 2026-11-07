@@ -1,0 +1,187 @@
+{
+  "workbuddyVersion": "5.9.1",
+  "artifactSHA256": "1fc0a56ddec5437d4dc55a55ba1c028b291ab29cb17306500827015987424233",
+  "purpose": "Static native MCP stdio launch/framing, trust and identity contract; target not executed and no user configuration or credentials read.",
+  "slices": [
+    {
+      "name": "controllerTransport",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 755213,
+        "end": 755265
+      },
+      "sha256": "81bfc0c034abbc8e876030d962e53896df080474232a580c89fc906a49a6e7f5",
+      "source": "get transport(){return this.configuration.transport}"
+    },
+    {
+      "name": "controllerConfiguration",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 817488,
+        "end": 817695
+      },
+      "sha256": "fe1995f25ff918e0ba07f02567d6580fb1bbd3a3bda2a665c86ec087ad53dcce",
+      "source": "function toMcpClientConfiguration(e){return{id:e.id,transport:e.transport,auth:e.auth,timeoutMs:e.timeoutMs,dynamicHeaders:e.dynamicHeaders,needsInjectPOI:e.needsInjectPOI,injectOneIdAuth:e.injectOneIdAuth}}"
+    },
+    {
+      "name": "controllerFactory",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 817695,
+        "end": 817869
+      },
+      "sha256": "97c0f436b7bdc41813a0639b4ecbd6b6761aca4eb420ff8c9c9eefd93bd9806b",
+      "source": "function createMcpController(e,t={}){let n=toMcpClientConfiguration(e);return e.transport.kind===`stdio`?new StdioMcpClientController(n,t):new RemoteMcpClientController(n,t)}"
+    },
+    {
+      "name": "connectionFingerprint",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 758553,
+        "end": 759176
+      },
+      "sha256": "ab4b2cb357b63d21cfcce6d495e6390c8739bf0a488fad18995a08c5e4d85c16",
+      "source": "function computeConnectionFingerprint(e){let t=stableStringify$1({transport:e.transport.kind===`stdio`?e.transport:{kind:e.transport.kind,url:e.transport.url},auth:e.auth,needsInjectPOI:e.needsInjectPOI===!0||void 0,injectOneIdAuth:e.injectOneIdAuth});return at.createHash(`sha256`).update(t).digest(`hex`).slice(0,32)}function stableStringify$1(e){return Array.isArray(e)?`[${e.map(stableStringify$1).join(`,`)}]`:!e||typeof e!=`object`?JSON.stringify(e)??`null`:`{${Object.entries(e).filter(([,e])=>e!==void 0).sort(([e],[t])=>e.localeCompare(t)).map(([e,t])=>`${JSON.stringify(e)}:${stableStringify$1(t)}`).join(`,`)}}`}"
+    },
+    {
+      "name": "stdioController",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 816541,
+        "end": 817449
+      },
+      "sha256": "791d12b751b510101ef9fa1471e7fdcfe1a44f7f519c5260fe9251d5f4aba320",
+      "source": "var StdioMcpClientController=class extends McpClientController{constructor(e,t={}){super(e),this.probeTransport=new McpStdioTransport({...t.resolveStdioRuntimePathEnv?{resolveRuntimePathEnv:t.resolveStdioRuntimePathEnv}:{},...t.resolveStdioRuntimeCommand?{resolveRuntimeCommand:t.resolveStdioRuntimeCommand}:{}}),this.resolveProbeTransport=t.resolveStdioProbeTransport}async open(e){let t=this.stdioProbeTransport();return this.probeTransport.probeTools(this.id,t,this.configuration.timeoutMs)}async readResource(e,t){return this.probeTransport.readResource(this.id,this.stdioProbeTransport(),e,this.configuration.timeoutMs)}stdioTransport(){let e=this.configuration.transport;if(e.kind!==`stdio`)throw Error(`[StdioMcpClientController] ${this.id} \\u4E0D\\u662F stdio \\u4F20\\u8F93`);return e}stdioProbeTransport(){let e=this.stdioTransport();return this.resolveProbeTransport?.(this.id,e)??e}async close(){}};"
+    },
+    {
+      "name": "stdioWithClient",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 813984,
+        "end": 815157
+      },
+      "sha256": "4c94a0e84e8698552064aab9b5d4dab885cfa2ba4ffe9e0f3d68ba0d16c5a053",
+      "source": "async withClient(e,t,n,r,i){let a=normalizeTimeout(n),o=this.options.resolveRuntimePathEnv?.()??{},s=ue.k(process.platform,process.env,o,t.env??{},{NODE_OPTIONS:``}),c=this.options.resolveRuntimeCommand?.(t.command)??t.command,l=new StdioClientTransport({command:c,args:[...t.args??[]],env:s,...t.cwd?{cwd:t.cwd}:{},stderr:`pipe`}),u=declaredSecretCandidates(t.env),d=[],f=0;l.stderr?.on(`data`,e=>{let t=String(e).trim();t&&(f+=1,d.length<Yu&&d.push(redactSecrets(t.slice(0,Xu),u)))});let p=new Client({name:`workbuddy-mcp-probe:${e}`,version:`1.0.0`}),m=Date.now();try{await withTimeout$2(p.connect(l,{timeout:a}),a,`MCP initialize timed out for \"${e}\"`);let t=await withTimeout$2(r(p),a,i);return L.R(`stdio-connected`,{id:e,pidSpawned:l.pid??null,elapsedMs:Date.now()-m}),t}catch(t){L.R(`stdio-probe-failed`,{id:e,command:c,elapsedMs:Date.now()-m,timeoutMs:a,timeoutRequested:n,pidSpawned:l.pid??null,stderrChunks:f,...spawnSyscallDiagnostic(t),...L.F(t)},`warn`);for(let[t,n]of d.entries())L.R(`stdio-child-stderr`,{id:e,seq:t+1,of:f,chunk:n},`warn`);let r=l.pid;throw r&&await ce.r(r).catch(()=>!1),t}finally{await p.close().catch(()=>l.close().catch(()=>void 0))}}};"
+    },
+    {
+      "name": "stdioFraming",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 810089,
+        "end": 810551
+      },
+      "sha256": "e2ee3674faeb79d6e94806b883d25a8123eaba7f5465568f76f93d4a51a917a7",
+      "source": "ReadBuffer=class{append(e){this._buffer=this._buffer?Buffer.concat([this._buffer,e]):e}readMessage(){if(!this._buffer)return null;let e=this._buffer.indexOf(`\n`);if(e===-1)return null;let t=this._buffer.toString(`utf8`,0,e).replace(/\\r$/,``);return this._buffer=this._buffer.subarray(e+1),deserializeMessage(t)}clear(){this._buffer=void 0}};function deserializeMessage(e){return z.D.parse(JSON.parse(e))}function serializeMessage(e){return JSON.stringify(e)+`\n`}"
+    },
+    {
+      "name": "stdioTransport",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 810942,
+        "end": 812923
+      },
+      "sha256": "a34fd23e20c9a47f55dbad53f051079a406f3df0f8ccc4cef884bfce1f1e0f3a",
+      "source": "var StdioClientTransport=class{constructor(e){this._readBuffer=new ReadBuffer,this._stderrStream=null,this._serverParams=e,(e.stderr===`pipe`||e.stderr===`overlapped`)&&(this._stderrStream=new lt.PassThrough)}async start(){if(this._process)throw Error(`StdioClientTransport already started! If using Client class, note that connect() calls start() automatically.`);return new Promise((e,t)=>{this._process=(0,Wu.default)(this._serverParams.command,this._serverParams.args??[],{env:{...getDefaultEnvironment(),...this._serverParams.env},stdio:[`pipe`,`pipe`,this._serverParams.stderr??`inherit`],shell:!1,windowsHide:rt.default.platform===`win32`,cwd:this._serverParams.cwd}),this._process.on(`error`,e=>{t(e),this.onerror?.(e)}),this._process.on(`spawn`,()=>{e()}),this._process.on(`close`,e=>{this._process=void 0,this.onclose?.()}),this._process.stdin?.on(`error`,e=>{this.onerror?.(e)}),this._process.stdout?.on(`data`,e=>{this._readBuffer.append(e),this.processReadBuffer()}),this._process.stdout?.on(`error`,e=>{this.onerror?.(e)}),this._stderrStream&&this._process.stderr&&this._process.stderr.pipe(this._stderrStream)})}get stderr(){return this._stderrStream?this._stderrStream:this._process?.stderr??null}get pid(){return this._process?.pid??null}processReadBuffer(){for(;;)try{let e=this._readBuffer.readMessage();if(e===null)break;this.onmessage?.(e)}catch(e){this.onerror?.(e)}}async close(){if(this._process){let e=this._process;this._process=void 0;let t=new Promise(t=>{e.once(`close`,()=>{t()})});try{e.stdin?.end()}catch{}if(await Promise.race([t,new Promise(e=>setTimeout(e,2e3).unref())]),e.exitCode===null){try{e.kill(`SIGTERM`)}catch{}await Promise.race([t,new Promise(e=>setTimeout(e,2e3).unref())])}if(e.exitCode===null)try{e.kill(`SIGKILL`)}catch{}}this._readBuffer.clear()}send(e){return new Promise(t=>{if(!this._process?.stdin)throw Error(`Not connected`);let n=serializeMessage(e);this._process.stdin.write(n)?t():this._process.stdin.once(`drain`,t)})}},"
+    },
+    {
+      "name": "runtimePathEnv",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1792188,
+        "end": 1792328
+      },
+      "sha256": "932d1c85dfccb5886890c249429f9c7817ba591c86577a634d27d276951b1f29",
+      "source": "function buildStdioRuntimePathEnv(){let e=ue.r(),t=Object.keys(e).find(e=>e.toLowerCase()===`path`),n=t?e[t]:void 0;return t&&n?{PATH:n}:{}}"
+    },
+    {
+      "name": "runtimeCommand",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1792328,
+        "end": 1792457
+      },
+      "sha256": "0034810d98038fcbe4a630472f712a55a47956c5e6cbd16971255d6c7be91cb7",
+      "source": "function resolveStdioRuntimeCommand(e){let t=e.trim().toLowerCase();return t!==`node`&&t!==`node.exe`?e:ue.O()??process.execPath}"
+    },
+    {
+      "name": "localRouteProbe",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 896660,
+        "end": 897065
+      },
+      "sha256": "ef19313bad65154775c5132dd6dba2ca30c5f336cb276cbb98c0e87575ad86d4",
+      "source": "resolveStdioProbeTransport(e,t){let n=t.localRoute;if(!n)return t;let r=this.host.getPort();if(r<=0)throw Error(`[McpManager] local route is not ready for stdio probe: ${e}`);let i=this.envelope.sign({sessionId:`mcp-probe:${e}`,allowedBuiltinTools:[]});return{...t,env:{...t.env,[n.urlEnv]:`http://127.0.0.1:${r}${n.path}`,[n.authorizationEnv]:`Bearer ${this.tokens.issue(n.routeKey)}`,[n.contextEnv]:i}}}"
+    },
+    {
+      "name": "blocking",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 864561,
+        "end": 864708
+      },
+      "sha256": "94a95ec033c223e842a4b357330945fa0cf60d3de092a398322f4511e8a70fd5",
+      "source": "function isBlocked(e){return!e.enabled||!e.trusted}function blockedReason(e){if(!e.enabled)return`not-enabled`;if(!e.trusted)return`trust-pending`}"
+    },
+    {
+      "name": "userFormEntry",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 853806,
+        "end": 854516
+      },
+      "sha256": "7d4b2a26e117061984f0d843994934a924ab8206e7ad0adc6314f551aa29a64e",
+      "source": "function toEntry(e){let t={};if(e.type===`stdio`){let n=e.command?.trim();if(!n)throw new McpFormError(`stdio \\u7C7B\\u578B\\u5FC5\\u987B\\u586B command`);t.command=n;let r=(e.args??[]).filter(e=>e.length>0);r.length>0&&(t.args=r);let i=toRecord$1(e.env);i&&(t.env=i);let a=e.cwd?.trim();a&&(t.cwd=a)}else{let n=e.url?.trim();if(!n)throw new McpFormError(`${e.type} \\u7C7B\\u578B\\u5FC5\\u987B\\u586B url`);try{new URL(n)}catch{throw new McpFormError(`url \\u4E0D\\u662F\\u5408\\u6CD5\\u5730\\u5740: ${n}`)}t.url=n,e.type===`sse`&&(t.type=`sse`);let r=toRecord$1(e.headers);r&&(t.headers=r)}return e.disabled===!0&&(t.disabled=!0),typeof e.timeout==`number`&&Number.isFinite(e.timeout)&&e.timeout>0&&(t.timeout=e.timeout),t}"
+    },
+    {
+      "name": "mergeProcessEnv",
+      "member": "main/sidecar-manager.js",
+      "memberSHA256": "920b2b122c6c1d392c0317a9c1afd19719b5a5e14378cf3a7806c521f91edc15",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 1880,
+        "end": 2214
+      },
+      "sha256": "1ff71f8bcb6e62e48a8026478a84ac659697c95dc0de84983926725094353310",
+      "source": "function mergeProcessEnv(e,...t){let n=Object.assign({},...t);if(e===`win32`){for(let e of t){let t=Object.keys(e).filter(e=>e.toLowerCase()===`path`).sort()[0];t&&(n.PATH=e[t])}for(let e of Object.keys(n))e.toLowerCase()===`path`&&e!==`PATH`&&delete n[e]}return Object.fromEntries(Object.entries(n).filter(e=>typeof e[1]==`string`))}"
+    },
+    {
+      "name": "protocolVersions",
+      "member": "main/server-side-access-token.js",
+      "memberSHA256": "0dcca5c3c3004f15c3b4a42ac2b644d6cdf62b8f40f3c072c6f218393dbf5955",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 9057,
+        "end": 9149
+      },
+      "sha256": "92e1c3c219d91d6b69a0b604103d747c7791e2c6fd117a07e6207a7daa6340a5",
+      "source": "var u=`2025-11-25`,d=`2025-03-26`,f=[u,`2025-06-18`,`2025-03-26`,`2024-11-05`,`2024-10-07`],"
+    }
+  ]
+}

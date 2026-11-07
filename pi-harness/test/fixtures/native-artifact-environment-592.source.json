@@ -1,0 +1,510 @@
+{
+  "workbuddyVersion": "5.9.2",
+  "artifactSHA256": "0b79c0358c129749bc3355f52bbae13f115577ab37c082a76dfdc54f66fd3f79",
+  "slices": [
+    {
+      "name": "bindArtifactFileAccess",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 12999,
+        "end": 13882,
+        "encoding": "UTF-8"
+      },
+      "source": "function bindArtifactFileAccess(e){let{adapter:t,taskId:n,environmentType:r}=e,read=(async(i,a=`text`)=>{if(e.read)return e.read(i,a);if(!n||r===`cloud`)throw Error(`Artifact file reader unavailable`);let o=await t.readFile(n,i,a,kt(i));if(!o.success||o.content===void 0)throw Error(o.error||`Artifact read failed`);return o.content});return{read,readDiff:e.readDiff??(e=>read(e,`text`)),write:e.write??(n&&r===`local`&&t.writeFile?async(r,i,a)=>{if(typeof i!=`string`&&await e.writeLocalBinary?.(r,i))return;let o=await t.writeFile(n,r,i,a??{allowedDirs:[r]});if(!o.success)throw Error(o.error||`Artifact save failed`)}:void 0),resolvePreviewUrl:n&&t.resolvePreviewUrl?e=>t.resolvePreviewUrl(n,e):void 0,listDirectory:n&&r===`local`&&t.listDirectory?(e,r)=>t.listDirectory(n,e,r):void 0,readChunked:n&&r===`local`&&t.readFileChunked?e=>t.readFileChunked({...e,sessionId:n}):void 0}}",
+      "sha256": "e11a7d7a9b4b3d52e9c4f21a695800a53bd01a9819dfe62909dbbb670c4bc092"
+    },
+    {
+      "name": "resolveProjectUploadId",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 14261,
+        "end": 14374,
+        "encoding": "UTF-8"
+      },
+      "source": "function resolveProjectUploadId({urlProjectId:e,projectSandboxId:t,conversationProjectId:n}){return e&&t?e:n||``}",
+      "sha256": "4a05efd5b9477e8b6f1f4205e9cd870230c77e324f933488d00acce102336567"
+    },
+    {
+      "name": "useStableArtifactPanelState",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 23114,
+        "end": 23229,
+        "encoding": "UTF-8"
+      },
+      "source": "function useStableArtifactPanelState(e){let t=(0,H.useRef)(void 0),n=e?_i(t.current,e):void 0;return t.current=n,n}",
+      "sha256": "41b8486a2a82bd0e48e650696741a2b0c6900f3dbe9a32040daddf6555a71d15"
+    },
+    {
+      "name": "useStableStringArray",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 23229,
+        "end": 23377,
+        "encoding": "UTF-8"
+      },
+      "source": "function useStableStringArray(e){let t=(0,H.useRef)(void 0),n=t.current,r=n&&n.length===e.length&&n.every((t,n)=>t===e[n])?n:e;return t.current=r,r}",
+      "sha256": "e81320476248407ea948d40ba319b0523b144b58a37ce54d545459f7d93f25fe"
+    },
+    {
+      "name": "useConversationArtifactBinding",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 23377,
+        "end": 26416,
+        "encoding": "UTF-8"
+      },
+      "source": "function useConversationArtifactBinding(e,t,n,r,i=!1,a){let o=ni(),s=jt(),c=ri(),l=Ba(),u=useStableArtifactPanelState(e),d=a?.isHome?void 0:e?.currentConversation,f=useArtifactRuntimeBinding(e,t,a),p=(0,H.useMemo)(()=>createArtifactPlanActions(t,e?.artifacts??[]),[t,e?.artifacts]),m=d?.id,h=d?.title,g=d?.runtimeId,_=d?.projectId,ee=Et(d),v=m?o?.projectChat?.getSandboxId?.(m):void 0,te=resolveProjectUploadId({urlProjectId:c?.params.projectId,projectSandboxId:v,conversationProjectId:_}),ne=a?a.cwd:d?.cwd,y=g||d?.transport===`cloud`||ne===`/workspace`||ne?.startsWith(`/workspace/`)||v||i?`cloud`:t.environmentType,b=(0,H.useMemo)(()=>bindArtifactFileAccess({adapter:t,taskId:m,environmentType:y,read:e?.readFileWithFormat,readDiff:e?.readFileForDiff,write:e?.writeSandboxFile,writeLocalBinary:writeArtifactBinaryFile}),[t,m,y,e?.readFileWithFormat,e?.readFileForDiff,e?.writeSandboxFile]),re=g??m,x=(0,H.useMemo)(()=>{let e=t.getCloudAgentSandboxSession?.bind(t);return re&&e?()=>e({asConversationId:re}):void 0},[t,re]),ie=(0,H.useMemo)(()=>{if(y===`cloud`&&x)return(e,t)=>Rt(x,e,t)},[y,x]),ae=useStableStringArray((0,H.useMemo)(()=>(e?.conversations??[]).filter(e=>pe(e.status)).map(e=>e.id),[e?.conversations])),S=P(e),oe=(0,H.useCallback)(e=>mt(S.current?.conversations,e).requestId||void 0,[S]),se=(0,H.useCallback)(e=>{S.current?.setPendingTdocOpen?.(e),S.current?.setCurrentConversation?.(null),l(`/library/tencent-docs`)},[l,S]),ce=(0,H.useCallback)(e=>{S.current?.setPendingLexiangOpen?.(e),S.current?.setCurrentConversation?.(null),l(`/library/lexiang`)},[l,S]),le=(0,H.useMemo)(()=>{if(u)return{...u,...f,...p,scopeKey:n,origin:m?{taskId:m,taskName:h}:void 0,subscribeSandboxFileChange:u.subscribeSandboxFileChange??ie,...a?.isHome?{artifacts:[],selectedArtifactId:void 0,fileBrowserAvailable:!!ne}:{},workspaceCwd:ne,environmentType:y,isProjectSession:!!te,hasProjectSandbox:!!v,isDesignTask:ee,fileAccess:b,input:r,processingSessionIds:ae,getCanvasOpenRequestId:oe,getDriveTarget:(e=m)=>{let t=e?o?.projectChat?.getSandboxId?.(e):void 0;return{projectId:resolveProjectUploadId({urlProjectId:c?.params.projectId,projectSandboxId:t,conversationProjectId:_}),runtimeId:t}},getProjectSandboxId:()=>m?o?.projectChat?.getSandboxId?.(m):void 0,getSandboxCredential:x,resolvePublishedPreviewUrl:e=>C(e,m,s?.publishedApps),onViewUploadedTencentDoc:se,onViewUploadedLexiangEntry:ce,onLastTabClosed:()=>Dt(m)}},[u,n,m,h,x,ie,_,ee,c?.params.projectId,ne,y,te,v,p,a?.isHome,b,r,ae,oe,o?.projectChat,t,s?.publishedApps,se,ce,f.terminal,f.browser,f.quickAskSessions,f.activeQuickAskId,f.closeQuickAskSession,f.forcedArdotOnboarding,f.renderTool,f.mcpAppsStatus]),ue=(0,H.useRef)({initialized:!1,source:e,panelState:u,host:le});return(0,H.useEffect)(()=>{let t=ue.current;t.initialized&&(t.source!==e&&(ao(`artifactPanel.source.changed`),ao(t.panelState===u?`artifactPanel.state.reused`:`artifactPanel.state.changed`)),t.host!==le&&ao(`artifactPanel.host.changed`)),ue.current={initialized:!0,source:e,panelState:u,host:le}},[le,u,e]),le}",
+      "sha256": "4cb8b2e1737ac47dacb07efec17a71fb50b408f6278b8c9061756e7f13e2797e"
+    },
+    {
+      "name": "ConversationArtifactPanelBridge",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 26525,
+        "end": 27223,
+        "encoding": "UTF-8"
+      },
+      "source": "function ConversationArtifactPanelBridge({children:e,injectedHost:t,forceCloudEnvironment:n}){let r=(0,Gs.useContext)(Ae),i=(0,Gs.useContext)(Wt),a=_r(),o=(0,Gs.useContext)(es),s=(0,Gs.useMemo)(()=>i?{...i,...a,openArtifact:a===Jt?void 0:a.openArtifact,browserPanelSessionId:i.browserPanel?o:void 0}:void 0,[i,a,o]),c=(0,Gs.useContext)(Tn),l=!t&&!r?c:void 0,u=t?void 0:r??s,d=za(),f=(0,Gs.useId)(),p=useArtifactInputBinding(u?.currentConversation?.id,d),m=useConversationArtifactBinding(u,d,l?.scopeKey||r?.scopeKey||u?.currentConversation?.id||`artifact-panel:${f}`,p,n,l),h=t??m;return h?(0,Ks.jsxs)(Ks.Fragment,{children:[r&&!t?(0,Ks.jsx)(EmbeddedBrowserSessionScope,{host:h}):null,e(h)]}):null}",
+      "sha256": "d8aba1f3dc9c67244c897dbf290df8f3f2852908c90627a83f31806c45439ca8"
+    },
+    {
+      "name": "finalEnvironment",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 71345,
+        "end": 71409,
+        "encoding": "UTF-8"
+      },
+      "source": "b||e.environmentType===`cloud`||rr&&sr?`cloud`:e.environmentType",
+      "sha256": "54f0c4b2a0a536270e02724d8c4f16d082ed52d8e7578d8837814c3faac0e645"
+    },
+    {
+      "name": "DetailPanelWrapper",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 151435,
+        "end": 151656,
+        "encoding": "UTF-8"
+      },
+      "source": "e=>{let t=X.useContext(ye);return(0,Z.jsx)(ConversationArtifactPanelBridge,{injectedHost:t,forceCloudEnvironment:e.forceCloudEnvironment,children:n=>(0,Z.jsx)(ArtifactPanelContentBoundary,{...e,host:n,independent:!!t})})}",
+      "sha256": "0c940d6dc9605035ad9018871f4ebd4158219680c1cad3c43b8452f1f704ade1"
+    },
+    {
+      "name": "finalBinding_sr",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 71321,
+        "end": 71342,
+        "encoding": "UTF-8"
+      },
+      "source": "!!e.hasProjectSandbox",
+      "sha256": "b752bfcec58731a022b5e0e9a77258c5f0fab3cf27d03fd7b253ec4acc2a79cc"
+    },
+    {
+      "name": "finalBinding_rr",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 71294,
+        "end": 71317,
+        "encoding": "UTF-8"
+      },
+      "source": "!!e.isProjectSession||b",
+      "sha256": "f96ed596a50901451b02eea899abc14254b9f667b6183def8f31500a9a619dfe"
+    },
+    {
+      "name": "TaskChatDetailPanel",
+      "member": "renderer/assets/project-detail-page-Db1cZHww.js",
+      "memberSHA256": "c3bf3f2dfc5112a091fd7cb90ad7e47fd4d65721ea0e0a103a28d0ccb64c1a73",
+      "range": {
+        "start": 156317,
+        "end": 157068,
+        "encoding": "UTF-8"
+      },
+      "source": "({canSaveArtifactToLibrary:e})=>{let{showDetailPanel:t}=Dr(),{detailPanelWidth:n,isPreviewFullscreen:r,handleSashMouseDown:i,togglePreviewFullscreen:a}=useProjectConversationStore(),o=n,s=(0,Bp.useCallback)(e=>{a(e)},[a]);return t?(0,Vp.jsxs)(Vp.Fragment,{children:[!r&&(0,Vp.jsx)(`div`,{className:`project-detail-view__detail-sash`,onMouseDown:i}),(0,Vp.jsx)(`div`,{className:`project-detail-view__detail-panel${r?` project-detail-view__detail-panel--fullscreen`:``}`,style:r?void 0:{width:n},children:(0,Vp.jsx)(Gc,{width:o,detailInfo:null,isPreviewFullscreen:r,onTogglePreviewFullscreen:s,showMediaPreviewFullscreenButton:!0,canSaveArtifactToLibrary:e,forceCloudEnvironment:!0,disableArtifactSharing:!0,PanelComponent:CloudSidebarPanel})})]}):null}",
+      "sha256": "732a2e583fc5d9c0973839994e46c921ba2d5fa16ced553ab712160bebd809da"
+    },
+    {
+      "name": "projectDetailPanelImport",
+      "member": "renderer/assets/project-detail-page-Db1cZHww.js",
+      "memberSHA256": "c3bf3f2dfc5112a091fd7cb90ad7e47fd4d65721ea0e0a103a28d0ccb64c1a73",
+      "range": {
+        "start": 9451,
+        "end": 9515,
+        "encoding": "UTF-8"
+      },
+      "source": "import{r as Wc,t as Gc}from\"./detail-panel-wrapper-XXvjMNBg.js\";",
+      "sha256": "003e9ece9ab15b7e9e87493932f97ed4638e5b2669afdaa6aebbd5c6f2ee3e61"
+    },
+    {
+      "name": "mapConversationInfoToSidebar",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 2014322,
+        "end": 2015185,
+        "encoding": "UTF-8"
+      },
+      "source": "function mapConversationInfoToSidebar(e){return{id:e.id,cwd:e.space.cwd??``,title:resolveSidebarDisplayTitle(e.title),timestamp:new Date(e.lastActivityAt||0),sortAt:e.lastActivityAt,status:mapConversationInfoToSidebarStatus(e),lifecycle:e.lifecycle,isPlayground:e.space.type===`local`&&!!e.space.autoGenerated,...e.isBackgroundAutomation===void 0?{}:{isBackgroundAutomation:e.isBackgroundAutomation},isUserDefinedTitle:mapIsUserDefinedTitle(e.isUserDefinedTitle),projectId:e.projectId,taskRole:e.project?.role,conversationOrigin:e.conversationOrigin,visibility:e.visibility,isPinned:e.isPinned,unread:e.unread,spaceType:e.space.type,spaceId:e.space.id,transport:e.transport,runtimeId:e.runtimeId??void 0,taskId:e.taskId??void 0,taskTitle:e.taskTitle??void 0,welcomeMode:e.welcomeMode,industryModeLabel:e.tags?.industryModeLabel,automationId:e.tags?.automationId}}",
+      "sha256": "c33b5e5c69f6b6a12a28b0cedb538a320e67aa6838ea0bb6240d50213473bc3e"
+    },
+    {
+      "name": "useArtifactConversationState",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 6801962,
+        "end": 6802585,
+        "encoding": "UTF-8"
+      },
+      "source": "function useArtifactConversationState(e){let{wb:t}=vl(),[n,r]=(0,f5.useState)(),[i,a]=(0,f5.useState)();(0,f5.useEffect)(()=>{if(!e)return;let n=!0,i=[];return t.conversations.get(e).then(t=>{if(n){if(t){let update=()=>r({...t.info});i=[t.on(Zo.InfoChange,update),t.on(Zo.StateChange,update)],update()}a(e)}}).catch(t=>{console.warn(`[ConversationArtifactHost] metadata unavailable`,t),n&&a(e)}),()=>{n=!1,i.forEach(e=>e())}},[e,t]);let o=(0,f5.useMemo)(()=>n?.id===e?{...mapConversationInfoToSidebar(n),transport:n.transport,runtimeId:n.runtimeId??void 0,messages:[]}:null,[e,n]);return{conversation:o,settled:!!o||i===e}}",
+      "sha256": "4c61a70449f3c56ceb77eaf10f9a297fc98df720d9628b27029df7184032a08f"
+    },
+    {
+      "name": "pickArtifactPanelState",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 2513599,
+        "end": 2513682,
+        "encoding": "UTF-8"
+      },
+      "source": "function pickArtifactPanelState(e){return Object.fromEntries(qnt.map(t=>[t,e[t]]))}",
+      "sha256": "e0bd811a32ca835666e0c52dff3006906f0cc1ba72e7160892616a07707feab1"
+    },
+    {
+      "name": "reuseArtifactPanelState",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 2513682,
+        "end": 2513793,
+        "encoding": "UTF-8"
+      },
+      "source": "function reuseArtifactPanelState(e,t){return e&&qnt.every(n=>Object.is(e[n],t[n]))?e:pickArtifactPanelState(t)}",
+      "sha256": "49f8fe0b55eb35a417179902b4da814521345ec06db3d8a5e651b609c95dbe37"
+    },
+    {
+      "name": "artifactPanelStateKeys",
+      "member": "renderer/assets/contexts-Qs-ojFS9.js",
+      "memberSHA256": "3e6df25ee2c417f9c791ab3e0ca8c7bad50987c5b294c12a7d6000fc618f71ac",
+      "range": {
+        "start": 2513836,
+        "end": 2515825,
+        "encoding": "UTF-8"
+      },
+      "source": "qnt=`activeMcpAppInstance.activeQuickAskId.addBrowserTab.ardotCanvasCollapseRequestSeq.artifacts.browserPanel.browserPanelSessionId.browserTabRefreshNonces.browserRefreshToken.browserUrl.clearDocumentSelectionBeforeTabSwitch.closeBrowserTab.closeQuickAskSession.collapsedFolders.artifactPreviewPanel.detailSidebarCollapseRequestSeq.detailSidebarExpandRequestSeq.documentPreviewRuntime.expandDetailPanelForSidebarPin.fileTree.fileTreeData.fileTreeLoaded.handleNewTask.handleShareFile.handleWxShareFileDirect.handleWecomShareFileDirect.hideActiveMcpAppPanel.isGitWorkspace.isMobileLayout.lazyFileTreeMode.loadedPaths.markdownImageUrlResolver.mcpAppStandardPanelSlot.mcpAppStandardPanelTab.mcpAppStandardPanelUsesArtifactNavigation.mcpAppsAvailable.mcpAppsDebug.notifyMcpAppDisplayModeChanged.onArdotMcpAppViewportChange.onCollapsedFoldersChange.onFileDoubleClick.onFileSelect.onGenerateAppFromArdotCanvas.onLoadExampleMcpApps.onLoadFileTreeChildren.onLoadedPathsChange.onMcpAppBridgeMessage.onMcpAppWebviewLoadError.onOpenMcpApp.onReadFile.onRequestFileTreeRefresh.onRetryMcpApp.onSelectMcpApp.onSidebarViewChange.onToggleDetailPanel.onRequestCloseDetailPanel.onToggleMcpAppsDebug.onTreeDataChange.openArtifact.openBrowserTabForUrl.pinSidebarRequestSeq.quickAskSessions.readFileForDiff.readFileWithFormat.registerMcpAppsPostMessage.registerShowSourceForFile.removeArtifact.selectedArtifactId.selectedFilePath.selectedMcpAppId.setActiveArtifactPreviewTab.setActiveBrowserTab.setActiveQuickAskSession.setBrowserUrl.setSelectedArtifactId.showDetailPanelAsNeeded.sidebarView.subscribeSandboxFileChange.closeArtifactPreviewTab.updateArtifact.updateArtifactPreviewTab.updateArtifactPreviewTabFavicon.updateArtifactPreviewTabLabel.updateArtifactPreviewTabUrl.updateArtifactPreviewTabDeviceViewport.updateBrowserTabDeviceViewport.updateBrowserTabFavicon.updateBrowserTabLabel.updateBrowserTabUrl.updateBrowserTabVisualZoom.updateBrowserTabZoomFactor.writeSandboxFile.activePreviewSurface`.split(`.`)",
+      "sha256": "d3708ede9bcf09914ff0cfc108b6a9cf0c80a883290fcb168ce7a34f87a15f5e"
+    },
+    {
+      "name": "detailProp_environmentType",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 142353,
+        "end": 142370,
+        "encoding": "UTF-8"
+      },
+      "source": "environmentType:O",
+      "sha256": "f60eccad6485bf1be1dbb5da729c3bdad8904e9f885e415da19d3c1e91e0ee1f"
+    },
+    {
+      "name": "detailProp_readFile",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 143812,
+        "end": 143823,
+        "encoding": "UTF-8"
+      },
+      "source": "readFile:Pd",
+      "sha256": "4732ba9babc2feeb7bf562a3c8fec641d342a3c7d840357e6a42de70112c2465"
+    },
+    {
+      "name": "detailProp_readFileWithFormat",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 145712,
+        "end": 145732,
+        "encoding": "UTF-8"
+      },
+      "source": "readFileWithFormat:J",
+      "sha256": "9841d08bc8500cd89e857529d8677586b6306b07885f0eb6e106212b4d8cd459"
+    },
+    {
+      "name": "detailProp_probeLocalFileSize",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 145733,
+        "end": 145754,
+        "encoding": "UTF-8"
+      },
+      "source": "probeLocalFileSize:wc",
+      "sha256": "ade59d78c12c0b432d7055385ccd39be6e62b4ca797420890fc92e01795ede94"
+    },
+    {
+      "name": "detailProp_sessionId",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 145755,
+        "end": 145766,
+        "encoding": "UTF-8"
+      },
+      "source": "sessionId:F",
+      "sha256": "0ddc9d71d03a806a90562c0e1740682740a6e6c325b2b3e215f606d17de444f2"
+    },
+    {
+      "name": "detailProp_cwd",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 146926,
+        "end": 146944,
+        "encoding": "UTF-8"
+      },
+      "source": "cwd:e.workspaceCwd",
+      "sha256": "dab64af4efe661c7f99904dfc8aa7830e9b8b54bef85fda3e8476774358f59ea"
+    },
+    {
+      "name": "detail_Md",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 132945,
+        "end": 132986,
+        "encoding": "UTF-8"
+      },
+      "source": "e.fileAccess?.readDiff??e.readFileForDiff",
+      "sha256": "c501c4ac70fd3d55115a4bd8510707d31dca8c9e0317ca36deb196eb196ae813"
+    },
+    {
+      "name": "detail_wc",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 98194,
+        "end": 98276,
+        "encoding": "UTF-8"
+      },
+      "source": "(0,X.useMemo)(()=>{let e=T?.getFileInfoByPath;if(e)return t=>e.call(T,wr(t))},[T])",
+      "sha256": "7c64d126085c7106b4acb8efdf674535ac42432e89438e0edaca49fbc4a5cd66"
+    },
+    {
+      "name": "detail_J",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 97963,
+        "end": 98190,
+        "encoding": "UTF-8"
+      },
+      "source": "(0,X.useMemo)(()=>Cc?((e,t)=>{if(e.startsWith(`blob:`)){if(!t||t===`text`)return fetch(e).then(e=>e.text());if(t===`blob`)return fetch(e).then(e=>e.blob())}return U&&Ja(U)&&yt(e)?It(e,t||`text`):t?Cc(e,t):Cc(e)}):void 0,[Cc,U])",
+      "sha256": "9eef13bbeca88a9570f33bf4c3dd7c0500c2c925d50c39b39c39f02dd21ca346"
+    },
+    {
+      "name": "detail_Cc",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 97920,
+        "end": 97960,
+        "encoding": "UTF-8"
+      },
+      "source": "e.fileAccess?.read??e.readFileWithFormat",
+      "sha256": "f78241c3699941bf09a0eeb2f90ac78c4db9a1cd1b5359bda8ce266372e0e64a"
+    },
+    {
+      "name": "detail_F",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 92960,
+        "end": 92976,
+        "encoding": "UTF-8"
+      },
+      "source": "e.origin?.taskId",
+      "sha256": "8a159dc6279e025df16e179d4c73397a42cbc7799b5465030a243f467017e8bc"
+    },
+    {
+      "name": "artifactProp_environmentType",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 486605,
+        "end": 486622,
+        "encoding": "UTF-8"
+      },
+      "source": "environmentType:o",
+      "sha256": "a872e7279f8b8788749afa30dab1f1efe031fd901707840c48fe09cbeda100a6"
+    },
+    {
+      "name": "artifactProp_sessionId",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 486734,
+        "end": 486746,
+        "encoding": "UTF-8"
+      },
+      "source": "sessionId:rr",
+      "sha256": "4baa65875b085493ce0a7fb5c81174ee6decf4bd32cac59faf1e991eda72fe9c"
+    },
+    {
+      "name": "artifactProp_artifact",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 486747,
+        "end": 486758,
+        "encoding": "UTF-8"
+      },
+      "source": "artifact:Po",
+      "sha256": "5191088935bac528f170f35ce7cf567b365c3fd0b573d2d52a65d10ec2289afe"
+    },
+    {
+      "name": "artifactProp_readFile",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 487269,
+        "end": 487280,
+        "encoding": "UTF-8"
+      },
+      "source": "readFile:qt",
+      "sha256": "4c3e387c0bb467f4887c77b1eabfa90a575f0dfe30d758d4b4ec27774d520822"
+    },
+    {
+      "name": "artifactProp_readFileWithFormat",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 487281,
+        "end": 487302,
+        "encoding": "UTF-8"
+      },
+      "source": "readFileWithFormat:er",
+      "sha256": "2baa013aa5e8b53184f7aad4a0ae990fabef4fd1d53bc71453591fedb8ab86a0"
+    },
+    {
+      "name": "artifactProp_cwd",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 487749,
+        "end": 487755,
+        "encoding": "UTF-8"
+      },
+      "source": "cwd:jr",
+      "sha256": "efa14848a5f4e3ecd186ac984b9720a7733a1716c7783aad06b45255a9fcec5d"
+    },
+    {
+      "name": "artifactProp_probeLocalFileSize",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 488101,
+        "end": 488122,
+        "encoding": "UTF-8"
+      },
+      "source": "probeLocalFileSize:tr",
+      "sha256": "682cdf0dbb1c97a200d33de77b362417a3569d1e94d36482c1066c26cd7558bc"
+    },
+    {
+      "name": "detail_Pd",
+      "member": "renderer/assets/detail-panel-wrapper-XXvjMNBg.js",
+      "memberSHA256": "5f3486e7781c5d4cfe3740eb0f903ef2a0d6e17115b41244fef104e936e6ec74",
+      "range": {
+        "start": 132999,
+        "end": 133349,
+        "encoding": "UTF-8"
+      },
+      "source": "(0,X.useCallback)(async t=>{if(!Md)throw Error(`Artifact diff reader unavailable`);let n=/%[0-9A-Fa-f]{2}/.test(t)?safeDecodeUri(t):t,r=Sc.current,i=`${e.scopeKey}:${n}`,a=r.get(i);if(a&&Date.now()-a.timestamp<5e3)return a.content;let o=await Md(n);return Nd.current===Md&&r.set(i,{content:o,versionId:``,timestamp:Date.now()}),o},[e.scopeKey,Md,Nd])",
+      "sha256": "37a496ceb2aa8f44b73b8274d07c2cd0160d7a9f3052448e1f199e80fdc7a23f"
+    },
+    {
+      "name": "panelParam_environmentType",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 456270,
+        "end": 456287,
+        "encoding": "UTF-8"
+      },
+      "source": "environmentType:o",
+      "sha256": "a872e7279f8b8788749afa30dab1f1efe031fd901707840c48fe09cbeda100a6"
+    },
+    {
+      "name": "panelParam_readFile",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 457463,
+        "end": 457474,
+        "encoding": "UTF-8"
+      },
+      "source": "readFile:qt",
+      "sha256": "4c3e387c0bb467f4887c77b1eabfa90a575f0dfe30d758d4b4ec27774d520822"
+    },
+    {
+      "name": "panelParam_readFileWithFormat",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 458820,
+        "end": 458841,
+        "encoding": "UTF-8"
+      },
+      "source": "readFileWithFormat:er",
+      "sha256": "2baa013aa5e8b53184f7aad4a0ae990fabef4fd1d53bc71453591fedb8ab86a0"
+    },
+    {
+      "name": "panelParam_probeLocalFileSize",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 458842,
+        "end": 458863,
+        "encoding": "UTF-8"
+      },
+      "source": "probeLocalFileSize:tr",
+      "sha256": "682cdf0dbb1c97a200d33de77b362417a3569d1e94d36482c1066c26cd7558bc"
+    },
+    {
+      "name": "panelParam_sessionId",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 458892,
+        "end": 458904,
+        "encoding": "UTF-8"
+      },
+      "source": "sessionId:rr",
+      "sha256": "4baa65875b085493ce0a7fb5c81174ee6decf4bd32cac59faf1e991eda72fe9c"
+    },
+    {
+      "name": "panelParam_cwd",
+      "member": "renderer/assets/src-C0qgplVo.js",
+      "memberSHA256": "0ae347ca611a02d70cc06ee37f26343871ee4ce8e56b566572b70606c1a13db2",
+      "range": {
+        "start": 459477,
+        "end": 459483,
+        "encoding": "UTF-8"
+      },
+      "source": "cwd:jr",
+      "sha256": "efa14848a5f4e3ecd186ac984b9720a7733a1716c7783aad06b45255a9fcec5d"
+    }
+  ]
+}

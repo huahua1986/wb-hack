@@ -1,0 +1,67 @@
+{
+  "workbuddyVersion": "5.11.1",
+  "artifactSHA256": "f0414d122ead12f3e997bb2e3d7811f35213fbd5b92063fab7361691b82253d6",
+  "member": "renderer/assets/src-Di9nYFZF.js",
+  "memberSHA256": "eaaffbb0b914f4c3c5755dfc5b61ecaaa91fd26eeeee4d4bfc857e10ecf0db44",
+  "memberBytes": 542036,
+  "function": {
+    "name": "useLoadFileContent",
+    "range": {
+      "start": 350491,
+      "end": 352043
+    },
+    "source": "function useLoadFileContent(i){let{onReadFile:o,readFileWithFormat:s,sessionId:h,directLocalMediaUrl:_,probeLocalFileSize:j}=i,{setTabLoading:$,updateTabContent:_e,updateTabFile:ve,setTabOversized:ye}=useTabsContext(),Ee=(0,ar.useRef)(null),De=(0,ar.useRef)(0);return(0,ar.useEffect)(()=>{De.current+=1,Ee.current=null},[h]),{loadFileContent:(0,ar.useCallback)(async i=>{Ee.current=i,$(i);let h=De.current,isStale=()=>De.current!==h||Ee.current!==i,{contentType:Fe,extension:Ie,mimeContentType:Le}=Ln(i),ze=Jn(Fe,Ie);try{let h=await resolveLocalPreviewOversize({filePath:i,extension:Ie,contentType:Fe,probe:j});if(isStale())return;if(h){ye(i,h);return}if(_&&(Fe===`video`||Fe===`audio`)&&Vn(i)){isStale()||_e(i,Gn(i),`loaded`);return}if(ze===`text`){let h;if(s)h=await s(i,`text`);else if(o)h=await o(i);else return;isStale()||_e(i,h,`loaded`);return}if(!s){if(o){let s=await o(i);isStale()||_e(i,s,`loaded`)}return}let $=await s(i,`blob`);if(isStale())return;let Ee=$,De=null;if(Ee instanceof Blob?De=Ee:Ee instanceof Uint8Array?De=new Blob([Ee],{type:Le}):Ee instanceof ArrayBuffer&&(De=new Blob([new Uint8Array(Ee)],{type:Le})),!De){ve(i,null,`error`);return}let He=Qt(i,`file`),Ge=new File([De],He,{type:Le}),Ke=await Un(Ge,Fe);if(isStale())return;if(Ke?.actualType===`code`&&Ke.actualExtension){let o=await Ge.text();isStale()||_e(i,o,`loaded`,Ke.actualExtension)}else ve(i,Ge,`loaded`)}catch(o){console.error(`[useLoadFileContent] Failed to read file:`,i,o),isStale()||(ze===`text`?_e(i,null,`error`):ve(i,null,`error`))}},[_,o,s,j,$,ye,_e,ve])}}",
+    "sha256": "f299b18dc609ef0f3917d8884d4000c2a457a0263bd91dbc72a202f3c2010027"
+  },
+  "readonly": {
+    "member": "renderer/assets/src-Di9nYFZF.js",
+    "memberSHA256": "eaaffbb0b914f4c3c5755dfc5b61ecaaa91fd26eeeee4d4bfc857e10ecf0db44",
+    "function": {
+      "name": "FileViewerMarkdownPreview",
+      "range": {
+        "start": 394324,
+        "end": 396066
+      },
+      "source": "function FileViewerMarkdownPreview({content:i,filePath:o,cwd:s,onZoomStateChange:h,onOpenFileLink:_,onOpenExternal:j,onReady:$,resolveMarkdownGuestUrl:_e,resolveMarkdownAssetBaseUrl:ve}){let ye=(0,ar.useMemo)(()=>{if(s)return i=>{let h=i.replace(/\\\\/g,`/`);if(/^(https?:\\/\\/|data:|file:\\/\\/)/i.test(h)||/^local-file:\\/\\//i.test(h))return i;let _;if(/^\\/|^[a-zA-Z]:/.test(h))_=h;else{let i=o.replace(/\\\\/g,`/`),j=i.substring(0,i.lastIndexOf(`/`))||``,$=s.replace(/\\\\/g,`/`).replace(/\\/$/,``);_=resolveRelativePath(j.startsWith(`/`)?j:`${$}/${j}`,h)}return`local-file://${_}`}},[s,o]),De=(0,ar.useCallback)(i=>{if(i.startsWith(`#`))return;let s=Xt(i,o);if(s&&_){_(s);return}if(j){j(i);return}window.open(i,`_blank`,`noopener,noreferrer`)},[o,_,j]),Fe=(0,ar.useRef)(null),Ie=(0,or.jsx)(Ee,{ref:Fe,content:i,readOnly:!0,zoomDocumentKey:o,onZoomStateChange:h,imageUrlResolver:ye,onOpenExternal:De,onContentLoaded:()=>{requestAnimationFrame(()=>$?.())}}),Le=!!_e&&tr(o),ze=er(ve,o),He=(0,ar.useRef)(null),Ge=(0,ar.useCallback)(i=>{h?.({...i,zoomIn:()=>{He.current?.zoomIn?.()},zoomOut:()=>{He.current?.zoomOut?.()},resetZoom:()=>{He.current?.resetZoom?.()}})},[h]);return Qn(o,()=>{let i=He.current?.getScrollAnchor?.()??Fe.current?.getScrollAnchor?.();return i?{markdown:{scrollAnchor:i}}:void 0}),Le?(0,or.jsx)(`div`,{className:`file-viewer__markdown file-viewer__markdown--editor-sdk`,children:(0,or.jsx)(nr,{ref:He,resolveGuestUrl:_e,fallback:Ie,readOnly:!0,content:ze.settled?i:void 0,assetBaseUrl:ze.baseUrl,assetDir:ze.dir,onZoomStateChange:Ge,onOpenExternal:De,onContentLoaded:()=>{requestAnimationFrame(()=>$?.())},imageUrlResolver:ye})}):(0,or.jsx)(`div`,{className:`file-viewer__markdown file-viewer__markdown--editor-sdk`,children:Ie})}",
+      "sha256": "7e2486106e967c5be836753966fe30088e2251d73c0b3c9bb06cc229654d7a2e"
+    }
+  },
+  "helpers": [
+    {
+      "name": "filePathFromMaybeFileUrl",
+      "range": {
+        "start": 504720,
+        "end": 505144
+      },
+      "source": "function filePathFromMaybeFileUrl(i){if(i&&typeof i==`string`&&!/^(https?:|data:|blob:|local-file:|mcp-app:|ardot:)/i.test(i)){if(/^agent:/i.test(i)){let o=Zt(i);return o.startsWith(`/`)?o:void 0}if(/^file:\\/\\//i.test(i))try{let o=new URL(i).pathname;return/^\\/[a-zA-Z]:/.test(o)?decodeURIComponent(o.slice(1).replace(/\\//g,`\\\\`)):decodeURIComponent(o)}catch{return}if(i.startsWith(`/`)||/^[a-zA-Z]:[\\\\/]/.test(i))return i}}",
+      "sha256": "f432b49aa9fbbf5cb6a623f945e43877f8f5f4bf9661483b5414ffb6b475b512"
+    },
+    {
+      "name": "resolveLocalPreviewOversize",
+      "range": {
+        "start": 349951,
+        "end": 350206
+      },
+      "source": "async function resolveLocalPreviewOversize(i){let{filePath:o,extension:s,contentType:h,probe:_}=i,j=await probeLocalFileSize(o,_);if(j===void 0)return null;let{isOversized:$,limit:_e}=Fn({contentType:h,extension:s,size:j});return $?{limit:_e,size:j}:null}",
+      "sha256": "8a30b58fb6cd3383f742a8a1b0bc718e0594502c94a9c3937141cdce4b9a31fb"
+    },
+    {
+      "name": "probeLocalFileSize",
+      "range": {
+        "start": 350206,
+        "end": 350491
+      },
+      "source": "async function probeLocalFileSize(i,o){if(o&&i&&isStattableLocalPath(i))try{let s=await o(i);return s?.success&&typeof s.size==`number`&&Number.isFinite(s.size)&&s.size>0?s.size:void 0}catch(o){console.warn(`[LocalPreviewSizeGate] stat local file failed`,{filePath:i,error:o});return}}",
+      "sha256": "5181f977ef8da1bfccae556618897d6b4bdf3aac669c005da42c4b4bb1a6c631"
+    },
+    {
+      "name": "isStattableLocalPath",
+      "range": {
+        "start": 349870,
+        "end": 349951
+      },
+      "source": "function isStattableLocalPath(i){return!/^(https?:|data:|blob:|agent:)/i.test(i)}",
+      "sha256": "74e4bb4568d8e1d8efefa17baa599750dbdb82ade562238ef965713bc24a303e"
+    }
+  ]
+}

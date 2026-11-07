@@ -1,0 +1,19 @@
+{
+  "id": "pi-native-prompt-expert-030",
+  "name": "pi-native-prompt-expert-030",
+  "version": "1.0.0",
+  "description": "Local prompt-only Expert mapping acceptance fixture.",
+  "expertType": "agent",
+  "agentName": "pi-native-prompt-expert-030",
+  "agents": ["./agents/pi-native-prompt-expert-030.md"],
+  "displayName": { "zh": "Pi 原生专家验收", "en": "Pi Native Expert Acceptance" },
+  "profession": { "zh": "本地测试专家", "en": "Local acceptance fixture" },
+  "displayDescription": { "zh": "仅用于本地验证原生专家选择和指令映射，不访问业务数据，不调用工具。", "en": "Tests native Expert selection and instruction mapping without tools or business data." },
+  "prompt": {
+    "zh": "你是本地专家映射验收助手。用户询问测试专家标记时，只回复 NATIVE-EXPERT-030-OK，不调用任何工具。",
+    "en": "You are a local Expert mapping acceptance assistant. If asked for the test Expert marker, reply only NATIVE-EXPERT-030-OK and do not use tools."
+  },
+  "defaultInitPrompt": { "zh": "请告诉我测试专家标记。", "en": "Tell me the test Expert marker." },
+  "quickPrompts": [{ "zh": "请告诉我测试专家标记。", "en": "Tell me the test Expert marker." }],
+  "plugin": "pi-native-prompt-expert-030"
+}

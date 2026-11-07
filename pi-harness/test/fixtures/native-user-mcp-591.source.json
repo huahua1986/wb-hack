@@ -1,0 +1,95 @@
+{
+  "workbuddyVersion": "5.9.1",
+  "artifactSHA256": "1fc0a56ddec5437d4dc55a55ba1c028b291ab29cb17306500827015987424233",
+  "purpose": "Native user MCP identity, global enable/trust scope and public-name collision contracts; static extraction only, no user MCP files or services accessed.",
+  "notes": [
+    "Bounded scan of current ASAR renderer/*.js and main/*.js found no listCustomMcpServers method. Native custom directory uses wb.mcp.list() origin.kind user.",
+    "User MCPs are globally available when enabled/trusted; native per-conversation selected connector set filters only origin.kind connector. A new per-thread custom selector would be adapter behavior."
+  ],
+  "slices": [
+    {
+      "name": "mcpIdentity",
+      "member": "main/server-side-access-token.js",
+      "memberSHA256": "0dcca5c3c3004f15c3b4a42ac2b644d6cdf62b8f40f3c072c6f218393dbf5955",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 6678,
+        "end": 7074
+      },
+      "sha256": "0cf0f79fa2a04615e6884d449f44747523c2a08700e791c18e7b6d7ec89ad00c",
+      "source": "var a={connector:`connector:`,customMcp:`custom-mcp:`,projectMcp:`project-mcp:`,buddy:`buddy-`};function mintMcpId(e,t){switch(e.kind){case`connector`:return`${a.connector}${t}`;case`buddy`:return`${a.buddy}${t}`;case`first-party`:case`user`:case`plugin`:return`${a.customMcp}${t}`}}function mcpIdToServerName(e){for(let t of Object.values(a))if(e.startsWith(t))return e.slice(t.length);return e}"
+    },
+    {
+      "name": "userProviderBuild",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 860283,
+        "end": 861304
+      },
+      "sha256": "fc88742913cbde9b745c99fab03008ac913a27ed21d10f5cb1796c277524497d",
+      "source": "build(e){let t=[],n=[],r=new Map;for(let[i,a]of Object.entries(e)){let e=z.bt(Dd,i);if(!a||typeof a!=`object`){n.push({id:e,reason:`no-transport`,detail:`\\u6761\\u76EE\\u4E0D\\u662F\\u5BF9\\u8C61`});continue}let o=a;if(o.managedBy===`connector`||ed.has(i))continue;let s=j.yn(o);if(!s){n.push({id:e,reason:`no-transport`,detail:`\\u65E2\\u65E0 url \\u4E5F\\u65E0 command`});continue}let{transport:c}=s,l=c.kind!==`stdio`&&this.deps.resolveManagedAuth&&!this.revokedManagedIds.has(e)?this.deps.resolveManagedAuth(c.url):void 0;l&&(l.onUnavailable=()=>{queueMicrotask(()=>this.revokeManagedAuth(e))},r.set(e,l));let u=computeTrustConfigHash(c);t.push(createMcpItem({id:e,displayName:i,origin:Dd,transport:c,auth:l?{mode:`static`}:toAuth$2(c,i),enabled:!s.disabled,trusted:this.trust.isApproved(e,u),configHash:u,timeoutMs:s.timeoutMs,...l?{dynamicHeaders:l.resolveHeaders}:{},...s.needsInjectPOI?{needsInjectPOI:!0}:{},...s.injectOneIdAuth?{injectOneIdAuth:s.injectOneIdAuth}:{}}))}return this.managedAuthById=r,{items:t,skipped:n}}"
+    },
+    {
+      "name": "contextConnectorSelection",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 864708,
+        "end": 864925
+      },
+      "sha256": "ddf391f617b9625c6d073da7a397a6f0306592b2c0b44f9a7ab18e5d67b1666c",
+      "source": "function isConnectorEnabledForContext(e,t){if(e.origin.kind!==`connector`||e.visibility?.sessionScopeExempt)return!0;let n=z.yt(e.id);return t.has(e.origin.connectorId)||t.has(e.id)||t.has(n)||t.has(`connector:${n}`)}"
+    },
+    {
+      "name": "publicName",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 644588,
+        "end": 644754
+      },
+      "sha256": "1bc53c0ac11ad248ac484682d5a89f58164f574bc3d02dfc95c0b0d3e8754f1b",
+      "source": "function resolvePublicMcpServerName(e){let t=z.yt(e);if(t.length===0)throw Error(`[McpHost] \\u4ECE \"${e}\" \\u6D3E\\u751F\\u51FA\\u4E86\\u7A7A\\u670D\\u52A1\\u540D`);return t}"
+    },
+    {
+      "name": "publicNameCollisions",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 837958,
+        "end": 838534
+      },
+      "sha256": "bcefc09b07312c2ddd396ed0b62db7673fe743d592133dcfb35931ac394783bd",
+      "source": "function pickByPublicName(e,t){let n=new Map;for(let r of e){let e;try{e=resolvePublicMcpServerName(r.item.id)}catch(e){t.error(`[McpHost] \\u8DF3\\u8FC7\\u65E0\\u6CD5\\u547D\\u540D\\u7684\\u6761\\u76EE \"${r.item.id}\"`,e);continue}let i=n.get(e);i?i.push({...r,publicName:e}):n.set(e,[{...r,publicName:e}])}let r=[];for(let[e,i]of n){let n=i.find(e=>e.item.origin.kind===`buddy`)??i[0];if(i.length>1){let r=i.filter(e=>e!==n).map(e=>`\"${e.item.id}\"`).join(`, `);t.warn(`[McpHost] \\u670D\\u52A1\\u540D \"${e}\" \\u7531 \"${n.item.id}\" \\u5360\\u7528\\uFF0C\\u538B\\u6389 ${r}`)}r.push(n)}return r}"
+    },
+    {
+      "name": "stdioProjectVariables",
+      "member": "main/server.js",
+      "memberSHA256": "c4016de0a7113fd8dae52381f07ee71b1a2c57ab62b8f1411f65fd4da6cb27d5",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 837024,
+        "end": 837491
+      },
+      "sha256": "c05b17b97d13fc82d91d979365766703aa8f7aa26a22351bdddc71830fd1f61c",
+      "source": "function projectStdio(e,t,n,r){let expand=e=>e.replace(/\\$\\{CLAUDE_PROJECT_DIR\\}/g,n.cwd).replace(/\\$\\{CODEBUDDY_PROJECT_DIR\\}/g,n.cwd),expandAll=e=>Object.fromEntries(Object.entries(e??{}).map(([e,t])=>[e,expand(t)]));return{type:`stdio`,command:expand(e.command),...e.args?{args:e.args.map(expand)}:{},...e.cwd?{cwd:expand(e.cwd)}:{},env:{...expandAll(e.env),...expandAll(r),CODEBUDDY_PROJECT_DIR:n.cwd,CLAUDE_PROJECT_DIR:n.cwd},...t===void 0?{}:{defer_loading:t}}}"
+    },
+    {
+      "name": "nativeUserMcpDirectory",
+      "member": "renderer/assets/contexts-BqwNadeD.js",
+      "memberSHA256": "139726c975eab852879a97797315df5eb1ce9ef3cd580cf6500804b57cdb25c6",
+      "range": {
+        "encoding": "UTF-8",
+        "start": 3363354,
+        "end": 3363616
+      },
+      "sha256": "f9da6a98cbe5d59513188c8b5f1e8ba57f05d1a53631de75fe3f406f166d0377",
+      "source": "function getSharedCustomMcpState(e){let t=Gwt.get(e);return t||(t=createSharedCustomMcpState({list:()=>e.mcp.list().then(e=>e.items.filter(e=>e.origin.kind===`user`)),subscribeStateChange:t=>e.on(ase,t),warn:(t,n)=>e.telemetry.logger.warn(t,n)}),Gwt.set(e,t)),t}"
+    }
+  ]
+}
