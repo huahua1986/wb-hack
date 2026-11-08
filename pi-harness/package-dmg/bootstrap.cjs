@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const { randomBytes } = require('node:crypto');
 const { app, webContents, BrowserWindow, Menu } = require('electron');
 
 const resources = path.dirname(app.getAppPath());
@@ -22,6 +23,7 @@ for (const dir of [home, configDir, userDataDir, piHome, agentDir, path.join(piH
 app.setPath('userData', userDataDir);
 for (const key of ['WORKBUDDY_DEV_ENDPOINT_OVERRIDE', 'CODEBUDDY_REMOTE_CONFIG_DISABLED', 'WORKBUDDY_CONNECTOR_MARKET_API', 'CODEBUDDY_CODE_PATH', 'CODEBUDDY_AUTH_TOKEN', 'CODEBUDDY_API_KEY', 'CODEBUDDY_BASE_URL', 'ACC_PRODUCT_CONFIG', 'ACC_PRODUCT_CONFIG_V2', 'ACC_PRODUCT_CONFIG_V3', 'ACC_PRODUCT_CONFIG_V3_FILE', 'ACC_PRODUCT_CONFIG_PATH', 'ELECTRON_RENDERER_URL', 'VITE_DEV_SERVER_URL', 'NODE_OPTIONS']) delete process.env[key];
 Object.assign(process.env, { NODE_ENV: 'production', WORKBUDDY_CONFIG_DIR: configDir, CODEBUDDY_CONFIG_DIR: configDir, WORKBUDDY_USER_DATA_DIR: userDataDir, WORKBUDDY_RESOURCES_PATH: resources, WORKBUDDY_APP_VERSION: app.getVersion(), WORKBUDDY_CLI_PREWARM_POOL_SIZE: '0', WORKBUDDY_PI_OFFICIAL_BUILD: '1', WORKBUDDY_PI_MODEL_BRIDGE_DIR: bridgeDir });
+process.env.WORKBUDDY_PI_OFFICE_SECRET = randomBytes(32).toString('hex');
 
 function read(filename) {
   const s = fs.lstatSync(filename, { throwIfNoEntry: false });

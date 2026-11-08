@@ -3,7 +3,7 @@ import {
   chmodSync, closeSync, constants, copyFileSync, existsSync, fstatSync, fsyncSync, lstatSync,
   mkdirSync, mkdtempSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync,
 } from 'node:fs';
-import { isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PiRpcClient } from './pi-rpc.mjs';
@@ -12,7 +12,7 @@ import { prepareTurnInput } from './turn-input.mjs';
 import { describeNativeInput } from './native-input-resources.mjs';
 import { resolveNativeContext } from './native-context.mjs';
 import { resolveInstalledExpert } from './expert-package.mjs';
-import { normalizeNativeTools, validateConnectorSelection } from './native-tools.mjs';
+import { normalizeNativeTools, OFFICE_SERVER_ID, validateConnectorSelection } from './native-tools.mjs';
 import { NATIVE_READY, NATIVE_CALL, NATIVE_TITLE } from './native-feature-extension.mjs';
 import { projectContextUsage } from './context-usage.mjs';
 import { allocateTaskWorkspace } from './task-workspace.mjs';
@@ -24,7 +24,10 @@ import { normalizeTurnSettings, normalizeThoughtLevel, normalizePreMessageCompac
 
 const ACTIVE = new Set(['running', 'waiting_for_approval']);
 const STATE_VERSION = 1;
-const MAX_STATE_BYTES = 32 * 1024 * 1024;
+const MAX_TOOL_OUTPUT_BYTES = 16 * 1024;
+const STATE_COMPACT_BYTES = 32 * 1024 * 1024;
+// Leave headroom to recover old files above the compaction threshold.
+const MAX_STATE_BYTES = 128 * 1024 * 1024;
 const ID = /^pi-thread-[a-f0-9-]{36}$/;
 const TOOLS = new Set(['read', 'grep', 'find', 'ls', 'edit', 'write', 'bash']);
 const MUTATING_TOOLS = new Set(['edit', 'write', 'bash']);
@@ -32,7 +35,7 @@ const APPROVAL_PROTOCOL = 'workbuddy-host-approval-v1';
 const APPROVAL_READY = 'workbuddy-host-approval-ready-v1';
 const APPROVAL_TITLE = 'WorkBuddy Pi 操作确认';
 const APPROVAL_EXTENSION_SHA256 = '53c785dbcba7a0d2607c3de43de3122a8eb4f68808c4dfffac5ce11089a48cbd';
-const NATIVE_EXTENSION_SHA256 = 'afc437d6abc5afca6659b96dae29f54b97a76c74b7dd9067a3728dca31ca999e';
+const NATIVE_EXTENSION_SHA256 = '9b244bdaa194c066908c9948e8a3266f709583576c932c9cc3f82127f88fbe53';
 const OFFICIAL_FILES = {
   'official-provider-extension.mjs': '3fdfd2e782c0f0da9b9c6d03df6e668153f28a94dd1338a4a9f5895b340f1252',
   'official-provider-extension.ts': 'e79b657c9fcbabfa576889b5aa3b4adce435b49c383288d26a0fdf26b069bebd',
@@ -177,6 +180,55 @@ function textFrom(message) {
     .map(part => part.text).join('');
 }
 
+function truncatedToolOutput(originalBytes, preview = '') {
+  return {
+    content: [{ type: 'text', text: preview ? preview + '\n\n[工具输出过大，仅保留预览。]' : '[工具输出预览因存储限额已省略。]' }],
+    truncated: true, originalBytes,
+  };
+}
+
+function limitToolOutput(output) {
+  const bytes = Buffer.byteLength(JSON.stringify(output));
+  if (bytes <= MAX_TOOL_OUTPUT_BYTES) return output;
+  const text = typeof output === 'string' ? output : Array.isArray(output?.content)
+    ? output.content.find(part => part?.type === 'text' && typeof part.text === 'string' && part.text)?.text : '';
+  if (!text) return truncatedToolOutput(bytes);
+  let low = 0, high = Math.min(text.length, MAX_TOOL_OUTPUT_BYTES);
+  while (low < high) {
+    const length = Math.ceil((low + high) / 2);
+    const candidate = truncatedToolOutput(bytes, text.slice(0, length));
+    if (Buffer.byteLength(JSON.stringify(candidate)) <= MAX_TOOL_OUTPUT_BYTES) low = length;
+    else high = length - 1;
+  }
+  const preview = text.slice(0, low).replace(/[\uD800-\uDBFF]$/u, '');
+  return truncatedToolOutput(bytes, preview);
+}
+
+function sameStateFile(a, b) {
+  return a?.dev === b.dev && a?.ino === b.ino && a?.size === b.size &&
+    a?.mtimeMs === b.mtimeMs && a?.ctimeMs === b.ctimeMs;
+}
+
+function readStateBytes(filename, stat) {
+  const fd = openSync(filename, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  try {
+    if (!sameStateFile(fstatSync(fd), stat)) throw Error('State changed before loading');
+    const bytes = Buffer.alloc(stat.size);
+    for (let offset = 0; offset < bytes.length;) {
+      const count = readSync(fd, bytes, offset, bytes.length - offset, null);
+      if (!count) throw Error('State was truncated while loading');
+      offset += count;
+    }
+    if (!sameStateFile(fstatSync(fd), stat)) throw Error('State changed while loading');
+    return bytes;
+  } finally { closeSync(fd); }
+}
+
+function syncDirectory(directory) {
+  const fd = openSync(directory, constants.O_RDONLY | constants.O_DIRECTORY | (constants.O_NOFOLLOW ?? 0));
+  try { fsyncSync(fd); } finally { closeSync(fd); }
+}
+
 /** Private per-thread Pi RPC processes, exposing the normalized WorkBuddy Host contract. */
 export class PiHarness {
   #threads = new Map();
@@ -214,12 +266,13 @@ export class PiHarness {
   #compactions = new Map();
   #rewinds = new Map();
   #fileScopes = new Map();
+  #nativeOffice;
 
   constructor({ command, args = [], cwd, stateDir, agentDir, provider, model,
     modelName, env = {}, clientFactory, cancelTimeoutMs = 3_000,
     requestTimeoutMs = 30_000, tools = ['read'], approvalExtension,
     approvalTimeoutMs = 300_000, officialOnly = false, officialBridgeDir,
-    officialBridgeClient, nativeServices, expertConfigDir, workspaceRoot, approvalMode = 'manual' } = {}) {
+    officialBridgeClient, nativeServices, nativeOffice = false, expertConfigDir, workspaceRoot, approvalMode = 'manual' } = {}) {
     this.id = 'pi';
     this.officialOnly = officialOnly === true;
     if (typeof officialOnly !== 'boolean') throw error('INVALID_PARAMS', 'officialOnly must be boolean');
@@ -239,6 +292,7 @@ export class PiHarness {
     this.model = required(model ?? (this.officialOnly ? 'hy4' : undefined), 'model');
     this.modelName = modelName === undefined ? this.model : required(modelName, 'modelName');
     this.#nativeServices = nativeServices;
+    this.#nativeOffice = nativeOffice === true && Boolean(nativeServices);
     if (expertConfigDir !== undefined && (typeof expertConfigDir !== 'string' || !isAbsolute(expertConfigDir) || /[\x00-\x1f\x7f]/.test(expertConfigDir))) {
       throw error('INVALID_PARAMS', '专家配置根目录无效。');
     }
@@ -382,7 +436,8 @@ export class PiHarness {
       provider: this.provider, models, contextWindows: {}, turns: [],
     };
     this.#threads.set(id, thread);
-    this.#persist();
+    try { this.#persist(); }
+    catch (cause) { this.#threads.delete(id); throw cause; }
     this.#publish('thread.created', { threadId: id, payload: { thread: this.#publicThread(thread) } });
     return this.#publicThread(thread);
   }
@@ -409,7 +464,7 @@ export class PiHarness {
     if (approvalMode === 'auto') {
       for (const pending of [...this.#pendingInteractions.values()]) {
         if (thread.approvalMode !== 'auto') break;
-        if (pending.thread !== thread || !this.#isRun(thread, pending.run) || pending.run.cancelling) continue;
+        if (pending.thread !== thread || pending.manualOnly || !this.#isRun(thread, pending.run) || pending.run.cancelling) continue;
         pending.interaction.authorizationSource = 'auto-mode-change';
         await this.respondInteraction({ interactionId: pending.interaction.id, response: 'allow-once' });
       }
@@ -607,7 +662,9 @@ export class PiHarness {
     if (index < 0 || !thread.turns[index].sessionCheckpoint || thread.pendingRewind) return { available: false, reason: 'checkpoint-unavailable' };
     if (thread.activeTurnId || this.#preparing.has(thread.id)) return { available: false, reason: 'runtime-busy' };
     await this.#journalReady;
-    const turnIds = thread.turns.slice(index).map(t => t.id);
+    const removed = thread.turns.slice(index);
+    if (removed.some(t => t.officeCalls?.some(call => call.savePending))) return { available: false, reason: 'office-save-outcome-unknown', errorCode: 'PI_CHECKPOINT_EXTERNAL_EFFECT' };
+    const turnIds = removed.map(t => t.id);
     const manifests = this.#fileJournal ? await this.#fileJournal.listManifests({ threadId }) : [];
     const affected = manifests.filter(m => turnIds.includes(m.turnId) && !m.rolledBackAt);
     if (affected.some(m => !m.coverage?.complete)) return { available: false, reason: 'incomplete-file-coverage', errorCode: 'PI_FILE_CHECKPOINT_UNAVAILABLE' };
@@ -637,7 +694,11 @@ export class PiHarness {
       await this.#journalReady;
       assertRewindOpen();
       const removed = thread.turns.slice(index), ids = removed.map(t => t.id);
-      if (removed.some(t => t.items.some(i => i.type === 'tool' && !TOOLS.has(i.name)))) throw error('PI_CHECKPOINT_EXTERNAL_EFFECT', '该范围包含业务工具调用，文件检查点无法撤销其外部副作用，已拒绝整轮回退。');
+      if (removed.some(t => t.officeCalls?.some(call => call.savePending) ||
+        t.items.some(i => i.type === 'tool' && !TOOLS.has(i.name) &&
+          !t.officeCalls?.some(call => call.id === i.id && call.name === i.name)))) {
+        throw error('PI_CHECKPOINT_EXTERNAL_EFFECT', '该范围包含业务工具调用或结果未确认的文档保存，已拒绝整轮回退。');
+      }
       const manifests = this.#fileJournal ? await this.#fileJournal.listManifests({ threadId }) : [];
       const affected = manifests.filter(m => ids.includes(m.turnId) && !m.rolledBackAt);
       if (affected.some(m => !m.coverage?.complete)) throw error('PI_CHECKPOINT_CONFLICT', '文件快照范围不完整，未执行回退。');
@@ -747,40 +808,41 @@ export class PiHarness {
       if (thread.pendingRewind) throw error('PI_CHECKPOINT_RECOVERY_REQUIRED', '该任务有未完成的回退事务，请先检查私有快照记录。');
       if (this.#runs.get(thread.id)?.cancelling || this.#closingThreads.has(thread.id)) throw error('CONFLICT', 'Pi 正在停止，请等待停止完成。');
       if (thread.activeTurnId) throw error('CONFLICT', '该任务仍有运行中的轮次，请先停止。');
-      if (model !== undefined) {
-        const models = this.#explicitModels(model);
-        if (models.currentModelId !== thread.models.currentModelId) {
-          thread.models = models;
-          thread.updatedAt = now();
-          this.#publish('thread.updated', { threadId, payload: { thread: this.#publicThread(thread) } });
-        }
+      const models = model === undefined ? thread.models : this.#explicitModels(model);
+      const modelChanged = models.currentModelId !== thread.models.currentModelId;
+      if (this.officialOnly && !models.currentModelId) {
+        throw error('OFFICIAL_MODEL_SELECTION_REQUIRED', models.selectionReason ?? '默认官方模型不可用，请先选择模型。');
       }
-      if (this.officialOnly && !thread.models.currentModelId) {
-        throw error('OFFICIAL_MODEL_SELECTION_REQUIRED', thread.models.selectionReason ?? '默认官方模型不可用，请先选择模型。');
-      }
-      if (this.officialOnly && this.#officialCatalog.find(model => model.id === thread.models.currentModelId)?.disabled) {
+      if (this.officialOnly && this.#officialCatalog.find(model => model.id === models.currentModelId)?.disabled) {
         throw error('OFFICIAL_MODEL_FORBIDDEN', '当前账号无权使用此官方模型，请切换模型。');
       }
       const turn = {
         id: `pi-turn-${randomUUID()}`, threadId: thread.id, prompt: prompt || '附件输入',
-        provider: this.provider, model: thread.models.currentModelId,
+        provider: this.provider, model: models.currentModelId,
         status: 'running', stopReason: null, createdAt: now(), completedAt: null,
         items: [], interaction: null, interactions: [],
         inputDiagnostics: describeNativeInput(promptContentBlocks),
       };
       const run = { turn, settled: deferred(), cancelling: false, promptSent: false,
         rawInput: { prompt, promptContentBlocks, skills }, input: null, features: { instructions: '', tools: [] }, approvedNative: new Map(), authorizationRequestIds: new Set(), nativeCallRequestIds: new Set(),
+        liveToolOutputs: new Map(),
         abort: new AbortController(),
         currentMessageId: null, messageSequence: 0, currentThinkingId: null, thinkingSequence: 0,
         assistantSequence: 0, usageSnapshots: new Map() };
-      this.#runs.set(thread.id, run);
-      this.#contextVersion.set(thread.id, (this.#contextVersion.get(thread.id) ?? 0) + 1);
+      const previous = { piContextUsage: thread.piContextUsage, activeTurnId: thread.activeTurnId,
+        status: thread.status, updatedAt: thread.updatedAt, models: thread.models };
+      if (modelChanged) { thread.models = models; thread.updatedAt = turn.createdAt; }
+      const modelUpdate = modelChanged ? this.#publicThread(thread) : null;
       thread.piContextUsage = projectContextUsage();
       thread.turns.push(turn);
       thread.activeTurnId = turn.id;
       thread.status = 'running';
       thread.updatedAt = turn.createdAt;
-      this.#persist();
+      try { this.#persist(); }
+      catch (cause) { thread.turns.pop(); Object.assign(thread, previous); throw cause; }
+      this.#runs.set(thread.id, run);
+      this.#contextVersion.set(thread.id, (this.#contextVersion.get(thread.id) ?? 0) + 1);
+      if (modelUpdate) this.#publish('thread.updated', { threadId, payload: { thread: modelUpdate } });
       this.#publish('turn.started', { threadId, turnId: turn.id, payload: { turn: clone(turn) } });
       void this.#performPrompt(thread, run);
       return clone(turn);
@@ -836,7 +898,8 @@ export class PiHarness {
     if (!allow && !['cancel', 'deny', 'denied', 'reject', 'rejected', 'reject_once'].includes(decision)) {
       throw error('INVALID_PARAMS', '请选择仅允许本次操作或拒绝；不支持永久授权。');
     }
-    this.#resolveInteraction(pending, allow ? 'approved' : 'rejected');
+    try { this.#resolveInteraction(pending, allow ? 'approved' : 'rejected'); }
+    catch (cause) { this.#handleStateLimit(pending.thread, pending.run, cause); throw cause; }
     try {
       if (allow) await this.#beforeFileTool(pending.thread, pending.run, pending.interaction.toolName, pending.interaction.toolCall.input);
       if (!this.#isRun(pending.thread, pending.run) || pending.run.cancelling) return { interaction: clone(pending.interaction) };
@@ -1038,8 +1101,11 @@ export class PiHarness {
     realFileIfPresent(filename);
     const aliases = run.features.tools.length ? '当前选中的 MCP 工具映射（调用必须使用右侧 Pi 工具名；未列出的工具不可调用）：\n'
       + run.features.tools.map(tool => `${tool.connectorId} / ${tool.rawName} → ${tool.name}`).join('\n') : '';
+    const office = run.features.tools.some(tool => tool.serverId === OFFICE_SERVER_ID)
+      ? '用下方 editor-sdk 宿主工具打开或新建任务目录内的 PPTX、DOCX、XLSX、XMind 文件，取得本轮 file_id。先用 office_catalog 按类型或工具名查询，再用 office_read / office_edit 按实际 schema 调用。编辑后调用 save_file，可保存回原路径或另存同格式新文件。'
+      : '';
     const value = { version: 1, threadId: thread.id, turnId: run.turn.id,
-      instructions: [run.features.instructions, aliases].filter(Boolean).join('\n\n'), tools: run.features.tools.map(({ serverId, connectorId, rawName, ...tool }) => tool) };
+      instructions: [run.features.instructions, office, aliases].filter(Boolean).join('\n\n'), tools: run.features.tools.map(({ serverId, connectorId, rawName, ...tool }) => tool) };
     try { writeFileSync(temp, JSON.stringify(value), { mode: 0o600, flag: 'wx' }); renameSync(temp, filename); }
     finally { if (existsSync(temp)) rmSync(temp, { force: true }); }
   }
@@ -1144,7 +1210,8 @@ export class PiHarness {
         return;
       }
       if ((this.#approvalExtension || this.officialOnly || nativeEnabled) && record?.type === 'extension_error') { onFailure(); return; }
-      this.#event(thread, record);
+      try { this.#event(thread, record); }
+      catch (cause) { this.#handleStateLimit(thread, this.#runs.get(thread.id), cause); }
     };
     const onFailure = () => {
       if (this.#clients.get(thread.id) !== entry) return;
@@ -1204,7 +1271,7 @@ export class PiHarness {
     }
   }
 
-  async #beforeFileTool(thread, run, toolName, args) {
+  async #beforeFileTool(thread, run, toolName, args, { requireRecoverableSnapshot = false } = {}) {
     if (!this.#fileJournal || !MUTATING_TOOLS.has(toolName)) return;
     const work = (run.journalTail ?? Promise.resolve()).then(async () => {
       await this.#journalReady;
@@ -1216,9 +1283,9 @@ export class PiHarness {
         await this.#fileJournal.beginTurn({ threadId: thread.id, turnId: run.turn.id, cwd: thread.cwd });
         run.journalStarted = true;
       }
-      await this.#fileJournal.beforeTool({ threadId: thread.id, turnId: run.turn.id, toolName, args, signal: run.abort.signal });
+      await this.#fileJournal.beforeTool({ threadId: thread.id, turnId: run.turn.id, toolName, args, signal: run.abort.signal, requireRecoverableSnapshot });
     });
-    run.journalTail = work;
+    run.journalTail = requireRecoverableSnapshot ? work.catch(() => {}) : work;
     await work;
   }
 
@@ -1246,11 +1313,21 @@ export class PiHarness {
         this.#persist();
       }
       const context = await resolveNativeContext({ expert: thread.nativeContext?.expert ?? null, skills: rawInput.skills, signal: run.abort.signal }, { expertConfigDir: this.#expertConfigDir });
-      const selected = validateConnectorSelection(thread.nativeContext?.connectors ?? []);
-      const tools = this.#nativeServices ? normalizeNativeTools(await this.#nativeServices.listTools({ threadId: thread.id, cwd: thread.cwd, connectors: selected, signal: run.abort.signal }), selected) : [];
+      const selected = validateConnectorSelection(thread.nativeContext?.connectors ?? []).filter(id => id !== OFFICE_SERVER_ID);
+      const modelHasTools = !this.officialOnly || this.#officialCatalog.find(model => model.id === thread.models.currentModelId)?.supportsToolCall !== false;
+      const offerOffice = this.#nativeOffice && modelHasTools && selected.length < 32;
+      const requested = offerOffice ? [...selected, OFFICE_SERVER_ID] : selected;
+      const records = this.#nativeServices
+        ? await this.#nativeServices.listTools({ threadId: thread.id, cwd: thread.cwd, connectors: requested, signal: run.abort.signal }) : [];
+      const tools = normalizeNativeTools(records.filter(entry => entry?.serverId !== OFFICE_SERVER_ID), selected);
+      if (offerOffice) {
+        const office = records.filter(entry => entry?.serverId === OFFICE_SERVER_ID && (this.tools.includes('write')
+          || !/^(create_|office_edit$|slide_find_replace_text$|save_file$|shutdown$)/.test(entry.rawName)));
+        if (office.length && tools.length + office.length <= 64) tools.push(...normalizeNativeTools(office, [OFFICE_SERVER_ID]));
+      }
       if (selected.length && !this.#nativeServices) throw error('NATIVE_MCP_UNAVAILABLE', '原生 MCP 连接尚未就绪。');
       if (tools.length && !this.#approvalExtension) throw error('UNAVAILABLE', 'MCP 接入需要启用受控的工具授权扩展。');
-      if (tools.length && this.officialOnly && this.#officialCatalog.find(model => model.id === thread.models.currentModelId)?.supportsToolCall === false) {
+      if (tools.length && !modelHasTools) {
         throw error('NATIVE_TOOLS_UNSUPPORTED', '当前官方模型未声明工具调用能力，请选择支持工具的模型。');
       }
       if (prepared.images.length && this.officialOnly) {
@@ -1286,7 +1363,7 @@ export class PiHarness {
       if (result?.disposition === 'handled') this.#finish(thread, run, 'completed', 'handled');
     } catch (cause) {
       if (!this.#isRun(thread, run) || run.cancelling) return;
-      const safe = /^(?:ATTACHMENT|ATTACHMENTS|TURN_INPUT|PI_CONTEXT|PI_EXPERT|PI_SKILL|PI_SETTINGS|PI_THINKING|PI_COMPACTION|PI_CHECKPOINT|FILE_JOURNAL|NATIVE_)/.test(cause?.code ?? '')
+      const safe = /^(?:ATTACHMENT|ATTACHMENTS|TURN_INPUT|PI_CONTEXT|PI_EXPERT|PI_SKILL|PI_SETTINGS|PI_THINKING|PI_COMPACTION|PI_CHECKPOINT|PI_STATE_SIZE_LIMIT|FILE_JOURNAL|NATIVE_)/.test(cause?.code ?? '')
         ? { code: cause.code, message: String(cause.message).slice(0, 512) } : this.officialOnly ? safeOfficialModelError(cause)
         : { code: 'PI_ERROR', message: 'Pi 请求失败，请检查本地模型和 Pi 配置后重试。' };
       this.#finish(thread, run, 'failed', 'error', safe.message, safe.code);
@@ -1297,6 +1374,13 @@ export class PiHarness {
   #isRun(thread, run) {
     return !this.#closed && !run.finishing && this.#runs.get(thread.id) === run
       && thread.activeTurnId === run.turn.id && ACTIVE.has(run.turn.status);
+  }
+
+  #handleStateLimit(thread, run, cause) {
+    if (cause?.code !== 'PI_STATE_SIZE_LIMIT') throw cause;
+    if (!run || !this.#isRun(thread, run)) return;
+    this.#finish(thread, run, 'failed', 'error', cause.message, cause.code);
+    void this.#closeClient(thread.id);
   }
 
   #event(thread, record) {
@@ -1313,7 +1397,7 @@ export class PiHarness {
     if (run.cancelling) return;
     if (record.type === 'extension_ui_request') {
       if (record.method === 'input' && record.title === NATIVE_TITLE) { void this.#nativeToolCall(thread, run, record); return; }
-      this.#approvalRequest(thread, run, record);
+      void this.#approvalRequest(thread, run, record).catch(cause => this.#handleStateLimit(thread, run, cause));
       return;
     }
     if (record.type === 'message_start' && record.message?.role === 'assistant') {
@@ -1389,9 +1473,13 @@ export class PiHarness {
         turn.items.push(item);
         this.#item('tool.created', thread, turn, item);
       }
-      if (record.type === 'tool_execution_update') item.output = clone(record.partialResult ?? null);
+      if (record.type === 'tool_execution_update' || record.type === 'tool_execution_end') {
+        const output = record.type === 'tool_execution_update' ? record.partialResult ?? null : record.result ?? null;
+        // Keep the live result for the current view, including images. Only the history preview is persisted.
+        run.liveToolOutputs.set(toolId, output);
+        item.output = clone(limitToolOutput(output));
+      }
       if (record.type === 'tool_execution_end') {
-        item.output = clone(record.result ?? null);
         item.status = record.isError ? 'failed' : 'completed';
         if (run.journalStarted) {
           run.journalTail = (run.journalTail ?? Promise.resolve()).then(() => this.#fileJournal.afterTool({ threadId: thread.id, turnId: run.turn.id }))
@@ -1400,8 +1488,8 @@ export class PiHarness {
           void run.journalTail.catch(() => {});
         }
       }
-      this.#item('tool.updated', thread, turn, item);
       this.#persist();
+      this.#item('tool.updated', thread, turn, item);
     }
   }
 
@@ -1427,10 +1515,12 @@ export class PiHarness {
       return;
     }
     run.authorizationRequestIds.add(record.id);
+    const nativeTool = run.features.tools.find(tool => tool.name === metadata.toolName);
+    const manualOnly = nativeTool?.serverId === OFFICE_SERVER_ID && nativeTool.rawName === 'shutdown';
     const interaction = {
       id: `pi-interaction-${randomUUID()}`, type: 'permission', status: 'pending',
-      title: `是否允许 Pi 执行 ${run.features.tools.find(tool => tool.name === metadata.toolName)?.label ?? metadata.toolName}？`,
-      description: JSON.stringify(metadata.input, null, 2),
+      title: `是否允许 Pi 执行 ${nativeTool?.label ?? metadata.toolName}？`,
+      description: manualOnly ? '关闭共享 Office 编辑服务。打开的编辑器会阻止操作，下次使用会重新启动。' : JSON.stringify(metadata.input, null, 2),
       toolItemId: metadata.toolCallId, toolName: metadata.toolName,
       toolCall: { id: metadata.toolCallId, name: metadata.toolName, input: clone(metadata.input) },
       options: [
@@ -1439,7 +1529,7 @@ export class PiHarness {
       ],
       requestedAt: now(), respondedAt: null, response: null,
     };
-    if ((thread.approvalMode ?? this.defaultApprovalMode) === 'auto') {
+    if (!manualOnly && (thread.approvalMode ?? this.defaultApprovalMode) === 'auto') {
       try {
         if (MUTATING_TOOLS.has(metadata.toolName)) await this.#beforeFileTool(thread, run, metadata.toolName, metadata.input);
         if (!this.#isRun(thread, run) || run.cancelling) return;
@@ -1462,7 +1552,7 @@ export class PiHarness {
       });
       return;
     }
-    const pending = { uiId: record.id, interaction, thread, run, client };
+    const pending = { uiId: record.id, interaction, thread, run, client, manualOnly };
     this.#pendingInteractions.set(interaction.id, pending);
     run.turn.interactions.push(interaction);
     run.turn.status = 'waiting_for_approval';
@@ -1477,7 +1567,8 @@ export class PiHarness {
       ? Math.min(this.#approvalTimeoutMs, record.timeout) : this.#approvalTimeoutMs;
     pending.timer = setTimeout(() => {
       if (!this.#pendingInteractions.has(interaction.id)) return;
-      this.#resolveInteraction(pending, 'rejected', 'timeout');
+      try { this.#resolveInteraction(pending, 'rejected', 'timeout'); }
+      catch (cause) { this.#handleStateLimit(thread, run, cause); return; }
       void client.sendExtensionUiResponse({ id: record.id, confirmed: false }).catch(() => {
         this.#finish(thread, run, 'failed', 'error', 'Pi 操作确认超时且无法撤回，本轮已停止。');
         void this.#closeClient(thread.id);
@@ -1505,16 +1596,69 @@ export class PiHarness {
       // Consume before the external call. Timeout, disconnect, or restart must
       // never retry a potentially side-effecting operation.
       run.approvedNative.delete(key);
-      const result = await this.#nativeServices.callTool({ threadId: thread.id, turnId: run.turn.id,
+      const office = tool.serverId === OFFICE_SERVER_ID;
+      const connectors = thread.nativeContext?.connectors?.filter(id => id !== OFFICE_SERVER_ID) ?? [];
+      const params = { threadId: thread.id, turnId: run.turn.id,
         cwd: thread.cwd,
-        connectors: thread.nativeContext?.connectors ?? [], serverId: tool.serverId, rawName: tool.rawName,
-        arguments: value.arguments, signal: run.abort.signal });
+        connectors: office ? [OFFICE_SERVER_ID] : connectors, serverId: tool.serverId, rawName: tool.rawName,
+        arguments: value.arguments, signal: run.abort.signal };
+      let result;
+      if (office) {
+        run.officeUsed = true;
+        const call = { id: value.toolCallId, name: tool.name, savePending: false };
+        (run.turn.officeCalls ??= []).push(call);
+        this.#persist();
+        result = tool.rawName === 'save_file'
+          ? await this.#saveOfficeFile(thread, run, params, call)
+          : await this.#nativeServices.callTool(params);
+      } else result = await this.#nativeServices.callTool(params);
       if (!this.#isRun(thread, run) || run.cancelling || run.abort.signal.aborted) return;
       if (Buffer.byteLength(JSON.stringify(result ?? null)) > 256 * 1024) throw error('NATIVE_MCP_RESULT_LIMIT', 'Native result too large');
       await respond({ ok: true, result: result ?? null });
     } catch (cause) {
-      if (!run.cancelling) await respond({ ok: false, code: cause?.mayHaveExecuted ? 'NATIVE_MCP_OUTCOME_UNKNOWN' : 'NATIVE_MCP_CALL_FAILED' });
+      if (!run.cancelling) await respond({ ok: false, code: cause?.mayHaveExecuted ? 'NATIVE_MCP_OUTCOME_UNKNOWN'
+        : /^NATIVE_OFFICE_[A-Z_]+$/.test(cause?.code ?? '') ? cause.code : 'NATIVE_MCP_CALL_FAILED' });
     }
+  }
+
+  async #saveOfficeFile(thread, run, params, call) {
+    if (run.officeSave) throw error('NATIVE_OFFICE_BUSY', '本轮正在保存另一份文档。');
+    const value = params.arguments?.file_path;
+    if (!this.#fileJournal || !this.tools.includes('write') || typeof value !== 'string'
+      || !value || /[\\\x00-\x1f\x7f]/.test(value) || value.split('/').includes('..')) {
+      throw error('NATIVE_OFFICE_SAVE_REFUSED', '文档保存需要明确的任务内路径和可用的文件快照。');
+    }
+    const filename = resolve(thread.cwd, value), local = relative(thread.cwd, filename);
+    if (!local || local === '..' || local.startsWith('..' + sep) || isAbsolute(local) || !/\.(pptx|docx|xlsx|xmind)$/i.test(filename)) {
+      throw error('NATIVE_OFFICE_SAVE_REFUSED', '仅允许保存当前任务目录内的 PPTX、DOCX、XLSX 或 XMind 文件。');
+    }
+    const save = (async () => {
+      try { await this.#beforeFileTool(thread, run, 'write', { path: filename }, { requireRecoverableSnapshot: true }); }
+      catch { throw error('NATIVE_OFFICE_SNAPSHOT_REQUIRED', '未建立可恢复的文件快照，保存未执行。'); }
+      if (!this.#isRun(thread, run) || run.cancelling) throw error('NATIVE_OFFICE_CANCELLED', '文档保存已取消。');
+      call.savePending = true;
+      this.#persist();
+      let result, uncertain = true;
+      try {
+        // Once submitted, let the save settle before releasing its file scope.
+        result = await this.#nativeServices.callTool({ ...params, signal: undefined });
+        uncertain = result?.isError === true;
+      } catch (cause) {
+        uncertain = cause?.mayHaveExecuted === true;
+        throw cause;
+      } finally {
+        const manifest = await this.#fileJournal.afterTool({ threadId: thread.id, turnId: run.turn.id });
+        this.#publish('files.updated', { threadId: thread.id, payload: fileUpdatePayload(manifest?.changes) });
+        if (!uncertain) {
+          call.savePending = false;
+          try { this.#persist(); } catch (cause) { call.savePending = true; throw cause; }
+        }
+      }
+      return result;
+    })();
+    run.officeSave = save;
+    try { return await save; }
+    finally { if (run.officeSave === save) run.officeSave = null; }
   }
 
   #interactionPayload(interaction) {
@@ -1543,7 +1687,7 @@ export class PiHarness {
       item.status = status === 'approved' ? 'running' : status === 'cancelled' ? 'cancelled' : 'denied';
       this.#item('tool.updated', thread, run.turn, item);
     }
-    this.#persist();
+    if (status !== 'cancelled') this.#persist();
     this.#publish('interaction.resolved', { threadId: thread.id, turnId: run.turn.id,
       interactionId: interaction.id, payload: this.#interactionPayload(interaction) });
   }
@@ -1595,17 +1739,22 @@ export class PiHarness {
   }
 
   #item(type, thread, turn, item) {
+    const run = this.#runs.get(thread.id);
+    const visible = item.type === 'tool' && run?.turn === turn && run.liveToolOutputs.has(item.id)
+      ? { ...item, output: run.liveToolOutputs.get(item.id) } : item;
     this.#publish(type, { threadId: thread.id, turnId: turn.id,
-      payload: { ...clone(item), ...(item.type === 'text' ? { messageId: item.id }
+      payload: { ...visible, ...(item.type === 'text' ? { messageId: item.id }
         : item.type === 'tool' ? { toolCallId: item.id } : {}) } });
   }
 
   #finish(thread, run, status, stopReason, message, code = 'PI_ERROR') {
     if (run.finishing) return run.finishPromise;
-    if (run.journalTail || run.journalStarted) {
+    if (run.officeUsed || run.journalTail || run.journalStarted) {
       run.finishing = true; run.abort?.abort();
       run.finishPromise = (async () => {
+        await run.officeSave?.catch(() => {});
         await run.journalTail?.catch(() => {});
+        if (run.officeUsed) await this.#nativeServices.releaseOffice?.({ threadId: thread.id, turnId: run.turn.id }).catch(() => {});
         try {
           const manifest = run.journalStarted ? await this.#fileJournal.finishTurn({ threadId: thread.id, turnId: run.turn.id, status }) : undefined;
           this.#publish('files.updated', { threadId: thread.id, payload: fileUpdatePayload(manifest?.changes) });
@@ -1624,7 +1773,7 @@ export class PiHarness {
     run.abort?.abort();
     run.approvedNative?.clear();
     run.input = null; run.rawInput = null;
-    const turn = run.turn;
+    let turn = run.turn;
     if (!ACTIVE.has(turn.status)) return;
     this.#fileScopes.delete(thread.id);
     this.#cancelPendingInteractions(thread, run);
@@ -1644,10 +1793,37 @@ export class PiHarness {
     thread.status = 'idle';
     thread.updatedAt = turn.completedAt;
     run.settled.resolve();
-    this.#persist();
+    try { this.#persist(); }
+    catch (cause) {
+      if (cause?.code !== 'PI_STATE_SIZE_LIMIT') throw cause;
+      const terminal = { status: 'failed', stopReason: 'error', completedAt: turn.completedAt,
+        error: { code: cause.code, message: cause.message } };
+      const saved = this.#savedTurn(thread.id, turn.id);
+      if (saved) {
+        // Roll back unsaved turn data so a rejected write cannot keep blocking later saves.
+        thread.turns[thread.turns.indexOf(turn)] = run.turn = turn = saved;
+        run.liveToolOutputs.clear();
+        for (const item of turn.items) {
+          if (['streaming', 'running', 'pending', 'awaiting_approval'].includes(item.status)) item.status = 'failed';
+        }
+        for (const interaction of turn.interactions ?? []) {
+          if (interaction.status === 'pending') interaction.status = 'cancelled';
+        }
+      }
+      status = 'failed';
+      Object.assign(turn, terminal);
+      if (saved) {
+        try { this.#persist(); }
+        catch (retry) { if (retry?.code !== 'PI_STATE_SIZE_LIMIT') throw retry; }
+      }
+      void this.#closeClient(thread.id);
+    }
+    const visibleTurn = { ...turn, items: turn.items.map(item => item.type === 'tool' && run.liveToolOutputs.has(item.id)
+      ? { ...item, output: run.liveToolOutputs.get(item.id) } : item) };
+    run.liveToolOutputs.clear();
     this.#publish(status === 'failed' ? 'turn.failed' : status === 'completed' ? 'turn.completed' : 'turn.cancelled', {
-      threadId: thread.id, turnId: turn.id, payload: { turn: clone(turn),
-        ...(turn.error ? { error: clone(turn.error) } : {}) },
+      threadId: thread.id, turnId: turn.id, payload: { turn: visibleTurn,
+        ...(turn.error ? { error: turn.error } : {}) },
     });
     if (!this.#closed && !run.cancelling) void this.refreshContextUsage({ threadId: thread.id, allowCold: false }).catch(() => {});
   }
@@ -1666,17 +1842,26 @@ export class PiHarness {
     this.#closingThreads.delete(threadId);
   }
 
+  #savedTurn(threadId, turnId) {
+    const stat = realFileIfPresent(this.#stateFile);
+    if (!stat || stat.size > MAX_STATE_BYTES) return;
+    const state = JSON.parse(readStateBytes(this.#stateFile, stat).toString('utf8'));
+    return state.threads.find(thread => thread.id === threadId)?.turns.find(turn => turn.id === turnId);
+  }
+
   #load() {
     const stat = realFileIfPresent(this.#stateFile);
     if (!stat) return;
     if (stat.size > MAX_STATE_BYTES) throw error('UNAVAILABLE', 'Pi 任务记录超过安全读取限制。');
-    let value;
-    try { value = JSON.parse(readFileSync(this.#stateFile, 'utf8')); }
-    catch { throw error('UNAVAILABLE', 'Pi 任务记录无法读取，请保留原文件后检查。'); }
+    let value, original;
+    try {
+      original = readStateBytes(this.#stateFile, stat);
+      value = JSON.parse(original.toString('utf8'));
+    } catch { throw error('UNAVAILABLE', 'Pi 任务记录无法读取，请保留原文件后检查。'); }
     if (value?.version !== STATE_VERSION || !Array.isArray(value.threads)) {
       throw error('UNAVAILABLE', 'Pi 任务记录版本或格式不受支持。');
     }
-    let changed = false, repairedOutcome = false;
+    let changed = false, repairedOutcome = false, toolOutputsLimited = false;
     for (const thread of value.threads) {
       if (!thread || !ID.test(thread.id) || typeof thread.title !== 'string'
         || typeof thread.cwd !== 'string' || !isAbsolute(thread.cwd) || !Array.isArray(thread.turns)
@@ -1693,6 +1878,18 @@ export class PiHarness {
       for (const turn of thread.turns) {
         if (typeof turn?.id !== 'string' || turn.threadId !== thread.id || typeof turn.prompt !== 'string'
           || !Array.isArray(turn.items)) throw error('UNAVAILABLE', 'Pi 轮次记录格式无效。');
+        if (turn.officeCalls !== undefined && (!Array.isArray(turn.officeCalls) || turn.officeCalls.some(call =>
+          typeof call?.id !== 'string' || typeof call.name !== 'string' || typeof call.savePending !== 'boolean'))) {
+          throw error('UNAVAILABLE', 'Pi 文档调用记录格式无效。');
+        }
+        for (const item of turn.items) {
+          if (item?.type !== 'tool' || item.output == null) continue;
+          const limited = limitToolOutput(item.output);
+          if (limited !== item.output) {
+            item.output = limited;
+            changed = toolOutputsLimited = true;
+          }
+        }
         if (ACTIVE.has(turn.status)) {
           turn.status = 'interrupted'; turn.stopReason = 'runtime_interrupted'; turn.completedAt = now();
           for (const item of turn.items) {
@@ -1734,32 +1931,89 @@ export class PiHarness {
       if (thread.pendingRewind) this.#blockedThreads.add(thread.id);
       this.#threads.set(thread.id, thread);
     }
-    chmodSync(this.#stateFile, 0o600);
-    if (repairedOutcome) {
-      const backups = join(this.stateDir, 'migration-backups');
-      privateDirectory(backups);
-      const backup = join(backups, `turn-outcome-0.4.1-${randomUUID()}.json`);
-      copyFileSync(this.#stateFile, backup, constants.COPYFILE_EXCL);
-      chmodSync(backup, 0o600);
-    }
-    if (changed) this.#persist();
+    if (changed || stat.size > STATE_COMPACT_BYTES) {
+      const backupBeforeMigration = compacted => {
+        if (!sameStateFile(realFileIfPresent(this.#stateFile), stat)) {
+          throw error('UNAVAILABLE', 'Pi 任务记录在恢复期间发生变化，请重试。');
+        }
+        if (!changed && !compacted) {
+          chmodSync(this.#stateFile, 0o600);
+          return false;
+        }
+        if (toolOutputsLimited || compacted || repairedOutcome) {
+          const backups = join(this.stateDir, 'migration-backups');
+          privateDirectory(backups);
+          const prefix = toolOutputsLimited || compacted ? 'tool-outputs' : 'turn-outcome-0.4.1';
+          const backup = join(backups, `${prefix}-${randomUUID()}.json`);
+          const fd = openSync(backup, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY, 0o600);
+          try { writeFileSync(fd, original); fsyncSync(fd); }
+          catch (cause) { rmSync(backup, { force: true }); throw cause; }
+          finally { closeSync(fd); }
+          syncDirectory(backups);
+          syncDirectory(this.stateDir);
+        }
+        if (!sameStateFile(realFileIfPresent(this.#stateFile), stat)) {
+          throw error('UNAVAILABLE', 'Pi 任务记录在恢复期间发生变化，请重试。');
+        }
+      };
+      try { this.#persist(backupBeforeMigration); }
+      catch (cause) {
+        // A previously readable file must still open if recovery metadata would exceed the write limit.
+        if (cause?.code !== 'PI_STATE_SIZE_LIMIT') throw cause;
+      }
+    } else chmodSync(this.#stateFile, 0o600);
   }
 
-  #persist() {
+  #persist(beforeWrite) {
     realFileIfPresent(this.#stateFile);
+    const state = { version: STATE_VERSION, threads: [...this.#threads.values()] };
+    let serialized = JSON.stringify(state);
+    let bytes = Buffer.byteLength(serialized);
+    const replaced = [];
     const temp = join(this.stateDir, `.threads-${randomUUID()}.tmp`);
     let descriptor;
     try {
+      if (bytes > STATE_COMPACT_BYTES) {
+        // The Host history is a view. Complete tool results remain in Pi's sessions.
+        const turns = state.threads.flatMap(thread => thread.turns)
+          .sort((a, b) => (Date.parse(a.createdAt) || 0) - (Date.parse(b.createdAt) || 0));
+        for (const turn of turns) {
+          for (const item of turn.items) {
+            if (bytes <= STATE_COMPACT_BYTES) break;
+            if (item?.type !== 'tool' || item.output == null) continue;
+            const original = item.output;
+            const size = Buffer.byteLength(JSON.stringify(original));
+            const reduced = truncatedToolOutput(original.truncated === true &&
+              Number.isSafeInteger(original.originalBytes) ? Math.max(size, original.originalBytes) : size);
+            const saved = size - Buffer.byteLength(JSON.stringify(reduced));
+            if (saved <= 0) continue;
+            replaced.push([item, original]);
+            item.output = reduced;
+            bytes -= saved;
+          }
+          if (bytes <= STATE_COMPACT_BYTES) break;
+        }
+        if (replaced.length) serialized = JSON.stringify(state);
+      }
+      if (Buffer.byteLength(serialized) > MAX_STATE_BYTES) {
+        throw error('PI_STATE_SIZE_LIMIT', 'Pi 任务记录达到安全保存限制，请先备份并整理旧任务记录。');
+      }
+      if (beforeWrite?.(replaced.length > 0) === false) return;
       descriptor = openSync(temp, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY
         | (constants.O_NOFOLLOW ?? 0), 0o600);
-      writeFileSync(descriptor, JSON.stringify({ version: STATE_VERSION, threads: [...this.#threads.values()] }));
+      writeFileSync(descriptor, serialized);
       fsyncSync(descriptor);
       closeSync(descriptor);
       descriptor = undefined;
       renameSync(temp, this.#stateFile);
+    } catch (cause) {
+      for (const [item, output] of replaced) item.output = output;
+      throw cause;
     } finally {
       if (descriptor !== undefined) closeSync(descriptor);
       if (existsSync(temp)) rmSync(temp, { force: true });
     }
+    // The migration has already committed. A sync failure must not revert its in-memory state.
+    if (beforeWrite) syncDirectory(this.stateDir);
   }
 }

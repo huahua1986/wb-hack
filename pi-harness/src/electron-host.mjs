@@ -41,7 +41,7 @@ export function createPiElectronHost({ electron, appAsarPath, configFile, exclus
   const release = () => { try { if (JSON.parse(fs.readFileSync(lockFile)).nonce === lockId) fs.unlinkSync(lockFile); } catch (e) { if (e.code !== 'ENOENT') throw e; } };
   let adapter, runtime;
   try { adapter = new PiHarness({ ...config, ...(nativeUi && config.officialOnly
-    ? { nativeServices: new NativeBridgeClient(config.officialBridgeDir), expertConfigDir: process.env.WORKBUDDY_CONFIG_DIR } : {}) }); runtime = new PiHostRuntime(adapter, config); }
+    ? { nativeServices: new NativeBridgeClient(config.officialBridgeDir), nativeOffice: true, expertConfigDir: process.env.WORKBUDDY_CONFIG_DIR } : {}) }); runtime = new PiHostRuntime(adapter, config); }
   catch (e) { release(); throw e; }
   const controllers = new Map(), pending = new Set(), loginMonitors = new Set(); let disposed = false;
   const statusFile = path.join(config.stateDir, 'bridge-status.json');

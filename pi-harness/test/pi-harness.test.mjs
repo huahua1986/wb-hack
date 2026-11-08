@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, test } from 'node:test';
@@ -590,6 +590,158 @@ test('private atomic persistence restores history without starting Pi or replayi
   assert.equal(restoredClients[0].options.args.at(-1), clients[0].options.args.at(-1));
 });
 
+test('oversized legacy tool history is migrated with an exact private backup and untouched Pi sessions', async () => {
+  const { harness, clients, options } = setup();
+  const first = await harness.createThread({ title: '历史任务' });
+  const other = await harness.createThread({ title: '另一个任务' });
+  const turn = await turnStart(harness, first);
+  const client = clients[0];
+  const small = { content: [{ type: 'text', text: '小结果' }], details: { fixture: true } };
+  client.event({ type: 'tool_execution_end', toolCallId: 'small', toolName: 'read', result: small });
+  client.event({ type: 'message_end', message: { role: 'assistant', content: [{ type: 'text', text: '历史正文' }], stopReason: 'stop' } });
+  client.event({ type: 'agent_settled', aborted: false });
+  await harness.close();
+
+  const stateFile = join(options.stateDir, 'threads.json');
+  const legacy = JSON.parse(readFileSync(stateFile));
+  const legacyTurn = legacy.threads.find(thread => thread.id === first.id).turns[0];
+  const oversizedText = '中'.repeat(350_000) + 'LEGACY_TOOL_OUTPUT_END';
+  for (let index = 0; index < 33; index++) {
+    legacyTurn.items.push({ type: 'tool', id: `legacy-tool-${index}`, name: 'read', status: 'completed',
+      input: { path: `fixture-${index}.txt` }, output: { content: [{ type: 'text', text: oversizedText }] } });
+  }
+  const original = Buffer.from(JSON.stringify(legacy) + '\n');
+  assert.ok(original.length > 32 * 1024 * 1024);
+  writeFileSync(stateFile, original);
+  const session = join(options.stateDir, 'sessions', `${first.id}.jsonl`);
+  const otherSession = join(options.stateDir, 'sessions', `${other.id}.jsonl`);
+  const sessionBytes = JSON.stringify({ type: 'message', timestamp: legacyTurn.completedAt,
+    message: { role: 'toolResult', toolCallId: 'legacy-tool-0', content: [{ type: 'text', text: oversizedText }] } }) + '\n';
+  writeFileSync(session, sessionBytes, { mode: 0o600 });
+  writeFileSync(otherSession, '{"type":"session"}\n', { mode: 0o600 });
+
+  const backupDir = join(options.stateDir, 'migration-backups');
+  symlinkSync(options.agentDir, backupDir);
+  assert.throws(() => new PiHarness(options), /state directory must be a real directory/);
+  assert.ok(readFileSync(stateFile).equals(original));
+  rmSync(backupDir);
+
+  const restored = new PiHarness(options);
+  cleanups.push(() => restored.close());
+  const restoredThread = current(restored, first.id);
+  const restoredTurn = restoredThread.turns[0];
+  assert.equal(clients.length, 1);
+  assert.equal(restoredThread.title, first.title);
+  assert.equal(current(restored, other.id).title, other.title);
+  assert.equal(restoredTurn.id, turn.id);
+  assert.equal(restoredTurn.status, 'completed');
+  assert.equal(restoredTurn.items.find(item => item.type === 'text').text, '历史正文');
+  assert.equal(restoredTurn.items.length, legacyTurn.items.length);
+  assert.deepEqual(restoredTurn.items.find(item => item.id === 'small').output, small);
+  const tool = restoredTurn.items.find(item => item.id === 'legacy-tool-0');
+  assert.deepEqual(tool.input, { path: 'fixture-0.txt' });
+  assert.equal(tool.status, 'completed');
+  assert.equal(tool.output.truncated, true);
+  assert.ok(Buffer.byteLength(JSON.stringify(tool.output)) <= 16 * 1024);
+  assert.ok(statSync(stateFile).size < 32 * 1024 * 1024);
+  assert.equal(statSync(stateFile).mode & 0o777, 0o600);
+  assert.ok(readFileSync(session, 'utf8') === sessionBytes);
+  assert.equal(readFileSync(otherSession, 'utf8'), '{"type":"session"}\n');
+
+  const [backup, ...extras] = readdirSync(backupDir);
+  assert.equal(extras.length, 0);
+  assert.equal(statSync(backupDir).mode & 0o777, 0o700);
+  assert.equal(statSync(join(backupDir, backup)).mode & 0o777, 0o600);
+  assert.ok(readFileSync(join(backupDir, backup)).equals(original));
+
+  await restored.close();
+  const migratedBytes = readFileSync(stateFile);
+  const reopened = new PiHarness(options);
+  cleanups.push(() => reopened.close());
+  assert.deepEqual(current(reopened, first.id).turns[0], restoredTurn);
+  assert.deepEqual(readdirSync(backupDir), [backup]);
+  assert.ok(readFileSync(stateFile).equals(migratedBytes));
+  await turnStart(reopened, first);
+  assert.equal(clients.at(-1).options.args.at(-1), session);
+  assert.deepEqual(clients.at(-1).prompts, ['仅用测试输入']);
+});
+
+test('persisted tool output is bounded while live results and small saved outputs retain their shape', async () => {
+  const { harness, clients, options } = setup();
+  const thread = await harness.createThread();
+  await turnStart(harness, thread);
+  const client = clients[0];
+  const stateFile = join(options.stateDir, 'threads.json');
+  const tool = id => JSON.parse(readFileSync(stateFile)).threads[0].turns[0].items.find(item => item.id === id);
+  const events = [];
+  let completed;
+  harness.subscribe(event => {
+    if (event.type === 'tool.updated') events.push(event.payload);
+    if (event.type === 'turn.completed') completed = event.payload.turn;
+  });
+  const progress = { type: 'tool_execution_update', toolCallId: 'bounded-tool', toolName: 'read' };
+  const completion = { type: 'tool_execution_end', toolCallId: 'bounded-tool', toolName: 'read' };
+  const large = suffix => ({ content: [{ type: 'text', text: '汉💡\n\\'.repeat(100_000) + suffix }] });
+  const imageResult = large('FINAL_TAIL');
+  imageResult.content.push({ type: 'image', mimeType: 'image/png', data: 'AAAA'.repeat(100_000) });
+  const small = { content: [{ type: 'text', text: '保留原样' }], details: { fixture: true } };
+
+  client.event({ ...progress, partialResult: small });
+  assert.deepEqual(tool('bounded-tool').output, small);
+  for (const record of [{ ...progress, partialResult: large('PROGRESS_TAIL') }, { ...completion, result: imageResult }]) {
+    client.event(record);
+    const output = tool('bounded-tool').output;
+    assert.equal(output.truncated, true);
+    assert.equal(output.originalBytes, Buffer.byteLength(JSON.stringify(record.partialResult ?? record.result)));
+    assert.ok(Buffer.byteLength(JSON.stringify(output)) <= 16 * 1024);
+    assert.deepEqual(events.at(-1).output, record.partialResult ?? record.result);
+  }
+  assert.equal(tool('bounded-tool').status, 'completed');
+  client.event({ ...completion, toolCallId: 'small-tool', result: small });
+  assert.deepEqual(tool('small-tool').output, small);
+  assert.deepEqual(events.at(-1).output, small);
+  client.event({ type: 'agent_settled', aborted: false });
+  assert.deepEqual(completed.items.find(item => item.id === 'bounded-tool').output, imageResult);
+  assert.equal(tool('bounded-tool').output.truncated, true);
+});
+
+test('aggregate tool history is bounded even when each output fits its individual limit', async () => {
+  const { harness, clients, options } = setup();
+  const thread = await harness.createThread();
+  await turnStart(harness, thread);
+  clients[0].event({ type: 'agent_settled', aborted: false });
+  await harness.close();
+
+  const stateFile = join(options.stateDir, 'threads.json');
+  const legacy = JSON.parse(readFileSync(stateFile));
+  const output = { content: [{ type: 'text', text: 'x'.repeat(13 * 1024) }] };
+  const turn = legacy.threads[0].turns[0];
+  turn.items = Array.from({ length: 2600 }, (_, index) => ({ id: `tool-${index}`, type: 'tool', name: 'read',
+    status: 'completed', input: { path: 'fixture.txt' }, output }));
+  assert.ok(Buffer.byteLength(JSON.stringify(output)) < 16 * 1024);
+  writeFileSync(stateFile, JSON.stringify(legacy));
+  assert.ok(statSync(stateFile).size > 32 * 1024 * 1024);
+
+  const restored = new PiHarness(options);
+  cleanups.push(() => restored.close());
+  const migrated = JSON.parse(readFileSync(stateFile)).threads[0].turns[0];
+  assert.ok(statSync(stateFile).size <= 32 * 1024 * 1024);
+  assert.equal(migrated.id, turn.id);
+  assert.deepEqual(migrated.items.map(item => item.id), turn.items.map(item => item.id));
+  assert.ok(migrated.items.some(item => item.output.truncated === true));
+  assert.ok(migrated.items.some(item => item.output.content[0].text === output.content[0].text));
+
+  await turnStart(restored, thread);
+  const freshOutput = { content: [{ type: 'text', text: 'y'.repeat(15 * 1024) }] };
+  assert.ok(statSync(stateFile).size + Buffer.byteLength(JSON.stringify(freshOutput)) > 32 * 1024 * 1024);
+  clients.at(-1).event({ type: 'tool_execution_end', toolCallId: 'fresh', toolName: 'read', result: freshOutput });
+  const [history, latest] = JSON.parse(readFileSync(stateFile)).threads[0].turns;
+  assert.ok(statSync(stateFile).size <= 32 * 1024 * 1024);
+  assert.ok(history.items.filter(item => item.output.truncated === true).length >
+    migrated.items.filter(item => item.output.truncated === true).length);
+  assert.deepEqual(latest.items[0].output, freshOutput);
+});
+
 test('restores a process crash as interrupted rather than resubmitting', async () => {
   const { harness, options, root } = setup();
   const thread = await harness.createThread();
@@ -640,6 +792,11 @@ test('rejects state symlinks and malformed persistence without overwriting files
   rmSync(join(badState, 'threads.json'));
   writeFileSync(join(badState, 'threads.json'), '{bad json');
   assert.throws(() => new PiHarness({ ...options, stateDir: badState }), /无法读取/);
+  const largeSize = 128 * 1024 * 1024 + 1;
+  truncateSync(join(badState, 'threads.json'), largeSize);
+  assert.throws(() => new PiHarness({ ...options, stateDir: badState }), /超过安全读取限制/);
+  assert.equal(statSync(join(badState, 'threads.json')).size, largeSize);
+  assert.equal(existsSync(join(badState, 'migration-backups')), false);
 });
 
 test('unsupported approval and alternate models are explicit; configured model works', async () => {

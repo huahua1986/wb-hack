@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 const bad = message => Object.assign(new Error(message), { code: 'NATIVE_MCP_INVALID' });
+export const OFFICE_SERVER_ID = 'builtin-office:editor-sdk';
 export const nativeToolName = (server, name) => `wb_mcp_${createHash('sha256').update(`${server}\0${name}`).digest('hex').slice(0, 24)}`;
 
 /** Credentials and launch configurations never cross this catalog boundary. */

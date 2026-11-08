@@ -21,7 +21,7 @@ test('exact original 5.11.1 patches isolate authentication and block native exec
   assert.equal(hash.digest('hex'), ORIGINAL_ASAR_SHA256);
   const source = inspectAsar(filename), result = patchMembers(source, Buffer.from('/* candidate entry */'));
   const pkg = JSON.parse(result.replacements.get('package.json'));
-  assert.equal(result.replacements.size, 7);
+  assert.equal(result.replacements.size, 8);
   assert.equal(pkg.main, 'main/pi-entry.cjs');
   assert.equal(pkg.version, WORKBUDDY_VERSION);
   assert.equal(pkg.dependencies['@genie/agent-harness'], undefined);
@@ -41,6 +41,8 @@ test('exact original 5.11.1 patches isolate authentication and block native exec
   assert.ok(result.replacements.get('main/node.js').toString().includes('function spawnWorker(e){' + nativeDisabled));
   assert.ok(result.replacements.get('main/sidecar-manager.js').toString().includes('function resolveCLIPath(e={}){' + nativeDisabled));
   assert.equal(server.split(OFFICIAL_BRIDGE_CORE_PREFIX + officialBridgeMount).length - 1, 1);
+  const bootstrap = result.replacements.get('main/daemon-bootstrap.js').toString();
+  assert.equal(bootstrap.split('designFeatureKey:Dl,documentService:P?.documentService,').length - 1, 1);
   assert.equal(result.replacements.has('cli/product.json'), false);
   assert.ok(result.replacements.get('main/main-bootstrap.js').toString().includes('PI_CUSTOM_BUILD_UPDATES_DISABLED'));
   assert.ok(result.replacements.get('main/index.js').toString().includes('async function tryEarlySilentStartupUpdate(e){return false;'));
@@ -51,8 +53,9 @@ test('exact original 5.11.1 patches isolate authentication and block native exec
 
 test('official bridge mount is limited to the isolated build and receives authoritative daemon services', async () => {
   const calls = [], nativeCalls = [], authoritative = { authenticationManager: {}, productManager: {}, restOperations: {}, configService: {}, mcpManager: {}, connectorService: {} };
+  const adapters = { documentService: {} };
   const env = { WORKBUDDY_RESOURCES_PATH: '/candidate/Resources', WORKBUDDY_PI_MODEL_BRIDGE_DIR: '/private/bridge' };
-  const invoke = () => vm.runInNewContext(officialBridgeMount, { process: { env }, e: authoritative, require: name => {
+  const invoke = () => vm.runInNewContext(officialBridgeMount, { process: { env }, e: authoritative, o: adapters, require: name => {
     if (name === 'node:path') return path;
     if (name === '/candidate/Resources/pi-harness/src/native-mcp-service.cjs') return { createNativeMcpService(options) { nativeCalls.push(options); return 'fixture-native-service'; } };
     assert.equal(name, '/candidate/Resources/pi-harness/src/official-model-bridge.cjs');
@@ -62,6 +65,7 @@ test('official bridge mount is limited to the isolated build and receives author
   env.WORKBUDDY_PI_OFFICIAL_BUILD = '1'; invoke(); await Promise.resolve();
   assert.equal(calls.length, 1);
   for (const key of ['authenticationManager', 'productManager', 'restOperations', 'configService']) assert.equal(calls[0][key], authoritative[key]);
+  assert.equal(calls[0].documentService, adapters.documentService);
   assert.equal(calls[0].bridgeDir, '/private/bridge');
   assert.equal(calls[0].nativeMcp, 'fixture-native-service');
   for (const key of ['authenticationManager', 'mcpManager', 'connectorService']) assert.equal(nativeCalls[0][key], authoritative[key]);

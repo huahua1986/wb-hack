@@ -10,7 +10,7 @@ import { SessionCheckpoints } from '../src/session-checkpoints.mjs';
 import { FileJournal } from '../src/file-journal.mjs';
 import { APPROVAL_READY, APPROVAL_TITLE, APPROVAL_PROTOCOL } from '../package-dmg/approval-extension.mjs';
 import { NATIVE_READY, NATIVE_CALL, NATIVE_TITLE } from '../src/native-feature-extension.mjs';
-import { nativeToolName } from '../src/native-tools.mjs';
+import { nativeToolName, OFFICE_SERVER_ID } from '../src/native-tools.mjs';
 
 const wait = () => new Promise(resolve => setTimeout(resolve, 5));
 async function until(read, message) {
@@ -109,6 +109,89 @@ async function finish(f, thread, turn, client) {
   client.event({ type: 'agent_settled', aborted: false });
   await until(() => threadOf(f, thread.id).turns.find(value => value.id === turn.id)?.status === 'completed', 'Turn did not settle after file records');
 }
+
+test('Office save is approved, snapshots the existing target and can rewind the saved bytes', async t => {
+  const rawName = 'save_file', toolName = nativeToolName(OFFICE_SERVER_ID, rawName);
+  const calls = [], released = [];
+  const f = setup(t, { nativeOffice: true, approvalMode: 'manual', nativeServices: {
+    async listTools({ connectors }) {
+      assert.ok(connectors.includes(OFFICE_SERVER_ID));
+      return [{ serverId: OFFICE_SERVER_ID, rawName, inputSchema: { type: 'object' } }];
+    },
+    async callTool(params) {
+      calls.push(params);
+      fs.writeFileSync(path.join(params.cwd, params.arguments.file_path), 'changed by the editor');
+      return { content: [{ type: 'text', text: 'saved' }] };
+    },
+    async releaseOffice(params) { released.push(params); },
+  } });
+  const thread = await f.harness.createThread();
+  const baseline = await start(f, thread, 'office baseline');
+  await finish(f, thread, baseline.turn, baseline.client);
+  const file = path.join(f.cwd, 'sample.pptx');
+  fs.writeFileSync(file, 'original');
+  const { turn, client } = await start(f, thread, 'office edit');
+  const filePath = { file_id: 'synthetic-document', file_path: 'sample.pptx' };
+  const emitCall = (id, toolCallId, args) => client.event({ type: 'extension_ui_request', method: 'input',
+    title: NATIVE_TITLE, id, placeholder: JSON.stringify({ protocol: NATIVE_CALL,
+      threadId: thread.id, turnId: turn.id, toolCallId, name: toolName, arguments: args }) });
+  async function authorize(id, args) {
+    request(client, { id: `approve-${id}`, toolCallId: id, toolName, input: args });
+    const pending = await until(() => threadOf(f, thread.id).turns.at(-1).interactions.find(x => x.toolItemId === id), 'Missing Office approval');
+    await f.harness.respondInteraction({ interactionId: pending.id, response: 'allow-once' });
+    emitCall(id, id, args);
+    const response = await until(() => client.uiResponses.find(x => x.id === id), 'Missing Office response');
+    return JSON.parse(response.value);
+  }
+  emitCall('unapproved', 'unknown', filePath);
+  await until(() => client.uiResponses.some(x => x.id === 'unapproved'), 'Missing denial');
+  assert.equal(calls.length, 0);
+  assert.equal((await authorize('outside', { ...filePath, file_path: '../outside.pptx' })).code, 'NATIVE_OFFICE_SAVE_REFUSED');
+  assert.equal(calls.length, 0);
+  client.event({ type: 'tool_execution_start', toolCallId: 'save', toolName, args: filePath });
+  assert.equal((await authorize('save', filePath)).ok, true);
+  client.event({ type: 'tool_execution_end', toolCallId: 'save', toolName, result: { content: [{ type: 'text', text: 'saved' }] } });
+  const saveAs = { ...filePath, file_path: 'copy.pptx' };
+  client.event({ type: 'tool_execution_start', toolCallId: 'save-as', toolName, args: saveAs });
+  assert.equal((await authorize('save-as', saveAs)).ok, true);
+  client.event({ type: 'tool_execution_end', toolCallId: 'save-as', toolName, result: { content: [{ type: 'text', text: 'saved' }] } });
+  await finish(f, thread, turn, client);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0].connectors, [OFFICE_SERVER_ID]);
+  assert.equal(released.at(-1).turnId, turn.id);
+  assert.equal(fs.readFileSync(file, 'utf8'), 'changed by the editor');
+  const undo = await f.harness.rewindThread({ threadId: thread.id, turnId: turn.id });
+  assert.equal(undo.ok, true);
+  assert.equal(fs.readFileSync(file, 'utf8'), 'original');
+  assert.equal(fs.existsSync(path.join(f.cwd, 'copy.pptx')), false);
+});
+
+test('Office shutdown requires a specific confirmation even in automatic mode', async t => {
+  const rawName = 'shutdown', toolName = nativeToolName(OFFICE_SERVER_ID, rawName);
+  const calls = [];
+  const f = setup(t, { nativeOffice: true, nativeServices: {
+    async listTools() { return [{ serverId: OFFICE_SERVER_ID, rawName, inputSchema: { type: 'object' } }]; },
+    async callTool(params) { calls.push(params); return { content: [{ type: 'text', text: 'stopped' }] }; },
+  } });
+  const thread = await f.harness.createThread();
+  const { turn, client } = await start(f, thread, 'Office shutdown');
+  request(client, { id: 'approve-shutdown', toolCallId: 'shutdown-one', toolName, input: {} });
+  const pending = await until(() => threadOf(f, thread.id).turns.at(-1).interactions.find(x => x.status === 'pending'), 'Missing shutdown confirmation');
+  await f.harness.setApprovalMode({ threadId: thread.id, approvalMode: 'auto' });
+  assert.equal(client.uiResponses.some(x => x.id === 'approve-shutdown'), false);
+  const input = id => client.event({ type: 'extension_ui_request', method: 'input', title: NATIVE_TITLE, id,
+    placeholder: JSON.stringify({ protocol: NATIVE_CALL, threadId: thread.id, turnId: turn.id,
+      toolCallId: 'shutdown-one', name: toolName, arguments: {} }) });
+  input('shutdown-before-confirm');
+  await until(() => client.uiResponses.find(x => x.id === 'shutdown-before-confirm'), 'Missing denial');
+  assert.equal(calls.length, 0);
+  await f.harness.respondInteraction({ interactionId: pending.id, response: 'allow-once' });
+  input('shutdown-after-confirm');
+  const response = await until(() => client.uiResponses.find(x => x.id === 'shutdown-after-confirm'), 'Missing shutdown reply');
+  assert.equal(JSON.parse(response.value).ok, true);
+  assert.equal(calls.length, 1);
+  await finish(f, thread, turn, client);
+});
 async function twoWrites(f) {
   const thread = await f.harness.createThread({ cwd: f.cwd });
   const first = await start(f, thread, 'first-synthetic-write');

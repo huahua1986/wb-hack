@@ -1,6 +1,7 @@
 'use strict';
 const http = require('node:http');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { Readable, Transform } = require('node:stream');
@@ -10,9 +11,12 @@ const { createAiccTransport } = require('./official-aicc.cjs');
 
 const INSTALL = Symbol.for('workbuddy.pi.official-model-bridge');
 const BODY_LIMIT = 8 * 1024 * 1024;
+const OFFICE_CONNECTOR = 'builtin-office:editor-sdk';
+const OFFICE_HEADER = 'x-workbuddy-pi-office';
 const OFFICIAL_DOMAINS = ['workbuddy.cn', 'codebuddy.cn', 'codebuddy.ai', 'copilot.tencent.com', 'copilot.qq.com'];
 const nativeError = (code, status = 400) => Object.assign(Error(code), { code, status });
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
+const validOfficeSecret = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43,128}$/.test(value);
 const safeText = (value, fallback = '') => typeof value === 'string' && !/[\x00-\x1f]/.test(value) ? value.slice(0, 256) : fallback;
 
 function assertOfficialUrl(value) {
@@ -238,13 +242,21 @@ async function startOfficialModelBridge(options) {
       !productManager?.waitConfiguration || !restOperations?.request) throw Error('Official model bridge requires daemon services');
   const directory = options.bridgeDir || process.env.WORKBUDDY_PI_MODEL_BRIDGE_DIR;
   if (!directory) throw Error('Missing official model bridge directory');
+  const nativeOffice = options.nativeOffice ?? (options.documentService
+    ? require('./native-office-service.cjs').createNativeOfficeService({
+      documentService: options.documentService,
+      stagingRoot: options.officeStagingRoot ?? path.join(os.tmpdir(), 'workbuddy-editor-sdk-sandbox', 'tmp', 'document-save-staging'),
+    })
+    : undefined);
+  const officeSecret = options.officeSecret ?? process.env.WORKBUDDY_PI_OFFICE_SECRET;
+  const officeCapability = validOfficeSecret(officeSecret) ? Buffer.from(officeSecret) : null;
   privateDirectory(directory);
   const locatorPath = path.join(directory, 'locator.json'), instanceId = crypto.randomUUID();
   const lifetimeMs = options.ticketLifetimeMs ?? 300000, now = options.now || Date.now;
   if (!Number.isFinite(lifetimeMs) || lifetimeMs < 1000) throw Error('Invalid bridge ticket lifetime');
   let key = identity(currentSession(auth)), ticket, expiresAt, port, generation = 0, closed = false, aicc;
   const active = new Set(), counters = { completed: 0, cancelled: 0, errors: 0, upstreamAborted: 0, upstreamClosedAfterTerminal: 0 };
-  function revoke() { generation++; for (const controller of active) controller.abort(nativeError('OFFICIAL_SESSION_CHANGED', 401)); aicc?.close(); aicc = undefined; }
+  function revoke() { generation++; for (const controller of active) controller.abort(nativeError('OFFICIAL_SESSION_CHANGED', 401)); nativeOffice?.revoke?.(); aicc?.close(); aicc = undefined; }
   function rotate() {
     if (closed || !port) return;
     ticket = crypto.randomBytes(32).toString('base64url'); expiresAt = now() + lifetimeMs;
@@ -263,7 +275,7 @@ async function startOfficialModelBridge(options) {
   }
   const exit = () => { closed = true; revoke(); cleanupLocator(); };
   const server = http.createServer(async (request, response) => {
-    let controller, onClose, failed = false, upstreamStarted = false, terminal, streamFailed = false, succeeded = false;
+    let controller, onClose, failed = false, upstreamStarted = false, terminal, streamFailed = false, succeeded = false, officeRequest = false;
     try {
       checkIdentity();
       if (request.headers.origin || request.headers.host !== `127.0.0.1:${port}`) throw nativeError('LOCAL_CLIENT_REQUIRED', 403);
@@ -279,23 +291,52 @@ async function startOfficialModelBridge(options) {
       }
       if (!checkIdentity()) throw nativeError('WORKBUDDY_LOGIN_REQUIRED', 401);
       if (request.url === '/healthz' && request.method === 'GET') { sendJson(response, 200, { status: 'ok', version: 1 }); return; }
-      if (request.method === 'POST' && ['/v1/native/mcp/list', '/v1/native/mcp/call'].includes(request.url)) {
-        const operation = request.url.endsWith('/call') ? 'call' : 'list';
-        if (typeof options.nativeMcp?.[operation] !== 'function') throw nativeError('NATIVE_MCP_UNAVAILABLE', 503);
+      if (request.method === 'POST' && ['/v1/native/mcp/list', '/v1/native/mcp/call', '/v1/native/mcp/release'].includes(request.url)) {
+        const operation = request.url.slice('/v1/native/mcp/'.length);
         const body = await readBody(request, 64 * 1024);
-        if (!/^pi-thread-[a-f0-9-]{36}$/.test(body.threadId) || typeof body.cwd !== 'string'
-          || !path.isAbsolute(body.cwd) || body.cwd.includes('\0') || Object.keys(body).some(field =>
-            !['threadId', 'turnId', 'cwd', 'connectors', 'serverId', 'rawName', 'arguments'].includes(field))) throw nativeError('INVALID_BODY');
-        if (operation === 'call' && !/^pi-turn-[a-f0-9-]{36}$/.test(body.turnId)) throw nativeError('INVALID_BODY');
+        const allowed = operation === 'release' ? ['threadId', 'turnId']
+          : ['threadId', 'turnId', 'cwd', 'connectors', 'serverId', 'rawName', 'arguments'];
+        if (!/^pi-thread-[a-f0-9-]{36}$/.test(body.threadId) || Object.keys(body).some(field => !allowed.includes(field))) throw nativeError('INVALID_BODY');
+        if (operation !== 'release' && (typeof body.cwd !== 'string' || !path.isAbsolute(body.cwd) || body.cwd.includes('\0'))) throw nativeError('INVALID_BODY');
+        if (operation !== 'list' && !/^pi-turn-[a-f0-9-]{36}$/.test(body.turnId)) throw nativeError('INVALID_BODY');
+        const selectedOffice = Array.isArray(body.connectors) && body.connectors.includes(OFFICE_CONNECTOR);
+        const suppliedOffice = request.headers[OFFICE_HEADER];
+        const officeAuthorized = officeCapability !== null && validOfficeSecret(suppliedOffice)
+          && suppliedOffice.length === officeCapability.length && crypto.timingSafeEqual(Buffer.from(suppliedOffice), officeCapability);
+        const officeCall = operation === 'call' && body.serverId === OFFICE_CONNECTOR;
+        officeRequest = officeCall || operation === 'release';
+        if (officeRequest && (!officeAuthorized || (officeCall && !selectedOffice))) throw nativeError('NATIVE_OFFICE_TOOL_NOT_ALLOWED', 403);
+        if (officeRequest && typeof nativeOffice?.[operation] !== 'function') throw nativeError('NATIVE_OFFICE_UNAVAILABLE', 503);
+        if (!officeRequest && typeof options.nativeMcp?.[operation] !== 'function') throw nativeError('NATIVE_MCP_UNAVAILABLE', 503);
         const owner = generation;
         controller = new AbortController(); active.add(controller);
         onClose = () => { if (!response.writableEnded) controller.abort(nativeError('CLIENT_CANCELED', 499)); };
         response.once('close', onClose); request.once('aborted', onClose);
         if (!checkIdentity() || generation !== owner) throw nativeError('OFFICIAL_SESSION_CHANGED', 401);
-        const result = await options.nativeMcp[operation]({ ...body, signal: controller.signal });
+        const { threadId, turnId, cwd, rawName, arguments: args } = body;
+        const signal = controller.signal;
+        let result;
+        if (officeCall) {
+          result = await nativeOffice.call({ threadId, turnId, cwd, rawName, arguments: args, signal });
+        } else if (operation === 'release') {
+          result = await nativeOffice.release({ threadId, turnId, signal });
+        } else {
+          const nativeBody = selectedOffice ? { ...body, connectors: body.connectors.filter(id => id !== OFFICE_CONNECTOR) } : body;
+          result = await options.nativeMcp[operation]({ ...nativeBody, signal });
+          if (operation === 'list' && Array.isArray(result)) {
+            result = result.filter(tool => tool.serverId !== OFFICE_CONNECTOR);
+            if (selectedOffice && officeAuthorized && typeof nativeOffice?.list === 'function') {
+              const tools = await nativeOffice.list({ threadId, cwd, signal });
+              result.push(...tools.map(tool => ({ ...tool, serverId: OFFICE_CONNECTOR, connectorId: OFFICE_CONNECTOR, sourceType: 'builtin-office' })));
+            }
+          }
+        }
         if (!checkIdentity() || generation !== owner) throw nativeError('OFFICIAL_SESSION_CHANGED', 401);
         controller.signal.throwIfAborted();
-        if (Buffer.byteLength(JSON.stringify(result ?? null)) > 384 * 1024) throw nativeError('NATIVE_MCP_RESULT_LIMIT', 413);
+        if (Buffer.byteLength(JSON.stringify(result ?? null)) > 384 * 1024) {
+          if (officeCall) throw Object.assign(nativeError('NATIVE_OFFICE_RESULT_LIMIT', 413), { mayHaveExecuted: true });
+          throw nativeError('NATIVE_MCP_RESULT_LIMIT', 413);
+        }
         sendJson(response, 200, { result: result ?? null }); succeeded = true; return;
       }
       const product = await productSnapshot();
@@ -374,7 +415,8 @@ async function startOfficialModelBridge(options) {
       const status = Number.isInteger(error.status) && error.status >= 400 && error.status <= 599 ? error.status : 502;
       const code = /^[A-Z0-9_]{1,80}$/.test(error.code || '') ? error.code : 'OFFICIAL_BRIDGE_ERROR';
       if (!response.headersSent) sendJson(response, status, { error: { type: 'workbuddy_official_error', code,
-        message: code, ...(error.upstreamStatus ? { upstreamStatus: error.upstreamStatus } : {}), ...(error.upstreamCode ? { upstreamCode: error.upstreamCode } : {}) } });
+        message: code, ...(officeRequest && code.startsWith('NATIVE_OFFICE_') ? { mayHaveExecuted: error.mayHaveExecuted === true } : {}),
+        ...(error.upstreamStatus ? { upstreamStatus: error.upstreamStatus } : {}), ...(error.upstreamCode ? { upstreamCode: error.upstreamCode } : {}) } });
       else response.destroy();
     } finally {
       if (controller) {

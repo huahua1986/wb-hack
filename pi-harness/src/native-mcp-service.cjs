@@ -114,6 +114,7 @@ function createNativeMcpService({ mcpManager, connectorService, authenticationMa
     if (!plain(pathEnv)) throw failure('NATIVE_MCP_STDIO_CONFIG_INVALID', 400);
     const configuredEnv = Object.fromEntries(Object.entries(transport.env ?? {}).filter(([, value]) => typeof value === 'string').map(([key, value]) => [key, expand(value)]));
     const env = Object.fromEntries(Object.entries({ ...process.env, ...pathEnv, ...configuredEnv, CODEBUDDY_PROJECT_DIR: context.cwd, CLAUDE_PROJECT_DIR: context.cwd, NODE_OPTIONS: '' }).filter(([, value]) => typeof value === 'string'));
+    delete env.WORKBUDDY_PI_OFFICE_SECRET;
     if (node) {
       const key = Object.keys(env).find(key => key.toLowerCase() === 'path'), inherited = key ? env[key] : '';
       for (const name of Object.keys(env)) if (name.toLowerCase() === 'path') delete env[name];

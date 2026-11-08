@@ -64,6 +64,67 @@ test('native MCP routes share official login isolation, accept only bounded loca
   assert.equal((await f.call('/v1/native/mcp/list', params)).status, 401);
 });
 
+test('Office tools require explicit selection and preserve startup errors and uncertain call outcomes', async t => {
+  const officeId = 'builtin-office:editor-sdk', officeCalls = [], nativeSelections = [], releases = [];
+  const officeSecret = 'a'.repeat(64);
+  let revoked = 0;
+  const f = await fixture(t, {
+    officeSecret,
+    nativeMcp: { async list({ connectors }) {
+      nativeSelections.push(connectors);
+      return [{ serverId: 'connector:fixture', rawName: 'lookup', inputSchema: { type: 'object' } }];
+    } },
+    nativeOffice: {
+      async list() { return [{ rawName: 'open_file', inputSchema: { type: 'object' } }]; },
+      async call(value) {
+        officeCalls.push(value);
+        if (value.rawName === 'open_file') throw Object.assign(Error('private SDK error'), { code: 'NATIVE_OFFICE_START_FAILED', status: 503 });
+        throw Object.assign(Error('private SDK error'), { code: 'NATIVE_OFFICE_OUTCOME_UNKNOWN', status: 502, mayHaveExecuted: true });
+      },
+      async release(value) { releases.push(value); },
+      revoke() { revoked++; },
+    },
+  });
+  const native = new NativeBridgeClient(f.directory, { officeSecret });
+  const wrongClient = new NativeBridgeClient(f.directory, { officeSecret: 'b'.repeat(64) });
+  const params = { threadId: 'pi-thread-12345678-1234-1234-1234-123456789abc', cwd: f.directory, connectors: ['fixture'] };
+  assert.deepEqual((await native.listTools(params)).map(tool => tool.rawName), ['lookup']);
+  const selected = { ...params, connectors: [...params.connectors, officeId] };
+  assert.deepEqual(await native.listTools(selected), [
+    { serverId: 'connector:fixture', rawName: 'lookup', inputSchema: { type: 'object' } },
+    { serverId: officeId, connectorId: officeId, sourceType: 'builtin-office', rawName: 'open_file', inputSchema: { type: 'object' } },
+  ]);
+  assert.deepEqual(nativeSelections, [['fixture'], ['fixture']]);
+  const call = { turnId: 'pi-turn-12345678-1234-1234-1234-123456789abc', serverId: officeId, rawName: 'open_file', arguments: {} };
+  assert.deepEqual((await wrongClient.listTools(selected)).map(tool => tool.rawName), ['lookup']);
+  const bareCall = await f.call('/v1/native/mcp/call', { ...selected, ...call });
+  assert.equal(bareCall.status, 403);
+  await assert.rejects(native.callTool({ ...params, ...call }), { code: 'NATIVE_OFFICE_TOOL_NOT_ALLOWED', mayHaveExecuted: false });
+  assert.equal(officeCalls.length, 0);
+  await assert.rejects(native.callTool({ ...selected, ...call }), { code: 'NATIVE_OFFICE_START_FAILED', mayHaveExecuted: false });
+  await assert.rejects(native.callTool({ ...selected, ...call, rawName: 'save_file' }), { code: 'NATIVE_OFFICE_OUTCOME_UNKNOWN', mayHaveExecuted: true });
+  assert.deepEqual(officeCalls.map(({ rawName }) => rawName), ['open_file', 'save_file']);
+  const release = { threadId: params.threadId, turnId: call.turnId };
+  await assert.rejects(wrongClient.releaseOffice(release), { code: 'NATIVE_OFFICE_TOOL_NOT_ALLOWED' });
+  assert.equal(releases.length, 0);
+  assert.equal(await native.releaseOffice(release), null);
+  assert.equal(releases.length, 1);
+  assert.equal(releases[0].threadId, release.threadId);
+  assert.equal(releases[0].turnId, release.turnId);
+  f.current.next(session('other-user'));
+  assert.equal(revoked, 1);
+});
+
+test('unavailable Office runtime leaves the native MCP catalog usable', async t => {
+  const officeSecret = 'a'.repeat(64);
+  const f = await fixture(t, { officeSecret, nativeMcp: { async list() { return [{ rawName: 'lookup' }]; } } });
+  const params = { threadId: 'pi-thread-12345678-1234-1234-1234-123456789abc', cwd: f.directory, connectors: ['builtin-office:editor-sdk'] };
+  const client = new NativeBridgeClient(f.directory, { officeSecret });
+  assert.deepEqual(await client.listTools(params), [{ rawName: 'lookup' }]);
+  await assert.rejects(client.callTool({ ...params, turnId: 'pi-turn-12345678-1234-1234-1234-123456789abc',
+    serverId: 'builtin-office:editor-sdk', rawName: 'open_file', arguments: {} }), { code: 'NATIVE_OFFICE_UNAVAILABLE', mayHaveExecuted: false });
+});
+
 test('target selection rejects nonofficial/local/redirect origins and preserves complete special URLs', () => {
   for (const value of ['http://www.workbuddy.cn/v2', 'https://127.0.0.1/v2', 'https://workbuddy.cn.evil.invalid/v2', 'https://evilworkbuddy.cn/v2', 'https://a@www.workbuddy.cn/v2', 'https://www.workbuddy.cn:8787/v2', 'https://www.workbuddy.cn/v2?token=x']) assert.throws(() => assertOfficialUrl(value));
   assert.equal(resolveTarget({ id: 'hy4' }, product(), 'chat-completions'), 'https://www.workbuddy.cn/v2/chat/completions');

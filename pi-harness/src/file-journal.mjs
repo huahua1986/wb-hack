@@ -368,7 +368,7 @@ export class FileJournal {
       this.#state.turns.push(turn); this.#persist(); return this.#manifest(turn);
     });
   }
-  beforeTool({ threadId, turnId, toolName, args = {}, signal } = {}) {
+  beforeTool({ threadId, turnId, toolName, args = {}, signal, requireRecoverableSnapshot = false } = {}) {
     return this.#serial(async () => {
       this.#assertWritable(); const turn = this.#turn(threadId, turnId);
       if (turn.status !== 'running') throw failure('TURN_CLOSED', '该轮次已结束，不能继续执行文件修改。');
@@ -379,7 +379,14 @@ export class FileJournal {
         const filename = this.#toolPath(turn, args.path ?? args.file_path);
         if (!Object.hasOwn(turn.before, filename)) {
           if (Object.keys(turn.before).length >= this.limits.maxFiles) this.#reason(turn, 'tracked-file-limit');
-          else turn.before[filename] = this.#snapshot(filename, turn, { strict: true, signal });
+          else {
+            const snapshot = this.#snapshot(filename, turn, { strict: true, signal });
+            if (!requireRecoverableSnapshot || snapshot.blob || snapshot.kind === 'missing') turn.before[filename] = snapshot;
+          }
+        }
+        if (requireRecoverableSnapshot && !turn.before[filename]?.blob && turn.before[filename]?.kind !== 'missing') {
+          this.#persist();
+          throw failure('CAPTURE_FAILED', '无法建立可回退的原文件快照，本次保存未执行。');
         }
       } else if (toolName === 'bash' && !turn.workspaceScanned) {
         turn.coverage.scope = 'workspace-and-explicit-tool-files';
