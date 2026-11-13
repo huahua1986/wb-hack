@@ -2,12 +2,14 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { PiHarness } from './pi-harness.mjs';
 import { PiHostRuntime } from './host-runtime.mjs';
 import { readPiConfig } from './config.mjs';
 import { WorkBuddyCdpController } from './electron-controller.mjs';
 import { buildRendererSource, readWorkBuddyRendererIdentity, SUPPORTED_WORKBUDDY_VERSIONS } from './renderer/source.js';
 import { NativeBridgeClient } from './native-bridge.mjs';
+import { OFFICE_SERVER_ID } from './native-tools.mjs';
 
 export class ElectronDebuggerClient {
   constructor(contents) {
@@ -39,9 +41,30 @@ export function createPiElectronHost({ electron, appAsarPath, configFile, exclus
   }
   fs.writeFileSync(lockFile, JSON.stringify({ kind: 'workbuddy-pi-host', pid: process.pid, nonce: lockId }), { mode: 0o600, flag: 'wx' });
   const release = () => { try { if (JSON.parse(fs.readFileSync(lockFile)).nonce === lockId) fs.unlinkSync(lockFile); } catch (e) { if (e.code !== 'ENOENT') throw e; } };
-  let adapter, runtime;
-  try { adapter = new PiHarness({ ...config, ...(nativeUi && config.officialOnly
-    ? { nativeServices: new NativeBridgeClient(config.officialBridgeDir), nativeOffice: true, expertConfigDir: process.env.WORKBUDDY_CONFIG_DIR } : {}) }); runtime = new PiHostRuntime(adapter, config); }
+  let adapter, runtime, stockOffice;
+  try {
+    const options = { ...config };
+    if (config.sshOffice) {
+      const stockOfficeRuntime = createRequire(import.meta.url)('./stock-office-runtime.cjs');
+      stockOffice = stockOfficeRuntime.createStockOfficeService({
+        appAsarPath, workspaceRoot: config.cwd, ...config.sshOffice,
+      });
+      options.nativeOffice = true;
+      options.nativeServices = {
+        async listTools(params) {
+          const tools = await stockOffice.list(params);
+          return tools.map(tool => ({ ...tool, serverId: OFFICE_SERVER_ID, connectorId: OFFICE_SERVER_ID, sourceType: 'builtin-office' }));
+        },
+        callTool: params => stockOffice.call(params),
+        releaseOffice: params => stockOffice.release(params),
+      };
+    } else if (nativeUi && config.officialOnly) {
+      Object.assign(options, { nativeServices: new NativeBridgeClient(config.officialBridgeDir), nativeOffice: true,
+        expertConfigDir: process.env.WORKBUDDY_CONFIG_DIR });
+    }
+    adapter = new PiHarness(options);
+    runtime = new PiHostRuntime(adapter, config);
+  }
   catch (e) { release(); throw e; }
   const controllers = new Map(), pending = new Set(), loginMonitors = new Set(); let disposed = false;
   const statusFile = path.join(config.stateDir, 'bridge-status.json');
@@ -107,7 +130,7 @@ export function createPiElectronHost({ electron, appAsarPath, configFile, exclus
     if (disposed) return; disposed = true; electron.app.removeListener('web-contents-created', created);
     for (const timer of loginMonitors) clearInterval(timer); loginMonitors.clear();
     for (const { controller, client } of controllers.values()) { await controller.dispose({ preserveUiState: true }).catch(() => {}); client.close(); }
-    controllers.clear(); try { await runtime.close(); } finally { release(); } status('closed');
+    controllers.clear(); try { await runtime.close(); } finally { stockOffice?.revoke(); release(); } status('closed');
   };
   let quitting = false;
   electron.app.on('before-quit', event => {

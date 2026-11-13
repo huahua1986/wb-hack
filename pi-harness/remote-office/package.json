@@ -1,0 +1,12 @@
+{
+  "name": "workbuddy-remote-office",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@mammothb/pi-office": "0.2.1",
+    "saxes": "6.0.0",
+    "yauzl": "3.4.0",
+    "yazl": "3.3.1"
+  }
+}

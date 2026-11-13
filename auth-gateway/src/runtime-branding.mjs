@@ -1,5 +1,7 @@
 import { setTimeout as delay } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
 import { lexiangRoutingScript } from './runtime-lexiang.mjs';
+import { piRuntimeScript } from './runtime-pi.mjs';
 
 function applyRendererBranding({ productName, welcomeTitle }) {
   const key = '__privateWorkbuddyBranding';
@@ -129,13 +131,17 @@ function installMainBranding({ appAsarPath, rendererScript, notificationInterval
   return { installed: true };
 }
 
-export function brandingScripts({ appAsarPath, productName, welcomeTitle = `${productName}，我帮你`, notificationIntervalMs = 500, lexiang }) {
+export function brandingScripts({ appAsarPath, productName, welcomeTitle = `${productName}，我帮你`, notificationIntervalMs = 500, lexiang, piHarness, stockOffice = false }) {
   if (!Number.isInteger(notificationIntervalMs) || notificationIntervalMs < 25 || notificationIntervalMs > 5000) throw new Error('通知合并间隔无效。');
   const rendererScript = productName ? `(${applyRendererBranding.toString()})(${JSON.stringify({ productName, welcomeTitle })})` : '({})';
   const routing = lexiangRoutingScript(appAsarPath, lexiang);
+  const pi = piRuntimeScript(appAsarPath, piHarness);
+  const office = stockOffice
+    ? `process.getBuiltinModule('module').createRequire(${JSON.stringify(appAsarPath + '/package.json')})(${JSON.stringify(fileURLToPath(new URL('../../pi-harness/src/stock-office-runtime.cjs', import.meta.url)))}).installStockOfficeRuntime(${JSON.stringify({ appAsarPath })}); `
+    : '';
   return {
     rendererScript,
-    mainScript: `(() => { ${routing ? routing + ';' : ''} return (${installMainBranding.toString()})(${JSON.stringify({ appAsarPath, rendererScript, notificationIntervalMs })}, ${coalescePrivateNotifications.toString()}); })()`,
+    mainScript: `(() => { ${routing ? routing + ';' : ''} ${office}${pi ? pi + ';' : ''} return (${installMainBranding.toString()})(${JSON.stringify({ appAsarPath, rendererScript, notificationIntervalMs })}, ${coalescePrivateNotifications.toString()}); })()`,
   };
 }
 

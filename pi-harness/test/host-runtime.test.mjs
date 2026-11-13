@@ -100,7 +100,20 @@ test('Pi startup is opt-in, accepts a regular bounded config and rejects unknown
   assert.throws(() => normalizePiHarness({ enabled: true, configFile: filename, command: 'arbitrary' }));
   const link = path.join(dir, 'link'); fs.symlinkSync(filename, link); assert.throws(() => normalizePiHarness({ enabled: true, configFile: link }));
   assert.throws(() => verifyPiRuntime(filename), /verified WorkBuddy/);
+  assert.throws(() => verifyPiRuntime(filename, { transport: 'ssh' }), /verified WorkBuddy artifacts \(5\.11\.2, 5\.11\.3\)/);
+  assert.throws(() => verifyPiRuntime(filename, { transport: 'http' }), /Unknown Pi Harness transport/);
 });
+
+for (const [version, env, sha256] of [
+  ['5.11.2', 'WORKBUDDY_TEST_ASAR_5112', '6d6ec0fc44a312249837385014205ecfcacc7ca457dba29ec9afcd7d0e19233d'],
+  ['5.11.3', 'WORKBUDDY_TEST_ASAR_5113', '45965c389b9674ef359fb5fc331a40ca0c0777c8380104f2e9ea8950bced614f'],
+]) {
+  test(`SSH Pi startup pins the exact WorkBuddy ${version} artifact`, { skip: !process.env[env] }, () => {
+    const asarPath = process.env[env];
+    assert.deepEqual(verifyPiRuntime(asarPath, { transport: 'ssh' }), { version, sha256 });
+    assert.throws(() => verifyPiRuntime(asarPath), /verified WorkBuddy artifacts \(5\.9\.1\)/);
+  });
+}
 
 test('Pi config validates its executable and keeps isolated data outside symlinks', t => {
   const dir = state(t), filename = path.join(dir, 'config.json');

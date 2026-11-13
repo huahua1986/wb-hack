@@ -115,6 +115,38 @@ test("native source switch uses WorkBuddy segmented controls and remembers both 
   api.dispose();
 });
 
+for (const appVersion of ["5.11.2", "5.11.3"]) {
+  test(`${appVersion} exposes the Pi source switch from the Home titlebar actions`, async () => {
+    const fixture = createNativeRendererFixture({
+      appVersion,
+      existingExternalThread: true,
+      initialPath: "/home",
+    });
+    const { document } = fixture.dom;
+    const homeActions = document.createElement("div");
+    homeActions.className = "titlebar-row__actions titlebar-row__actions--page";
+    const querySelector = document.querySelector.bind(document);
+    document.querySelector = (selector) => selector === '[data-testid="titlebar-row"] .titlebar-row__actions'
+      ? homeActions
+      : querySelector(selector);
+    vm.runInNewContext(buildRendererSource({
+      bindingName: "__testBinding",
+      globalName: "__testGlobal",
+      conversationPrefix: "wbhost:",
+      contractTimeoutMs: 25,
+    }), fixture.context);
+    const api = fixture.context.__testGlobal;
+    assert.equal(await api.ready, true);
+    assert.equal(api.sourceMode, "native");
+    const switchNode = homeActions.children.find((node) => node.getAttribute("role") === "radiogroup");
+    assert.ok(switchNode?.children.some((node) => node.getAttribute("aria-label") === "Pi 外部"));
+    assert.equal(await api.switchSource("external"), true);
+    assert.equal(fixture.context.location.pathname, "/conversation/wbhost%3Afake%3Afake-thread-existing");
+    assert.equal(fixture.calls.some((call) => call.method === "thread.create"), false);
+    await api.dispose();
+  });
+}
+
 test("source switch restores the exact persisted external owner after a native reload", async () => {
   const fixture = createNativeRendererFixture({
     duplicateHarnessThreads: true,
@@ -1643,6 +1675,53 @@ test("native UI creates only Pi tasks with native titles, empty workspace and in
   assert.equal(fixture.dom.nativeModelTrigger.listenerCount("click"), 0);
   assert.equal(fixture.dom.documentListenerCount("click"), 0);
   await api.dispose({ preserveUiState: true });
+});
+
+test("5.11.3 native Stop cancels only the active Pi request and waits for its terminal event", async () => {
+  let acknowledgeStop;
+  const fixture = createNativeRendererFixture({
+    appVersion: "5.11.3",
+    existingExternalThread: true,
+    rpcHandlers: { "turn.cancel": () => new Promise(resolve => { acknowledgeStop = resolve; }) },
+  });
+  vm.runInNewContext(buildRendererSource({
+    bindingName: "__testBinding",
+    globalName: "__testGlobal",
+    conversationPrefix: "wbhost:",
+    contractTimeoutMs: 25,
+  }), fixture.context);
+  const api = fixture.context.__testGlobal;
+  assert.equal(await api.ready, true);
+  await api.switchSource("external");
+  const controller = await fixture.context.wb.conversations.get(api.conversationIds[0]);
+  await controller.sendPrompt([{ type: "text", text: "Stop this test turn" }], { clientRequestId: "native-active" });
+  await controller.cancelByUser("native-stale");
+  assert.equal(fixture.calls.some(call => call.method === "turn.cancel"), false);
+
+  let stopped = false;
+  const stop = controller.cancelByUser("native-active").then(() => { stopped = true; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(stopped, false);
+  assert.equal(controller.info.state, "working");
+  assert.deepEqual(fixture.calls.find(call => call.method === "turn.cancel").params, {
+    harnessId: "fake", threadId: "fake-thread-existing", turnId: "turn-1",
+  });
+  const turn = { id: "turn-1", status: "cancelled", items: [] };
+  api.receive({ kind: "event", event: { seq: 1, type: "turn.cancelled", harnessId: "fake",
+    threadId: "fake-thread-existing", turnId: "turn-1", payload: { turn } } });
+  acknowledgeStop({ turn });
+  await stop;
+  assert.equal(controller.info.state, "idle");
+  assert.equal(controller.getRequest("native-active").state, "cancelled");
+  await controller.cancelByUser("native-active");
+  assert.equal(fixture.calls.filter(call => call.method === "turn.cancel").length, 1);
+
+  await controller.sendPrompt([{ type: "text", text: "Start another test turn" }], { clientRequestId: "native-next" });
+  const failedStop = assert.rejects(controller.cancelByUser("native-next"), /Synthetic stop unconfirmed/);
+  await new Promise(resolve => setImmediate(resolve));
+  acknowledgeStop({ turn: { id: "turn-2", status: "failed", error: { message: "Synthetic stop unconfirmed" } } });
+  await failedStop;
+  await api.dispose();
 });
 
 test("native UI leaves a failed Pi create gate when the Host cannot initialize", async () => {

@@ -4,7 +4,7 @@ export const DEFAULT_BINDING_NAME = "__workbuddyPiBinding";
 export const DEFAULT_RENDERER_GLOBAL = "__workbuddyPi";
 export const DEFAULT_ROOT_ID = "workbuddy-pi-root";
 export const SUPPORTED_WORKBUDDY_VERSION = "5.11.1";
-export const SUPPORTED_WORKBUDDY_VERSIONS = Object.freeze(["5.9.2", SUPPORTED_WORKBUDDY_VERSION]);
+export const SUPPORTED_WORKBUDDY_VERSIONS = Object.freeze(["5.9.2", SUPPORTED_WORKBUDDY_VERSION, "5.11.2", "5.11.3"]);
 
 /** Shared by the Electron preflight and the injected renderer. */
 export function readWorkBuddyRendererIdentity() {
@@ -65,6 +65,8 @@ function installRenderer(config) {
     modelSwitchBusy: false,
     sourceSwitchObserver: undefined,
     sourceSwitchNode: undefined,
+    officeRestoreNode: undefined,
+    officeRestorePending: false,
     sourceSwitchListeners: [],
     sourceSwitchSyncScheduled: false,
     sourceSwitchBusy: 0,
@@ -809,6 +811,7 @@ function installRenderer(config) {
     const interactionId = String(interaction.interactionId ?? interaction.id ?? "");
     if (!interactionId) return undefined;
     const tool = interaction.toolCall ?? interaction.tool_call ?? {};
+    const office = interaction.source === "ssh-office";
     return {
       id: interactionId,
       category: "tool",
@@ -826,8 +829,8 @@ function installRenderer(config) {
           runtimeSecurity: {
             action: "requireApproval",
             defaultDecision: "deny",
-            ruleName: `Pi ${String(interaction.toolName ?? tool.name ?? "tool")}`,
-            hitContent: JSON.stringify(tool.input, null, 2),
+            ruleName: office ? String(interaction.title) : `Pi ${String(interaction.toolName ?? tool.name ?? "tool")}`,
+            hitContent: office ? String(interaction.description) : JSON.stringify(tool.input, null, 2),
           },
         },
       } : {}),
@@ -1517,7 +1520,7 @@ function installRenderer(config) {
             ...(model === undefined ? {} : { model }),
           });
           const turnId = String(result?.turn?.id ?? result?.turnId ?? "");
-          if (turnId) {
+          if (turnId && state.activeRequestByThread.get(local.key) === requestId) {
             local.activeTurnId = turnId;
             state.requestIdByTurn.set(`${local.key}\u0000${turnId}`, requestId);
           }
@@ -1537,11 +1540,18 @@ function installRenderer(config) {
       async runPrompt() { return unsupported("runPrompt"); },
       async cancel() {
         if (local.info.state === "idle") return;
-        await rpc("turn.cancel", {
+        const result = await rpc("turn.cancel", {
           harnessId,
           threadId,
           ...(local.activeTurnId ? { turnId: local.activeTurnId } : {}),
         });
+        if (result?.turn?.status === "failed") {
+          throw new Error(result.turn.error?.message ?? "无法确认 Pi 已停止");
+        }
+      },
+      async cancelByUser(requestId) {
+        if (requestId && requestId !== state.activeRequestByThread.get(local.key)) return;
+        return local.controller.cancel();
       },
       async resolvePending(toolCallId, answer = {}) {
         const pending = local.pending;
@@ -2298,6 +2308,49 @@ function installRenderer(config) {
       state.sourceSwitchNode?.remove();
     } catch {}
     state.sourceSwitchNode = undefined;
+    state.officeRestoreNode?.remove();
+    state.officeRestoreNode = undefined;
+  }
+
+  function syncOfficeRestoreButton(host) {
+    const local = state.conversations.get(currentRouteId());
+    const turnId = local?.thread?.officeRestoreTurnId;
+    const enabled = state.harnesses.get(local?.harnessId)?.capabilities?.officeRestore === true;
+    if (!enabled || !turnId || !["idle", "error"].includes(local.info.state)) {
+      state.officeRestoreNode?.remove();
+      state.officeRestoreNode = undefined;
+      return;
+    }
+    if (!state.officeRestoreNode) {
+      const button = globalThis.document.createElement("button");
+      button.type = "button";
+      button.className = "wb-segmented__item wb-segmented__item--string-label";
+      button.textContent = "恢复本轮文档";
+      button.addEventListener("click", async () => {
+        const target = state.conversations.get(currentRouteId());
+        const targetTurnId = target?.thread?.officeRestoreTurnId;
+        if (state.officeRestorePending || !targetTurnId || !["idle", "error"].includes(target.info.state)) return;
+        if (!globalThis.confirm("恢复本轮保存前的本机文档？远端对话历史会保留。")) return;
+        state.officeRestorePending = true;
+        button.disabled = true;
+        try {
+          const result = await rpc("thread.office.restore", {
+            harnessId: target.harnessId, threadId: target.threadId, turnId: targetTurnId,
+          });
+          if (result?.ok !== true || result.scope !== "local-files") throw new Error("本机文档恢复未完成");
+          if (result.thread) updateConversationFromThread(target, result.thread);
+          state.wb.ui?.toast?.({ message: "本机文档已恢复", type: "success" });
+        } catch (error) {
+          state.wb.ui?.toast?.({ message: error.message, type: "error" });
+        } finally {
+          state.officeRestorePending = false;
+          button.disabled = false;
+          scheduleSourceSwitchSync();
+        }
+      });
+      state.officeRestoreNode = button;
+      host.append(button);
+    }
   }
 
   function sourceSwitchHost() {
@@ -2310,7 +2363,10 @@ function installRenderer(config) {
       )
       ?? document?.querySelector?.('.workbuddy-topbar-actions')
       ?? document?.querySelector?.('.workbuddy-topbar__actions')
-      ?? document?.querySelector?.('[class*="conversation-topbar"] [class*="topbar-actions"]');
+      ?? document?.querySelector?.('[class*="conversation-topbar"] [class*="topbar-actions"]')
+      ?? (isHomeRoute() && ["5.11.2", "5.11.3"].includes(readWorkBuddyRendererIdentity().version)
+        ? document?.querySelector?.('[data-testid="titlebar-row"] .titlebar-row__actions')
+        : undefined);
   }
 
   function updateSourceSwitchNode() {
@@ -2379,6 +2435,7 @@ function installRenderer(config) {
     }
     if (state.sourceSwitchNode?.parentNode === host) {
       updateSourceSwitchNode();
+      syncOfficeRestoreButton(host);
       return;
     }
     removeSourceSwitchNode();
@@ -2428,6 +2485,7 @@ function installRenderer(config) {
     host.append(segmented);
     state.sourceSwitchNode = segmented;
     updateSourceSwitchNode();
+    syncOfficeRestoreButton(host);
   }
 
   function scheduleSourceSwitchSync() {
@@ -2951,6 +3009,7 @@ function installRenderer(config) {
     }
     if (type === "thread.created" || type === "thread.updated") {
       upsertThread({ harnessId: event.harnessId, ...(payload.thread ?? payload) });
+      scheduleSourceSwitchSync();
       return;
     }
     if (type === "thread.deleted") {

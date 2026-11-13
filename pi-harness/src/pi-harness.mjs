@@ -1,12 +1,15 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
   chmodSync, closeSync, constants, copyFileSync, existsSync, fstatSync, fsyncSync, lstatSync,
-  mkdirSync, mkdtempSync, openSync, readFileSync, readSync, renameSync, rmSync, writeFileSync,
+  mkdirSync, mkdtempSync, openSync, readFileSync, readSync, realpathSync, renameSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PiRpcClient } from './pi-rpc.mjs';
+import { isPiHttpDocxName, MAX_PI_HTTP_DOCX_BYTES, PiHttpClient, normalizeHttpPi } from './pi-http-client.mjs';
+import { normalizeSshPi, sshPiCommand, SSH_PI_THREAD_ID } from './ssh-pi.mjs';
+import { normalizeOfficeDocuments, normalizeSshOffice } from './config.mjs';
 import { OfficialBridgeClient, OFFICIAL_PROVIDER, OFFICIAL_READY } from './official-bridge.mjs';
 import { prepareTurnInput } from './turn-input.mjs';
 import { describeNativeInput } from './native-input-resources.mjs';
@@ -31,6 +34,10 @@ const MAX_STATE_BYTES = 128 * 1024 * 1024;
 const ID = /^pi-thread-[a-f0-9-]{36}$/;
 const TOOLS = new Set(['read', 'grep', 'find', 'ls', 'edit', 'write', 'bash']);
 const MUTATING_TOOLS = new Set(['edit', 'write', 'bash']);
+const SSH_OFFICE_READ_TOOLS = new Set(['open_file', 'office_catalog', 'office_read', 'close_file']);
+const SSH_OFFICE_EDIT_TOOLS = new Set(['office_edit', 'save_file']);
+const SSH_OFFICE_DOC_READ = new Set(['doc_find', 'doc_get_outline', 'doc_resolve_document_structure', 'doc_get_text_property']);
+const SSH_OFFICE_DOC_EDIT = new Set(['doc_find_and_replace', 'doc_replace_text']);
 const APPROVAL_PROTOCOL = 'workbuddy-host-approval-v1';
 const APPROVAL_READY = 'workbuddy-host-approval-ready-v1';
 const APPROVAL_TITLE = 'WorkBuddy Pi 操作确认';
@@ -267,22 +274,55 @@ export class PiHarness {
   #rewinds = new Map();
   #fileScopes = new Map();
   #nativeOffice;
+  #ssh;
+  #https;
+  #officeDocuments = [];
+  #sshOffice;
+  #remoteEndpoint;
 
-  constructor({ command, args = [], cwd, stateDir, agentDir, provider, model,
+  constructor({ command, args = [], cwd, stateDir, agentDir, provider, model, ssh, sshOffice, https, officeDocuments,
     modelName, env = {}, clientFactory, cancelTimeoutMs = 3_000,
-    requestTimeoutMs = 30_000, tools = ['read'], approvalExtension,
+    requestTimeoutMs = 30_000, tools = ssh === undefined && https === undefined ? ['read'] : [], approvalExtension,
     approvalTimeoutMs = 300_000, officialOnly = false, officialBridgeDir,
     officialBridgeClient, nativeServices, nativeOffice = false, expertConfigDir, workspaceRoot, approvalMode = 'manual' } = {}) {
     this.id = 'pi';
     this.officialOnly = officialOnly === true;
     if (typeof officialOnly !== 'boolean') throw error('INVALID_PARAMS', 'officialOnly must be boolean');
-    this.label = this.officialOnly ? 'Pi · 官方模型' : 'Pi · 本地模型';
-    this.command = required(command, 'command');
     if (!Array.isArray(args) || args.some(arg => typeof arg !== 'string' || arg.includes('\0'))) {
       throw error('INVALID_PARAMS', 'args must be an array of strings');
     }
+    if (sshOffice !== undefined) {
+      if (ssh === undefined || nativeOffice !== true || typeof nativeServices?.listTools !== 'function'
+        || typeof nativeServices?.callTool !== 'function' || typeof nativeServices?.releaseOffice !== 'function') {
+        throw error('INVALID_PARAMS', 'SSH Office 需要本机 WorkBuddy 文档工具服务。');
+      }
+      this.#sshOffice = normalizeSshOffice(sshOffice, process.cwd());
+    }
+    if (https !== undefined) {
+      if (ssh !== undefined || sshOffice !== undefined || this.officialOnly || command !== undefined || args.length
+        || workspaceRoot !== undefined || nativeServices || approvalMode !== 'manual' || tools?.length) {
+        throw error('INVALID_PARAMS', 'Pi HTTPS 需要独立的远端配置。');
+      }
+      this.#https = normalizeHttpPi(https, process.cwd());
+      if (officeDocuments !== undefined) this.#officeDocuments = normalizeOfficeDocuments(officeDocuments, this.#https);
+      this.#remoteEndpoint = this.#https.url + '#' + (this.#https.mode ?? 'text');
+    } else if (ssh !== undefined) {
+      if (this.officialOnly || command !== undefined || args.length || workspaceRoot !== undefined
+        || (nativeServices && !this.#sshOffice) || approvalMode !== 'manual' || tools?.length) {
+        throw error('INVALID_PARAMS', 'Pi SSH 仅支持远端纯文本会话。');
+      }
+      this.#ssh = normalizeSshPi(ssh, process.cwd());
+      const { host, user, port } = this.#ssh;
+      this.#remoteEndpoint = `ssh://${user}@${host}:${port}`;
+    } else {
+      this.command = required(command, 'command');
+    }
+    this.label = this.#https ? 'Pi · HTTPS' : this.#ssh ? 'Pi · SSH' : this.officialOnly ? 'Pi · 官方模型' : 'Pi · 本地模型';
     this.args = [...args];
     this.cwd = resolve(required(cwd, 'cwd'));
+    if ((this.#sshOffice || this.#https?.mode === 'fileOffice') && (realpathSync(this.cwd) !== this.cwd || !lstatSync(this.cwd).isDirectory())) {
+      throw error('INVALID_PARAMS', 'Office 工作目录必须是本机实际目录。');
+    }
     if (!['manual', 'auto'].includes(approvalMode)) throw error('INVALID_PARAMS', 'approvalMode must be manual or auto');
     this.defaultApprovalMode = approvalMode;
     if (workspaceRoot !== undefined) this.workspaceRoot = resolve(required(workspaceRoot, 'workspaceRoot'));
@@ -297,7 +337,7 @@ export class PiHarness {
       throw error('INVALID_PARAMS', '专家配置根目录无效。');
     }
     this.#expertConfigDir = expertConfigDir;
-    if (!Array.isArray(tools) || tools.length === 0 || tools.some(tool => !TOOLS.has(tool))
+    if (!Array.isArray(tools) || (!this.#remoteEndpoint && tools.length === 0) || tools.some(tool => !TOOLS.has(tool))
       || new Set(tools).size !== tools.length) {
       throw error('INVALID_PARAMS', 'tools must contain distinct supported Pi built-in tool names');
     }
@@ -329,7 +369,7 @@ export class PiHarness {
     } else if (officialBridgeDir !== undefined || this.provider === OFFICIAL_PROVIDER) {
       throw error('INVALID_PARAMS', '官方 Provider 必须使用 officialOnly 与独立桥目录。');
     }
-    this.#factory = clientFactory ?? (options => new PiRpcClient(options));
+    this.#factory = clientFactory ?? (this.#https ? (options => new PiHttpClient(options)) : (options => new PiRpcClient(options)));
     for (const [name, value] of Object.entries({ cancelTimeoutMs, requestTimeoutMs })) {
       if (!Number.isSafeInteger(value) || value < 1) throw error('INVALID_PARAMS', `${name} must be positive`);
     }
@@ -338,9 +378,11 @@ export class PiHarness {
     privateDirectory(this.stateDir);
     privateDirectory(this.agentDir);
     this.#sessionDir = join(this.stateDir, 'sessions');
-    privateDirectory(this.#sessionDir);
-    this.#sessionCheckpoints = new SessionCheckpoints({ stateDir: this.stateDir });
-    if (this.tools.some(tool => MUTATING_TOOLS.has(tool))) {
+    if (!this.#remoteEndpoint) {
+      privateDirectory(this.#sessionDir);
+      this.#sessionCheckpoints = new SessionCheckpoints({ stateDir: this.stateDir });
+    }
+    if (this.tools.some(tool => MUTATING_TOOLS.has(tool)) || this.#sshOffice?.mode === 'edit') {
       const journalDir = join(this.stateDir, 'file-journal'); privateDirectory(journalDir);
       this.#fileJournal = new FileJournal({ stateDir: journalDir });
       this.#journalReady = this.#fileJournal.recoverInterruptedTurns().catch(cause => { this.#journalFailure = cause; });
@@ -359,9 +401,12 @@ export class PiHarness {
     return {
       id: this.id, label: this.label, kind: 'pi-rpc', available: !this.#closed,
       running: this.#clients.size > 0,
-      capabilities: { streaming: true, tools: true, diff: Boolean(this.#fileJournal), approval: Boolean(this.#approvalExtension),
-        cancel: true, models: true, persistence: true, attachments: true, experts: true, skills: true,
-        nativeMcp: Boolean(this.#nativeServices) },
+      capabilities: { streaming: true, tools: !this.#remoteEndpoint, diff: Boolean(this.#fileJournal), approval: Boolean(this.#approvalExtension),
+        cancel: true, models: true, persistence: true, attachments: !this.#remoteEndpoint, experts: !this.#remoteEndpoint, skills: !this.#remoteEndpoint,
+        ...(this.#remoteEndpoint ? { remoteExecution: true } : {}),
+        ...(this.#https?.mode === 'fileOffice' ? { remoteOfficeFiles: true, officeDocuments: [...this.#officeDocuments] } : {}),
+        ...(this.#sshOffice ? { sshOffice: true, officeRestore: this.#sshOffice.mode === 'edit' } : {}),
+        nativeMcp: !this.#remoteEndpoint && Boolean(this.#nativeServices) },
       approvalMode: this.defaultApprovalMode,
       ...(this.workspaceRoot ? { workspaceRoot: this.workspaceRoot } : {}),
       toolPolicy: { enabledTools: [...this.tools], approvalRequired: this.defaultApprovalMode === 'auto' ? [] : this.tools.filter(tool => MUTATING_TOOLS.has(tool)) },
@@ -423,6 +468,9 @@ export class PiHarness {
     const title = params.title === undefined ? 'Pi 新任务' : required(params.title, 'title');
     const models = params.model === undefined ? this.#models() : this.#explicitModels(params.model);
     const defaultWorkspace = params.cwd === undefined || params.cwd === null || params.cwd === '';
+    if (this.#remoteEndpoint && (!defaultWorkspace || params.approvalMode === 'auto')) {
+      throw error('UNAVAILABLE', 'SSH 会话由服务器分配工作目录，仅支持纯文本对话。');
+    }
     const id = `pi-thread-${randomUUID()}`;
     const timestamp = now();
     const workspace = this.workspaceRoot ? await allocateTaskWorkspace({ cwd: params.cwd, rootDir: this.workspaceRoot }) : null;
@@ -434,6 +482,7 @@ export class PiHarness {
       approvalMode: params.approvalMode ?? this.defaultApprovalMode,
       createdAt: timestamp, updatedAt: timestamp, status: 'idle', activeTurnId: null,
       provider: this.provider, models, contextWindows: {}, turns: [],
+      ...(this.#remoteEndpoint ? { executionMode: this.#https ? 'https' : 'ssh' } : {}),
     };
     this.#threads.set(id, thread);
     try { this.#persist(); }
@@ -456,6 +505,7 @@ export class PiHarness {
     this.#assertOpen();
     if (!['manual', 'auto'].includes(approvalMode)) throw error('INVALID_PARAMS', '请选择自动执行或逐次确认。');
     const thread = this.#thread(threadId);
+    if (this.#remoteEndpoint && approvalMode !== 'manual') throw error('UNAVAILABLE', 'SSH 会话仅支持纯文本对话。');
     if (thread.approvalMode !== approvalMode) {
       thread.approvalMode = approvalMode;
       this.#persist();
@@ -604,6 +654,7 @@ export class PiHarness {
 
   async compactThread({ threadId, customInstructions } = {}) {
     this.#assertOpen(); const thread = this.#thread(threadId);
+    if (this.#remoteEndpoint) throw error('UNAVAILABLE', 'SSH 会话暂不支持手动压缩。');
     if (thread.activeTurnId || this.#preparing.has(thread.id) || thread.pendingRewind) throw error('CONFLICT', '请等待当前操作结束后压缩。');
     if (!thread.turns.length || !realFileIfPresent(this.#sessionFile(thread))) throw error('PI_COMPACTION_EMPTY', '当前会话还没有可压缩的内容。');
     if (customInstructions !== undefined && (typeof customInstructions !== 'string' || Buffer.byteLength(customInstructions) > 8192)) throw error('INVALID_PARAMS', '压缩指令过长或格式无效。');
@@ -635,6 +686,19 @@ export class PiHarness {
 
   async fileResources({ threadId, detailRef } = {}) {
     this.#assertOpen(); const thread = this.#thread(threadId);
+    if (this.#https?.mode === 'fileOffice' && detailRef === undefined) {
+      const files = (thread.officeDownloads ?? []).flatMap(entry => {
+        if (!isPiHttpDocxName(entry.name)) return [];
+        const filename = join(this.cwd, 'Pi产物', thread.id, entry.name);
+        try {
+          const stat = lstatSync(filename);
+          if (!stat.isFile() || realpathSync(filename) !== filename || stat.size !== entry.size) return [];
+          return [{ ...entry, path: filename, threadId, exists: true,
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }];
+        } catch { return []; }
+      });
+      return { artifacts: nativeArtifacts(files), files: nativeFileTree(files, thread.cwd), manifests: [] };
+    }
     await this.#journalReady;
     if (this.#journalFailure) throw error('PI_FILE_UNAVAILABLE', '文件记录暂不可读取，请保留快照后检查。');
     if (!this.#fileJournal) return { artifacts: [], files: [], manifests: [] };
@@ -659,6 +723,7 @@ export class PiHarness {
 
   async checkpointRead({ threadId, turnId } = {}) {
     this.#assertOpen(); const thread = this.#thread(threadId), index = thread.turns.findIndex(t => t.id === turnId);
+    if (this.#remoteEndpoint) return { available: false, reason: 'remote-session' };
     if (index < 0 || !thread.turns[index].sessionCheckpoint || thread.pendingRewind) return { available: false, reason: 'checkpoint-unavailable' };
     if (thread.activeTurnId || this.#preparing.has(thread.id)) return { available: false, reason: 'runtime-busy' };
     await this.#journalReady;
@@ -685,6 +750,7 @@ export class PiHarness {
 
   async rewindThread({ threadId, turnId } = {}) {
     this.#assertOpen(); const thread = this.#thread(threadId), index = thread.turns.findIndex(t => t.id === turnId);
+    if (this.#remoteEndpoint) throw error('PI_CHECKPOINT_UNAVAILABLE', 'SSH 会话暂不支持回退。');
     if (index < 0 || !thread.turns[index].sessionCheckpoint) throw error('PI_CHECKPOINT_UNAVAILABLE', '该轮次来自旧版本，尚无可验证的检查点。');
     if (thread.activeTurnId || this.#preparing.has(thread.id) || thread.pendingRewind) throw error('CONFLICT', '请先结束当前操作再回退。');
     this.#preparing.add(thread.id);
@@ -737,9 +803,52 @@ export class PiHarness {
     } finally { this.#preparing.delete(thread.id); this.#fileScopes.delete(thread.id); this.#rewinds.delete(thread.id); operation.done.resolve(); }
   }
 
+  async restoreOfficeFiles({ threadId, turnId } = {}) {
+    this.#assertOpen();
+    const thread = this.#thread(threadId);
+    const turn = this.#officeRestoreTurn(thread);
+    if (!turn || turn.id !== turnId) {
+      throw error('PI_CHECKPOINT_UNAVAILABLE', '只能恢复最近一次有可用快照的本机文档保存。');
+    }
+    if (thread.activeTurnId || this.#preparing.has(thread.id)) throw error('CONFLICT', '请先结束当前操作再恢复文档。');
+    this.#preparing.add(thread.id);
+    const operation = { cancelled: false, committing: false, done: deferred() };
+    this.#rewinds.set(thread.id, operation);
+    try {
+      await this.#journalReady;
+      this.#assertOpen();
+      if (operation.cancelled || this.#journalFailure || realpathSync(this.cwd) !== this.cwd) {
+        throw error('PI_FILE_UNAVAILABLE', '本机文档或文件快照不可用。');
+      }
+      const plan = await this.#fileJournal.prepareRollback({ threadId, turnId });
+      const files = plan.changes?.map(change => relative(this.cwd, change.path));
+      if (!plan.available || !files?.length || files.some(name => !this.#sshOffice.documents.includes(name))) {
+        throw error('PI_CHECKPOINT_CONFLICT', '文档已变化、超出当前授权范围或快照不可用，未恢复文档。');
+      }
+      this.#assertOpen();
+      if (operation.cancelled) throw error('CONFLICT', '文档恢复已取消。');
+      this.#claimFileScope(thread.id, plan.changes.map(change => change.path));
+      operation.committing = true;
+      const restored = await this.#fileJournal.rollbackTurn({ threadId, token: plan.token });
+      if (!restored.applied) throw error('PI_CHECKPOINT_CONFLICT', '文档在恢复前发生变化，未覆盖当前文件。');
+      turn.officeRestoredAt = now();
+      this.#persist();
+      const visible = this.#publicThread(thread);
+      this.#publish('thread.updated', { threadId, payload: { thread: visible } });
+      this.#publish('files.updated', { threadId, payload: fileUpdatePayload(plan.changes) });
+      return { ok: true, scope: 'local-files', files, thread: visible };
+    } finally {
+      this.#preparing.delete(thread.id);
+      this.#fileScopes.delete(thread.id);
+      this.#rewinds.delete(thread.id);
+      operation.done.resolve();
+    }
+  }
+
   async deleteThread(threadId) {
     this.#assertOpen();
     const thread = this.#thread(threadId);
+    if (this.#remoteEndpoint) throw error('UNAVAILABLE', 'SSH 会话的删除需要服务端支持。');
     if (this.#preparing.has(thread.id) || thread.pendingRewind) throw error('CONFLICT', '请先结束压缩、设置或回退操作再删除任务。');
     this.#preparing.add(thread.id);
     try {
@@ -765,6 +874,7 @@ export class PiHarness {
 
   async resolveExpertSelection({ expert } = {}) {
     this.#assertOpen();
+    if (this.#remoteEndpoint) throw error('UNAVAILABLE', 'SSH 会话仅支持纯文本对话。');
     if (!expert || typeof expert !== 'object' || Array.isArray(expert)) throw error('INVALID_PARAMS', '专家选择无效。');
     required(expert.id, 'expert.id');
     const resolved = await resolveInstalledExpert(expert, { configDir: this.#expertConfigDir });
@@ -776,6 +886,12 @@ export class PiHarness {
   async setNativeContext({ threadId, expert, connectors }) {
     this.#assertOpen();
     const thread = this.#thread(threadId);
+    if (this.#remoteEndpoint) {
+      if (expert != null || (connectors !== undefined && (!Array.isArray(connectors) || connectors.length))) {
+        throw error('UNAVAILABLE', 'SSH 会话仅支持纯文本对话。');
+      }
+      return this.#publicThread(thread);
+    }
     if (thread.activeTurnId || this.#preparing.has(thread.id)) throw error('CONFLICT', '请先停止当前轮次再更改 Expert 或连接器。');
     const previous = thread.nativeContext ?? { expert: null, connectors: [] };
     const context = await resolveNativeContext({ expert: expert === undefined ? previous.expert : expert, skills: [] }, { expertConfigDir: this.#expertConfigDir });
@@ -794,6 +910,10 @@ export class PiHarness {
   async startTurn({ threadId, prompt, model, promptContentBlocks, skills = [] }) {
     this.#assertOpen();
     const thread = this.#thread(threadId);
+    if (this.#remoteEndpoint && (!Array.isArray(skills) || skills.length || (promptContentBlocks !== undefined
+      && (!Array.isArray(promptContentBlocks) || promptContentBlocks.some(block => block?.type !== 'text'))))) {
+      throw error('UNAVAILABLE', 'SSH 会话仅支持纯文本对话。');
+    }
     if (!Array.isArray(promptContentBlocks) || !promptContentBlocks.length) required(prompt, 'prompt');
     if (this.#statsClients.has(thread.id)) {
       await this.#statsClients.get(thread.id).close().catch(() => {});
@@ -866,14 +986,20 @@ export class PiHarness {
     this.#cancelPendingInteractions(thread, run);
     run.cancelPromise = (async () => {
       const client = this.#clients.get(thread.id)?.client;
+      let confirmed = !run.promptSent;
       if (client && run.promptSent) {
         void client.abort({ timeoutMs: this.#cancelTimeoutMs }).catch(() => {});
-        await bounded(run.settled.promise, this.#cancelTimeoutMs);
+        confirmed = await bounded(run.settled.promise, this.#cancelTimeoutMs);
       }
       // Drop the process after abort, even when it settled. Late records from an
       // aborted run must never be attached to the next turn of this thread.
       await this.#closeClient(thread.id);
-      if (ACTIVE.has(turn.status)) await this.#finish(thread, run, 'cancelled', 'cancelled');
+      if (ACTIVE.has(turn.status)) {
+        if (this.#remoteEndpoint && !confirmed) {
+          await this.#finish(thread, run, 'failed', 'error',
+            '无法确认远端 Pi 已停止，请检查连接后再继续。', this.#https ? 'PI_HTTP_CANCEL_UNCONFIRMED' : 'PI_SSH_CANCEL_UNCONFIRMED');
+        } else await this.#finish(thread, run, 'cancelled', 'cancelled');
+      }
       if (run.finishPromise) await run.finishPromise;
       run.cancelling = false;
       return clone(turn);
@@ -958,7 +1084,7 @@ export class PiHarness {
     const model = required(value, 'model').trim();
     if (model.length > 256 || /[\x00-\x1f]/.test(model)) throw error('INVALID_PARAMS', 'Invalid model');
     if (!this.officialOnly) {
-      if (model !== this.model) throw error('INVALID_PARAMS', 'Pi 试验模式仅启用已配置的本地模型。');
+      if (model !== this.model) throw error('INVALID_PARAMS', 'Pi 试验模式仅启用已配置的模型。');
       return this.#models(model);
     }
     if (!this.#officialCatalog.length) throw error('OFFICIAL_BRIDGE_UNAVAILABLE', '官方模型目录尚未就绪。');
@@ -1036,7 +1162,7 @@ export class PiHarness {
           await this.#closeClient(thread.id);
           client = undefined;
         }
-        if (!client && allowCold && realFileIfPresent(this.#sessionFile(thread))) {
+        if (!this.#remoteEndpoint && !client && allowCold && realFileIfPresent(this.#sessionFile(thread))) {
           if (this.officialOnly) this.#verifyOfficialExtension();
           const before = realFileIfPresent(this.#sessionFile(thread));
           if (before.size > 256 * 1024 * 1024) throw error('PI_CONTEXT_UNAVAILABLE', '会话过大，无法读取上下文快照。');
@@ -1096,16 +1222,29 @@ export class PiHarness {
   }
   #requestContextFile(thread) { return join(this.#sessionDir, `${thread.id}.request.json`); }
   #nativeContextFile(thread) { return join(this.#sessionDir, `${thread.id}.native.json`); }
+  #nativeContext(thread, run) {
+    const aliases = run.features.tools.length ? (this.#sshOffice ? '本轮工具映射（调用请使用右侧工具名）：\n'
+      : '当前选中的 MCP 工具映射（调用必须使用右侧 Pi 工具名；未列出的工具不可调用）：\n')
+      + run.features.tools.map(tool => `${tool.connectorId} / ${tool.rawName} → ${tool.name}`).join('\n') : '';
+    const office = run.features.tools.some(tool => tool.serverId === OFFICE_SERVER_ID)
+      ? this.#sshOffice
+        ? [
+          `本轮仅可操作下列用户明确选择的本机 DOCX 文件。使用文件名，不要传入绝对路径：${JSON.stringify(this.#sshOffice.documents)}。`,
+          '先调用 open_file 获取本轮 file_id。可用 office_catalog 查询 doc_find、doc_get_outline、doc_resolve_document_structure 或 doc_get_text_property 的参数，再通过 office_read 读取。',
+          this.#sshOffice.mode === 'edit'
+            ? '文字替换用 office_catalog 查看 doc_find_and_replace 或 doc_replace_text 的参数，再调用 office_edit。要保存，请单独调用 save_file，使用原文件名。每次工具操作均需用户批准。'
+            : '本轮只读取文档。每次工具操作均需用户批准。',
+        ].join('\n')
+        : '用下方 editor-sdk 宿主工具打开或新建任务目录内的 PPTX、DOCX、XLSX、XMind 文件，取得本轮 file_id。先用 office_catalog 按类型或工具名查询，再用 office_read / office_edit 按实际 schema 调用。编辑后调用 save_file，可保存回原路径或另存同格式新文件。'
+      : '';
+    return { version: 1, threadId: thread.id, turnId: run.turn.id,
+      instructions: [run.features.instructions, office, aliases].filter(Boolean).join('\n\n'),
+      tools: run.features.tools.map(({ serverId, connectorId, rawName, ...tool }) => this.#sshOffice ? { rawName, ...tool } : tool) };
+  }
   #writeNativeContext(thread, run) {
     const filename = this.#nativeContextFile(thread), temp = `${filename}.${randomUUID()}.tmp`;
     realFileIfPresent(filename);
-    const aliases = run.features.tools.length ? '当前选中的 MCP 工具映射（调用必须使用右侧 Pi 工具名；未列出的工具不可调用）：\n'
-      + run.features.tools.map(tool => `${tool.connectorId} / ${tool.rawName} → ${tool.name}`).join('\n') : '';
-    const office = run.features.tools.some(tool => tool.serverId === OFFICE_SERVER_ID)
-      ? '用下方 editor-sdk 宿主工具打开或新建任务目录内的 PPTX、DOCX、XLSX、XMind 文件，取得本轮 file_id。先用 office_catalog 按类型或工具名查询，再用 office_read / office_edit 按实际 schema 调用。编辑后调用 save_file，可保存回原路径或另存同格式新文件。'
-      : '';
-    const value = { version: 1, threadId: thread.id, turnId: run.turn.id,
-      instructions: [run.features.instructions, office, aliases].filter(Boolean).join('\n\n'), tools: run.features.tools.map(({ serverId, connectorId, rawName, ...tool }) => tool) };
+    const value = this.#nativeContext(thread, run);
     try { writeFileSync(temp, JSON.stringify(value), { mode: 0o600, flag: 'wx' }); renameSync(temp, filename); }
     finally { if (existsSync(temp)) rmSync(temp, { force: true }); }
   }
@@ -1130,7 +1269,9 @@ export class PiHarness {
   #publicThread(thread) {
     const visible = clone(thread); delete visible.pendingRewind;
     for (const turn of visible.turns) delete turn.sessionCheckpoint;
-    return { ...visible, executionSettings: this.#turnSettings(thread), contextWindow: this.#effectiveContextWindow(thread), approvalMode: thread.approvalMode ?? this.defaultApprovalMode, items: clone(thread.turns.flatMap(turn => [
+    return { ...visible,
+      ...(this.#sshOffice ? { officeRestoreTurnId: this.#officeRestoreTurn(thread)?.id ?? null } : {}),
+      executionSettings: this.#turnSettings(thread), contextWindow: this.#effectiveContextWindow(thread), approvalMode: thread.approvalMode ?? this.defaultApprovalMode, items: clone(thread.turns.flatMap(turn => [
       ...turn.items,
       ...(turn.interactions ?? []).map(interaction => ({ ...interaction, interactionId: interaction.id, kind: 'approval' })),
     ])) };
@@ -1151,7 +1292,7 @@ export class PiHarness {
     const runtime = this.#turnRuntime(thread);
     const nativeEnabled = Boolean(this.#nativeServices || run.features.instructions || run.features.tools.length);
     const nativeExtension = nativeEnabled ? this.#verifyNativeExtension() : null;
-    realFileIfPresent(this.#sessionFile(thread));
+    if (!this.#remoteEndpoint) realFileIfPresent(this.#sessionFile(thread));
     // Only a small OS environment is inherited: no WorkBuddy credentials,
     // provider secrets, project hooks, or the user's normal Pi configuration.
     const env = {};
@@ -1174,7 +1315,12 @@ export class PiHarness {
       env[TURN_SETTINGS_ENV] = runtime.extensionValue;
     }
     if (nativeEnabled) env.WORKBUDDY_PI_NATIVE_CONTEXT_FILE = this.#nativeContextFile(thread);
-    const client = this.#factory({
+    const client = this.#factory(this.#https ? {
+      ...this.#https, threadId: thread.id, timeoutMs: this.#requestTimeoutMs,
+    } : this.#ssh ? {
+      ...sshPiCommand(this.#ssh, thread.id, { office: Boolean(this.#sshOffice) }),
+      cwd: this.cwd, env: { LANG: 'C' }, timeoutMs: this.#requestTimeoutMs,
+    } : {
       command: this.command,
       args: [...this.args, '--mode', 'rpc', '--provider', this.provider, '--model', thread.models.currentModelId,
         '--thinking', runtime.effective.thinkingLevel ?? 'off', '--no-extensions', '--no-skills', '--no-prompt-templates',
@@ -1250,8 +1396,17 @@ export class PiHarness {
     return fileURLToPath(new URL('./turn-settings-extension.mjs', import.meta.url));
   }
 
-  async #readyClient(thread, entry) {
-    await entry.client.start(); await entry.client.getState({ timeoutMs: this.#requestTimeoutMs });
+  async #readyClient(thread, entry, run) {
+    await entry.client.start();
+    if (this.#sshOffice) {
+      const configured = await entry.client.request('office_configure', { context: this.#nativeContext(thread, run) },
+        { timeoutMs: this.#requestTimeoutMs, signal: run.abort.signal });
+      if (configured?.turnId !== run.turn.id) throw error('NATIVE_OFFICE_UNAVAILABLE', '远端未确认本轮文档工具配置。');
+    }
+    const state = await entry.client.getState({ timeoutMs: this.#requestTimeoutMs });
+    if (this.#remoteEndpoint && (state?.model?.provider !== this.provider || state.model.id !== thread.models.currentModelId)) {
+      throw error('PI_SSH_MODEL_MISMATCH', '远端 Pi 当前模型与本机配置不一致，本轮未发送。');
+    }
     if (this.officialOnly) {
       await bounded(entry.officialReady.promise, this.#requestTimeoutMs);
       if (!entry.officialVerified) throw error('UNAVAILABLE', '官方模型 Provider 尚未就绪。');
@@ -1268,6 +1423,71 @@ export class PiHarness {
     if (entry.nativeEnabled) {
       await bounded(entry.nativeReady.promise, this.#requestTimeoutMs);
       if (!entry.nativeVerified) throw error('UNAVAILABLE', '原生内容及 MCP 映射尚未就绪。');
+    }
+  }
+
+  #uploadOfficeFiles(thread, run, client) {
+    if (thread.cwd !== this.cwd || realpathSync(this.cwd) !== this.cwd) {
+      throw error('PI_HTTP_FILE_SCOPE', '当前任务不属于已配置的本机文档目录。');
+    }
+    return (async () => {
+      for (const name of this.#officeDocuments) {
+        const filename = join(this.cwd, name);
+        if (realpathSync(filename) !== filename) throw error('PI_HTTP_FILE_SCOPE', '所选文档路径已变化。');
+        const fd = openSync(filename, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+        try {
+          const stat = fstatSync(fd);
+          if (!stat.isFile() || stat.nlink !== 1 || stat.size < 1 || stat.size > MAX_PI_HTTP_DOCX_BYTES) {
+            throw error('PI_HTTP_FILE_SCOPE', '所选文档必须是 8 MiB 以内的普通 DOCX。');
+          }
+          const bytes = Buffer.alloc(stat.size);
+          for (let offset = 0; offset < bytes.length;) {
+            const read = readSync(fd, bytes, offset, bytes.length - offset, offset);
+            if (!read) throw error('PI_HTTP_FILE_SCOPE', '文档在读取时发生变化。');
+            offset += read;
+          }
+          const after = fstatSync(fd), current = lstatSync(filename);
+          if (after.mtimeMs !== stat.mtimeMs || after.ctimeMs !== stat.ctimeMs || after.size !== stat.size
+            || current.ino !== stat.ino || current.dev !== stat.dev) throw error('PI_HTTP_FILE_SCOPE', '文档在读取时发生变化。');
+          await client.putFile(name, bytes, { signal: run.abort.signal });
+        } finally { closeSync(fd); }
+      }
+    })();
+  }
+
+  async #downloadOfficeFiles(thread, run) {
+    const client = this.#clients.get(thread.id)?.client;
+    if (!client || thread.cwd !== this.cwd || realpathSync(this.cwd) !== this.cwd) {
+      throw error('PI_HTTP_FILE_SCOPE', '当前任务的本机产物目录不可用。');
+    }
+    const files = (await client.listFiles({ signal: run.abort.signal })).filter(file => file.kind === 'output');
+    if (files.length > 16) throw error('PI_HTTP_FILE_SCOPE', '产物数量超出限制。');
+    const base = join(this.cwd, 'Pi产物');
+    const directory = join(base, thread.id);
+    privateDirectory(base);
+    privateDirectory(directory);
+    for (const file of files) {
+      if (!isPiHttpDocxName(file.name)) throw error('PI_HTTP_FILE_SCOPE', '产物文件名无效。');
+      const filename = join(directory, file.name);
+      const previous = (thread.officeDownloads ?? []).find(entry => entry.name === file.name);
+      const existing = realFileIfPresent(filename);
+      if (existing && (existing.nlink !== 1 || existing.size !== file.size || existing.size > MAX_PI_HTTP_DOCX_BYTES)) {
+        throw error('PI_HTTP_FILE_INTEGRITY', '本机同名文件与服务端产物不一致。');
+      }
+      const bytes = existing
+        ? readStateBytes(filename, existing)
+        : await client.getFile(file.name, { signal: run.abort.signal });
+      if (bytes.length !== file.size || createHash('sha256').update(bytes).digest('hex') !== file.sha256) {
+        throw error('PI_HTTP_FILE_INTEGRITY', '本机产物或下载内容与服务端清单不一致。');
+      }
+      if (previous?.sha256 === file.sha256 && existing) continue;
+      run.abort.signal.throwIfAborted();
+      if (!existing) writeFileSync(filename, bytes, { flag: 'wx', mode: 0o600 });
+      const old = thread.officeDownloads;
+      thread.officeDownloads = [...(old ?? []).filter(entry => entry.name !== file.name), { name: file.name, size: file.size, sha256: file.sha256,
+        turnId: run.turn.id, createdAt: now(), updatedAt: now() }];
+      try { this.#persist(); } catch (cause) { thread.officeDownloads = old; throw cause; }
+      this.#publish('files.updated', { threadId: thread.id, payload: { paths: [filename], files: [{path: filename, size: file.size}] } });
     }
   }
 
@@ -1317,14 +1537,19 @@ export class PiHarness {
       const modelHasTools = !this.officialOnly || this.#officialCatalog.find(model => model.id === thread.models.currentModelId)?.supportsToolCall !== false;
       const offerOffice = this.#nativeOffice && modelHasTools && selected.length < 32;
       const requested = offerOffice ? [...selected, OFFICE_SERVER_ID] : selected;
+      if (this.#sshOffice && (thread.cwd !== this.cwd || realpathSync(this.cwd) !== this.cwd)) {
+        throw error('NATIVE_OFFICE_FILE_NOT_ALLOWED', '该会话不属于当前已配置的本机文档目录。');
+      }
       const records = this.#nativeServices
         ? await this.#nativeServices.listTools({ threadId: thread.id, cwd: thread.cwd, connectors: requested, signal: run.abort.signal }) : [];
-      const tools = normalizeNativeTools(records.filter(entry => entry?.serverId !== OFFICE_SERVER_ID), selected);
+      const tools = this.#sshOffice ? [] : normalizeNativeTools(records.filter(entry => entry?.serverId !== OFFICE_SERVER_ID), selected);
       if (offerOffice) {
-        const office = records.filter(entry => entry?.serverId === OFFICE_SERVER_ID && (this.tools.includes('write')
-          || !/^(create_|office_edit$|slide_find_replace_text$|save_file$|shutdown$)/.test(entry.rawName)));
+        const office = records.filter(entry => entry?.serverId === OFFICE_SERVER_ID && (this.#sshOffice
+          ? this.#allowsSshOfficeTool(entry.rawName)
+          : this.tools.includes('write') || !/^(create_|office_edit$|slide_find_replace_text$|save_file$|shutdown$)/.test(entry.rawName)));
         if (office.length && tools.length + office.length <= 64) tools.push(...normalizeNativeTools(office, [OFFICE_SERVER_ID]));
       }
+      if (this.#sshOffice && !tools.length) throw error('NATIVE_OFFICE_UNAVAILABLE', '本机 WorkBuddy 文档工具未就绪。');
       if (selected.length && !this.#nativeServices) throw error('NATIVE_MCP_UNAVAILABLE', '原生 MCP 连接尚未就绪。');
       if (tools.length && !this.#approvalExtension) throw error('UNAVAILABLE', 'MCP 接入需要启用受控的工具授权扩展。');
       if (tools.length && !modelHasTools) {
@@ -1342,7 +1567,7 @@ export class PiHarness {
       if (prepared.attachments.length) run.turn.attachments = prepared.attachments;
       if (context.summary) run.turn.nativeContextSummary = context.summary;
       this.#persist();
-      this.#writeNativeContext(thread, run);
+      if (!this.#remoteEndpoint) this.#writeNativeContext(thread, run);
       const old = this.#clients.get(thread.id);
       const nativeEnabled = Boolean(this.#nativeServices || run.features.instructions || run.features.tools.length);
       if (old && (old.nativeSignature !== JSON.stringify(run.features.tools) || old.nativeEnabled !== nativeEnabled
@@ -1350,10 +1575,16 @@ export class PiHarness {
       if (!this.#isRun(thread, run) || run.cancelling) return;
       const entry = this.#client(thread, run);
       const { client } = entry;
-      await this.#readyClient(thread, entry);
+      await this.#readyClient(thread, entry, run);
+      if (this.#https?.mode === 'fileOffice' && this.#officeDocuments.length) {
+        await this.#uploadOfficeFiles(thread, run, client);
+        run.input.message += '\n\n本轮已选择并上传的 DOCX 文件名：' + this.#officeDocuments.join('、');
+      }
       if (!this.#isRun(thread, run) || run.cancelling) return;
       if (this.officialOnly) this.#writeRequestContext(thread, run.turn);
-      run.turn.sessionCheckpoint = this.#sessionCheckpoints.capture({ threadId: thread.id, turnId: run.turn.id });
+      if (this.#sessionCheckpoints) {
+        run.turn.sessionCheckpoint = this.#sessionCheckpoints.capture({ threadId: thread.id, turnId: run.turn.id });
+      }
       this.#persist();
       run.promptSent = true;
       const result = await client.prompt(run.input.message, { images: run.input.images, timeoutMs: this.#requestTimeoutMs });
@@ -1363,9 +1594,9 @@ export class PiHarness {
       if (result?.disposition === 'handled') this.#finish(thread, run, 'completed', 'handled');
     } catch (cause) {
       if (!this.#isRun(thread, run) || run.cancelling) return;
-      const safe = /^(?:ATTACHMENT|ATTACHMENTS|TURN_INPUT|PI_CONTEXT|PI_EXPERT|PI_SKILL|PI_SETTINGS|PI_THINKING|PI_COMPACTION|PI_CHECKPOINT|PI_STATE_SIZE_LIMIT|FILE_JOURNAL|NATIVE_)/.test(cause?.code ?? '')
+      const safe = /^(?:ATTACHMENT|ATTACHMENTS|TURN_INPUT|PI_CONTEXT|PI_EXPERT|PI_SKILL|PI_SETTINGS|PI_THINKING|PI_COMPACTION|PI_CHECKPOINT|PI_SSH|PI_HTTP|PI_STATE_SIZE_LIMIT|FILE_JOURNAL|NATIVE_)/.test(cause?.code ?? '')
         ? { code: cause.code, message: String(cause.message).slice(0, 512) } : this.officialOnly ? safeOfficialModelError(cause)
-        : { code: 'PI_ERROR', message: 'Pi 请求失败，请检查本地模型和 Pi 配置后重试。' };
+        : { code: 'PI_ERROR', message: this.#remoteEndpoint ? '远端 Pi 请求失败，请检查连接与服务端配置。' : 'Pi 请求失败，请检查本地模型和 Pi 配置后重试。' };
       this.#finish(thread, run, 'failed', 'error', safe.message, safe.code);
       await this.#closeClient(thread.id);
     }
@@ -1436,7 +1667,7 @@ export class PiHarness {
         item.status = message.stopReason === 'error' ? 'failed' : 'completed';
         this.#item('message.updated', thread, turn, item);
       }
-      if (message.stopReason === 'error') run.failed = this.officialOnly
+      if (message.stopReason === 'error') run.failed = this.#remoteEndpoint ? '远端模型返回错误，请检查服务器的模型配置后重试。' : this.officialOnly
         ? safeOfficialModelError(message.errorMessage)
         : '本地模型返回错误，请检查模型服务后重试。';
       else if (message.stopReason === 'length') run.failed = TRUNCATED_RESPONSE;
@@ -1460,7 +1691,8 @@ export class PiHarness {
       return;
     }
     if (record.type === 'auto_retry_end' && record.success === false) {
-      run.failed ??= this.officialOnly ? safeOfficialModelError(record.finalError) : '本地模型重试失败，请检查模型服务后重试。';
+      run.failed ??= this.#remoteEndpoint ? '远端模型重试失败，请检查服务器的模型服务后重试。'
+        : this.officialOnly ? safeOfficialModelError(record.finalError) : '本地模型重试失败，请检查模型服务后重试。';
       return;
     }
     if (record.type?.startsWith('tool_execution_')) {
@@ -1516,11 +1748,19 @@ export class PiHarness {
     }
     run.authorizationRequestIds.add(record.id);
     const nativeTool = run.features.tools.find(tool => tool.name === metadata.toolName);
+    if (this.#sshOffice && !this.#allowsSshOfficeCall(thread, run, nativeTool, metadata.input)) {
+      await client.sendExtensionUiResponse({ id: record.id, confirmed: false }).catch(() => {});
+      return;
+    }
     const manualOnly = nativeTool?.serverId === OFFICE_SERVER_ID && nativeTool.rawName === 'shutdown';
     const interaction = {
       id: `pi-interaction-${randomUUID()}`, type: 'permission', status: 'pending',
+      ...(this.#sshOffice ? { source: 'ssh-office' } : {}),
       title: `是否允许 Pi 执行 ${nativeTool?.label ?? metadata.toolName}？`,
-      description: manualOnly ? '关闭共享 Office 编辑服务。打开的编辑器会阻止操作，下次使用会重新启动。' : JSON.stringify(metadata.input, null, 2),
+      description: manualOnly ? '关闭共享 Office 编辑服务。打开的编辑器会阻止操作，下次使用会重新启动。'
+        : this.#sshOffice
+          ? `本次操作由本机 WorkBuddy 执行，结果将回传给远端 Pi 和所用模型。\n${JSON.stringify(metadata.input, null, 2)}`
+          : JSON.stringify(metadata.input, null, 2),
       toolItemId: metadata.toolCallId, toolName: metadata.toolName,
       toolCall: { id: metadata.toolCallId, name: metadata.toolName, input: clone(metadata.input) },
       options: [
@@ -1580,6 +1820,53 @@ export class PiHarness {
       interactionId: interaction.id, payload: this.#interactionPayload(interaction) });
   }
 
+  #allowsSshOfficeTool(rawName) {
+    return SSH_OFFICE_READ_TOOLS.has(rawName) || this.#sshOffice.mode === 'edit' && SSH_OFFICE_EDIT_TOOLS.has(rawName);
+  }
+
+  #allowsSshOfficeCall(thread, run, tool, input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input) || tool?.serverId !== OFFICE_SERVER_ID
+      || !this.#allowsSshOfficeTool(tool.rawName) || thread.cwd !== this.cwd) return false;
+    try { if (realpathSync(this.cwd) !== this.cwd) return false; }
+    catch { return false; }
+    const allowsDocTool = name => SSH_OFFICE_DOC_READ.has(name) || this.#sshOffice.mode === 'edit' && SSH_OFFICE_DOC_EDIT.has(name);
+    if (tool.rawName === 'office_catalog') return input.name !== undefined
+      ? allowsDocTool(input.name) && (input.family === undefined || input.family === 'doc') : input.family === 'doc';
+    if (tool.rawName === 'open_file') return this.#sshOffice.documents.includes(input.file_path);
+    const fileId = ['office_read', 'office_edit'].includes(tool.rawName) ? input.arguments?.file_id : input.file_id;
+    const selected = run.sshOfficeFiles?.get(fileId);
+    if (!selected) return false;
+    if (tool.rawName === 'save_file') return input.file_path === selected;
+    if (tool.rawName === 'office_read') return SSH_OFFICE_DOC_READ.has(input.name);
+    if (tool.rawName === 'office_edit') return SSH_OFFICE_DOC_EDIT.has(input.name);
+    return tool.rawName === 'close_file';
+  }
+
+  #sshOfficeResult(run, tool, input, result) {
+    if (tool.rawName === 'open_file') {
+      const id = result?.structuredContent?.file_id;
+      if (typeof id !== 'string' || !/^pi-office-[0-9a-f-]{36}$/.test(id)) {
+        throw error('NATIVE_OFFICE_SDK_BAD_RESPONSE', '本机文档工具未返回有效文件句柄。');
+      }
+      (run.sshOfficeFiles ??= new Map()).set(id, input.file_path);
+      return { content: [{ type: 'text', text: `已打开 ${input.file_path}。file_id=${id}` }],
+        structuredContent: { file_id: id, file_path: input.file_path } };
+    }
+    if (tool.rawName === 'close_file') run.sshOfficeFiles?.delete(input.file_id);
+    if (tool.rawName === 'save_file') {
+      return { content: [{ type: 'text', text: `已保存 ${input.file_path}` }] };
+    }
+    if (tool.rawName === 'office_catalog' && !input.name) {
+      const entries = JSON.parse(result?.content?.find(entry => entry?.type === 'text')?.text ?? '[]');
+      const available = entries.filter(entry => SSH_OFFICE_DOC_READ.has(entry?.name)
+        || (this.#sshOffice.mode === 'edit' && SSH_OFFICE_DOC_EDIT.has(entry?.name)));
+      return { content: [{ type: 'text', text: JSON.stringify(available) }] };
+    }
+    // SDK diagnostics can contain local filenames. Return relative references.
+    return JSON.parse(JSON.stringify(result ?? null, (_, value) => typeof value === 'string'
+      ? value.replaceAll(this.cwd + sep, '').replaceAll(this.#sshOffice.stagingRoot, '[本机文档暂存目录]') : value));
+  }
+
   async #nativeToolCall(thread, run, record) {
     if (typeof record.id === 'string' && run.nativeCallRequestIds.has(record.id)) return;
     const client = this.#clients.get(thread.id)?.client;
@@ -1596,6 +1883,9 @@ export class PiHarness {
       // Consume before the external call. Timeout, disconnect, or restart must
       // never retry a potentially side-effecting operation.
       run.approvedNative.delete(key);
+      if (this.#sshOffice && !this.#allowsSshOfficeCall(thread, run, tool, value.arguments)) {
+        throw error('NATIVE_OFFICE_TOOL_NOT_ALLOWED', '本机文档工具超出用户选择范围。');
+      }
       const office = tool.serverId === OFFICE_SERVER_ID;
       const connectors = thread.nativeContext?.connectors?.filter(id => id !== OFFICE_SERVER_ID) ?? [];
       const params = { threadId: thread.id, turnId: run.turn.id,
@@ -1613,6 +1903,7 @@ export class PiHarness {
           : await this.#nativeServices.callTool(params);
       } else result = await this.#nativeServices.callTool(params);
       if (!this.#isRun(thread, run) || run.cancelling || run.abort.signal.aborted) return;
+      if (this.#sshOffice) result = this.#sshOfficeResult(run, tool, value.arguments, result);
       if (Buffer.byteLength(JSON.stringify(result ?? null)) > 256 * 1024) throw error('NATIVE_MCP_RESULT_LIMIT', 'Native result too large');
       await respond({ ok: true, result: result ?? null });
     } catch (cause) {
@@ -1624,7 +1915,7 @@ export class PiHarness {
   async #saveOfficeFile(thread, run, params, call) {
     if (run.officeSave) throw error('NATIVE_OFFICE_BUSY', '本轮正在保存另一份文档。');
     const value = params.arguments?.file_path;
-    if (!this.#fileJournal || !this.tools.includes('write') || typeof value !== 'string'
+    if (!this.#fileJournal || (!this.tools.includes('write') && this.#sshOffice?.mode !== 'edit') || typeof value !== 'string'
       || !value || /[\\\x00-\x1f\x7f]/.test(value) || value.split('/').includes('..')) {
       throw error('NATIVE_OFFICE_SAVE_REFUSED', '文档保存需要明确的任务内路径和可用的文件快照。');
     }
@@ -1747,8 +2038,22 @@ export class PiHarness {
         : item.type === 'tool' ? { toolCallId: item.id } : {}) } });
   }
 
+  #officeRestoreTurn(thread) {
+    if (this.#sshOffice?.mode !== 'edit' || thread.cwd !== this.cwd) return undefined;
+    const latest = [...thread.turns].reverse().find(turn => turn.officeFilesSaved || turn.officeCalls?.some(call => call.savePending));
+    return latest?.officeFilesSaved && !latest.officeRestoredAt && !latest.officeCalls?.some(call => call.savePending) ? latest : undefined;
+  }
+
   #finish(thread, run, status, stopReason, message, code = 'PI_ERROR') {
     if (run.finishing) return run.finishPromise;
+    if (status === 'completed' && this.#https?.mode === 'fileOffice') {
+      run.finishing = true;
+      run.finishPromise = this.#downloadOfficeFiles(thread, run).then(
+        () => this.#completeTurn(thread, run, status, stopReason),
+        () => this.#completeTurn(thread, run, 'failed', 'error', '文档处理结束，但产物下载未完成。', 'PI_HTTP_FILE_DOWNLOAD_FAILED'),
+      );
+      return run.finishPromise;
+    }
     if (run.officeUsed || run.journalTail || run.journalStarted) {
       run.finishing = true; run.abort?.abort();
       run.finishPromise = (async () => {
@@ -1757,6 +2062,7 @@ export class PiHarness {
         if (run.officeUsed) await this.#nativeServices.releaseOffice?.({ threadId: thread.id, turnId: run.turn.id }).catch(() => {});
         try {
           const manifest = run.journalStarted ? await this.#fileJournal.finishTurn({ threadId: thread.id, turnId: run.turn.id, status }) : undefined;
+          if (this.#sshOffice && manifest?.rollbackAvailable) run.turn.officeFilesSaved = true;
           this.#publish('files.updated', { threadId: thread.id, payload: fileUpdatePayload(manifest?.changes) });
         } catch {
           status = 'failed'; stopReason = 'error'; code = 'PI_FILE_JOURNAL_FAILED';
@@ -1825,6 +2131,9 @@ export class PiHarness {
       threadId: thread.id, turnId: turn.id, payload: { turn: visibleTurn,
         ...(turn.error ? { error: turn.error } : {}) },
     });
+    if (this.#sshOffice && run.officeUsed) {
+      this.#publish('thread.updated', { threadId: thread.id, payload: { thread: this.#publicThread(thread) } });
+    }
     if (!this.#closed && !run.cancelling) void this.refreshContextUsage({ threadId: thread.id, allowCold: false }).catch(() => {});
   }
 
@@ -1861,9 +2170,12 @@ export class PiHarness {
     if (value?.version !== STATE_VERSION || !Array.isArray(value.threads)) {
       throw error('UNAVAILABLE', 'Pi 任务记录版本或格式不受支持。');
     }
+    if (value.remoteEndpoint !== this.#remoteEndpoint) {
+      throw error('UNAVAILABLE', 'Pi 任务记录属于不同的执行环境，请使用独立的状态目录。');
+    }
     let changed = false, repairedOutcome = false, toolOutputsLimited = false;
     for (const thread of value.threads) {
-      if (!thread || !ID.test(thread.id) || typeof thread.title !== 'string'
+      if (!thread || !(this.#remoteEndpoint ? SSH_PI_THREAD_ID : ID).test(thread.id) || typeof thread.title !== 'string'
         || typeof thread.cwd !== 'string' || !isAbsolute(thread.cwd) || !Array.isArray(thread.turns)
         || this.#threads.has(thread.id)) throw error('UNAVAILABLE', 'Pi 任务记录格式无效。');
       if (thread.contextWindows !== undefined && (!thread.contextWindows || Array.isArray(thread.contextWindows)
@@ -1906,7 +2218,7 @@ export class PiHarness {
         }
       }
       const last = thread.turns.at(-1);
-      if (legacyTruncatedOutcome(this.#sessionFile(thread), last)) {
+      if (!this.#remoteEndpoint && legacyTruncatedOutcome(this.#sessionFile(thread), last)) {
         last.status = 'failed'; last.stopReason = 'length';
         last.error = { code: TRUNCATED_RESPONSE.code, message: TRUNCATED_RESPONSE.message };
         appendOutcomeDiagnostic(last);
@@ -1966,7 +2278,8 @@ export class PiHarness {
 
   #persist(beforeWrite) {
     realFileIfPresent(this.#stateFile);
-    const state = { version: STATE_VERSION, threads: [...this.#threads.values()] };
+    const state = { version: STATE_VERSION, threads: [...this.#threads.values()],
+      ...(this.#remoteEndpoint ? { remoteEndpoint: this.#remoteEndpoint } : {}) };
     let serialized = JSON.stringify(state);
     let bytes = Buffer.byteLength(serialized);
     const replaced = [];

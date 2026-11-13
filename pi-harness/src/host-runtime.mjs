@@ -89,6 +89,7 @@ export class PiHostRuntime {
         ...(params.detailRef === undefined ? {} : { detailRef: string('detailRef', 256) }) });
       case 'thread.checkpoint.read': return this.adapter.checkpointRead({ threadId: string('threadId'), turnId: string('turnId', 256) });
       case 'thread.rewind': return this.adapter.rewindThread({ threadId: string('threadId'), turnId: string('turnId', 256) });
+      case 'thread.office.restore': return this.adapter.restoreOfficeFiles({ threadId: string('threadId'), turnId: string('turnId', 256) });
       case 'thread.context.set': {
         if (Object.keys(params).some(key => !['harnessId', 'threadId', 'expert', 'connectors'].includes(key))) throw Error('Unknown context field');
         return { thread: await this.adapter.setNativeContext({ threadId: string('threadId'),
